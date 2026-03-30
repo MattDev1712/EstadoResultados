@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    background-color: #070c18;
+    color: #f8fafc;
+}
+
+/* Estilos Personalizados Migrados del Monolito */
+
+/* Eliminar spinners de inputs numéricos */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+/* Input de monto: tipografía y baseline limpios */
+.amount-input {
+    @apply bg-transparent border-none border-b border-slate-700/40 outline-none text-right text-slate-100 font-semibold w-full py-1 transition-colors tracking-tight;
+    font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+    font-size: 1rem;
+}
+.amount-input:focus { @apply border-b-blue-400; }
+
+.qty-input {
+    @apply bg-slate-800/60 border border-slate-700/30 rounded outline-none text-center text-slate-400 font-medium w-16 py-1 transition-all;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.7rem;
+}
+.qty-input:focus { @apply border-blue-400 text-slate-200; }
+
+.stat-card {
+    @apply bg-slate-900/50 border border-slate-800/40 rounded-xl p-4 transition-all;
+}
+.stat-card:hover { @apply border-slate-700/70; }
+
+.section-label {
+    @apply text-[10px] font-bold uppercase tracking-widest mb-2.5;
+}
+
+.group-card {
+    @apply p-6 rounded-2xl border bg-slate-900/40 backdrop-blur-sm transition-all shadow-xl;
+    border-color: rgba(255,255,255,0.04);
+}
+
+.highlight-val {
+    @apply text-3xl font-black font-mono tracking-tighter;
+}
+
+.sub-val {
+    @apply text-base font-bold font-mono tracking-tight;
+}
+
+.badge-calc {
+    @apply px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-slate-800 text-slate-500 border border-slate-700/50 ml-2;
+}
+
+/* Tooltip */
+.tooltip-trigger { @apply relative inline-flex; }
+.tooltip-box {
+    @apply absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-72 bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-[0.7rem] leading-relaxed text-slate-400 opacity-0 pointer-events-none transition-opacity z-50 shadow-2xl backdrop-blur-md;
+}
+.tooltip-trigger:hover .tooltip-box { @apply opacity-100; }
+.tooltip-trigger:hover .tooltip-box::after {
+    content: '';
+    @apply absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-slate-700;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeIn 0.25s ease both; }
+
+/* Shimmer Animation for Skeletons */
+@keyframes shimmer {
+    0% { background-position: -468px 0; }
+    100% { background-position: 468px 0; }
+}
+
+.skeleton {
+    @apply rounded-xl relative overflow-hidden bg-slate-800/40;
+    min-height: 20px;
+}
+
+.skeleton::after {
+    content: "";
+    @apply absolute inset-0;
+    background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%);
+    background-size: 468px 100%;
+    animation: shimmer 1.5s infinite linear;
+}
+
+/* Scrollbar personalizado para la consola de logs */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
