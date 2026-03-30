@@ -5,12 +5,7 @@ const FinanceContext = createContext();
 export const FinanceProvider = ({ children }) => {
     const [apiUrl, setApiUrl] = useState(localStorage.getItem('gas_api_url') || '');
     
-    // Normalizar la URL: Si el usuario pone solo el ID, construir la URL completa.
-    const finalApiUrl = useMemo(() => {
-        if (!apiUrl) return '';
-        if (apiUrl.startsWith('https://')) return apiUrl;
-        return `https://script.google.com/macros/s/${apiUrl}/exec`;
-    }, [apiUrl]);
+    const finalApiUrl = useMemo(() => apiUrl || '', [apiUrl]);
 
     const [dashData, setDashData] = useState(null);
     const [empData, setEmpData] = useState([]);

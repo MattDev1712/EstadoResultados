@@ -123,28 +123,43 @@ const ConfigView = () => {
                         </h3>
                         <div className="bg-slate-900/40 p-5 rounded-2xl border border-slate-700/30">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">ID de Despliegue (AppScript)</label>
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">URL de Despliegue (AppScript)</label>
                                 <div className="flex gap-3">
-                                    <input 
+                                    <input
                                         type="text"
-                                        value={urlInput} 
+                                        value={urlInput}
                                         onChange={(e) => setUrlInput(e.target.value)}
-                                        placeholder="AKfycb..."
+                                        placeholder="https://script.google.com/macros/s/.../exec"
                                         className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs font-mono text-blue-300 focus:ring-1 focus:ring-blue-500 outline-none transition"
                                     />
-                                    <button 
+                                    <button
                                         type="button"
                                         onClick={() => {
                                             localStorage.setItem('gas_api_url', urlInput);
                                             setApiUrl(urlInput);
-                                            alert("✅ ID de Despliegue actualizado correctamente.");
+                                            alert("✅ URL de Despliegue actualizada correctamente.");
                                         }}
                                         className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition border border-slate-700"
                                     >
                                         Vincular
                                     </button>
                                 </div>
-                                <p className="text-[9px] text-slate-500 leading-relaxed italic px-1 mt-2">Este ID conecta la aplicación con tu Google Sheet. No compartas este código con externos.</p>
+                                {(() => {
+                                    const match = apiUrl?.match(/\/macros\/s\/([^/]+)\/exec/);
+                                    const id = match?.[1];
+                                    if (!id) return null;
+                                    return (
+                                        <div className="flex items-center gap-2 px-1 mt-2">
+                                            <span className="text-[9px] text-slate-500 uppercase tracking-widest">ID activo:</span>
+                                            <span className="font-mono text-[11px]">
+                                                <span className="text-blue-400 font-bold">{id.slice(0, 4)}</span>
+                                                <span className="text-slate-500">{id.slice(4, -4)}</span>
+                                                <span className="text-blue-400 font-bold">{id.slice(-4)}</span>
+                                            </span>
+                                        </div>
+                                    );
+                                })()}
+                                <p className="text-[9px] text-slate-500 leading-relaxed italic px-1 mt-1">Pegá la URL completa que termina en <span className="text-slate-400 font-mono">/exec</span>. No compartas esta URL con externos.</p>
                             </div>
                         </div>
                     </div>
