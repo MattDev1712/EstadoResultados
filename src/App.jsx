@@ -84,11 +84,13 @@ const App = () => {
             });
             const res = await response.json();
             if (res.status === 'OK') {
-                addLog(`✅ Éxito: ${res.insertados} insertados.`);
+                addLog(`✅ Éxito: ${res.insertados} insertados, ${res.omitidos ?? 0} duplicados omitidos.`);
                 // Forzar una recarga completa de datos y metadatos
                 fetchData(true);
                 setActiveTab('dashboard');
                 setPreviewData(null);
+            } else {
+                addLog(`❌ El servidor respondió con error: ${res.message || res.status}`);
             }
         } catch (e) {
             addLog(`❌ Error: ${e.message}`);

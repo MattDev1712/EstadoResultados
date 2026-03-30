@@ -1072,15 +1072,18 @@ function doPost(e) {
 
     // 3. Switch por origen (Router de Mappers)
     switch (origen) {
-      case 'Resumen Maxirest': // Caso exacto que envía el Front ahora
+      case 'Resumen Maxirest':
       case 'MAXIREST_RESUMEN':
         resultado = saveResumenMaxirest(payload.map(item => MaxirestResumenMapper.mapResumen(item)));
+        _logAudit(SpreadsheetApp.openById(SS_ID), 'CARGA_MAXIREST', payload.length, payload[0]?.fecha || 'N/A');
         break;
       case 'ARCA':
         resultado = saveMovimientos(payload.map(item => ArcaMapper.mapCompra(item)));
+        _logAudit(SpreadsheetApp.openById(SS_ID), 'CARGA_ARCA', payload.length, 'MIX');
         break;
       case 'MANUAL_COSTS':
         resultado = saveMovimientos(payload.map(item => new Movimiento(item)));
+        _logAudit(SpreadsheetApp.openById(SS_ID), 'CARGA_MANUAL', payload.length, payload[0]?.fecha_periodo || 'N/A');
         break;
       case 'SAVE_ALIASES':
         resultado = saveProviderAliases(payload);
@@ -1103,18 +1106,6 @@ function doPost(e) {
         break;
       case 'SAVE_BUSINESS_CONFIG':
         resultado = _saveBusinessConfig(payload);
-        break;
-      case 'MAXIREST_RESUMEN':
-        resultado = saveResumenMaxirest(payload.map(item => MaxirestResumenMapper.mapResumen(item)));
-        _logAudit(SpreadsheetApp.openById(SS_ID), 'CARGA_MAXIREST', payload.length, payload[0]?.fecha || 'N/A');
-        break;
-      case 'ARCA':
-        resultado = saveMovimientos(payload.map(item => ArcaMapper.mapCompra(item)));
-        _logAudit(SpreadsheetApp.openById(SS_ID), 'CARGA_ARCA', payload.length, 'MIX');
-        break;
-      case 'MANUAL_COSTS':
-        resultado = saveMovimientos(payload.map(item => new Movimiento(item)));
-        _logAudit(SpreadsheetApp.openById(SS_ID), 'CARGA_MANUAL', payload.length, payload[0]?.fecha_periodo || 'N/A');
         break;
       default:
         throw new Error(`Origen '${origen}' no soportado.`);
