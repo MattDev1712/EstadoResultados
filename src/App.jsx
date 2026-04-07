@@ -10,7 +10,7 @@ import VentasSistemaView from './VentasSistemaView';
 import GuideView from './GuideView';
 import ConfigView from './ConfigView';
 import AuditView from './AuditView';
-import { TableSkeleton } from './Skeleton';
+import { CardSkeleton, TableSkeleton } from './Skeleton';
 
 // Componentes Comunes
 import FileCard from './FileCard';
