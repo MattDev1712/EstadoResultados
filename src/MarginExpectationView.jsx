@@ -39,17 +39,8 @@ const S = {
   rowValue: { fontSize: 14, fontWeight: 600, color: '#e2e8f0', fontVariantNumeric: 'tabular-nums' },
 };
 
-const ManualBadge = () => (
-  <span style={{
-    fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px',
-    color: '#f59e0b', background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)',
-    borderRadius: 4, padding: '1px 5px', marginRight: 6,
-  }}>manual</span>
-);
-
 const PctInput = ({ value, onChange }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-    <ManualBadge />
     <input
       type="number"
       value={value}
@@ -68,7 +59,6 @@ const PctInput = ({ value, onChange }) => (
 
 const CurrencyInput = ({ value, onChange, placeholder = '$0' }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-    <ManualBadge />
     <input
       type="number"
       value={value}
@@ -221,8 +211,9 @@ export default function MarginExpectationView() {
 
   const totalGastos = sueldosTotal + operaciones + excepcionales;
   const resultado = ventaNeta - totalGastos;
-  const margenPct = ventaNeta > 0 ? ((resultado / ventaNeta) * 100).toFixed(1) : '0.0';
-  const resultadoPositivo = resultado >= 0;
+  const resultadoMargenes = margenCafePesos + margenProductoPesos;
+  const margenPct = ventaNeta > 0 ? ((resultadoMargenes / ventaNeta) * 100).toFixed(1) : '0.0';
+  const resultadoPositivo = resultadoMargenes >= 0;
 
   const mesNombre = MESES[parseInt(selectedMonth) - 1];
   const periodoLabel = `${mesNombre} ${selectedYear}`;
@@ -317,18 +308,18 @@ export default function MarginExpectationView() {
           <Row
             label="MGN Cafetería"
             right={
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
                 <PctInput value={manual.mgn_cafe} onChange={setField('mgn_cafe')} />
-                {margenCafePesos > 0 && <span style={{ fontSize: 11, color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>{Utils.fmt(margenCafePesos)}</span>}
+                {margenCafePesos > 0 && <span style={{ fontSize: 15, fontWeight: 700, color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>{Utils.fmt(margenCafePesos)}</span>}
               </div>
             }
           />
           <Row
             label="MGN Producto"
             right={
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
                 <PctInput value={manual.mgn_producto} onChange={setField('mgn_producto')} />
-                {margenProductoPesos > 0 && <span style={{ fontSize: 11, color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>{Utils.fmt(margenProductoPesos)}</span>}
+                {margenProductoPesos > 0 && <span style={{ fontSize: 15, fontWeight: 700, color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>{Utils.fmt(margenProductoPesos)}</span>}
               </div>
             }
           />
@@ -390,12 +381,12 @@ export default function MarginExpectationView() {
           <p style={{
             fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px',
             color: resultadoPositivo ? '#6ee7b7' : '#fca5a5', margin: 0,
-          }}>Resultado del período</p>
+          }}>Resultado según márgenes esperados</p>
           <p style={{
             fontSize: 32, fontWeight: 800, margin: '4px 0 0',
             color: resultadoPositivo ? '#4ade80' : '#f87171',
             fontVariantNumeric: 'tabular-nums', letterSpacing: '-1px',
-          }}>{Utils.fmt(resultado)}</p>
+          }}>{Utils.fmt(resultadoMargenes)}</p>
         </div>
         <div style={{ textAlign: 'right' }}>
           <p style={{ fontSize: 24, fontWeight: 700, color: resultadoPositivo ? '#4ade80' : '#f87171', margin: 0 }}>
