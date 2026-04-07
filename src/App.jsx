@@ -11,6 +11,7 @@ import GuideView from './GuideView';
 import ConfigView from './ConfigView';
 import AuditView from './AuditView';
 import { CardSkeleton, TableSkeleton } from './Skeleton';
+import MarginExpectationView from './MarginExpectationView';
 
 // Componentes Comunes
 import FileCard from './FileCard';
@@ -109,13 +110,25 @@ const App = () => {
         return periods;
     }, [availablePeriods]);
 
-    const [activeTab, setActiveTab] = useState('dashboard');
+    const [activeTab, setActiveTab] = useState('iva_dashboard');
     const [showStructModal, setShowStructModal] = useState(false);
     const [previewData, setPreviewData] = useState(null);
     const [previewOrigen, setPreviewOrigen] = useState(null);
     const [defaultDate, setDefaultDate] = useState(new Date().toISOString().split('T')[0]);
     const [logs, setLogs] = useState([]);
     const [showLogs, setShowLogs] = useState(false);
+
+    const TAB_TITLES = {
+        iva_dashboard: 'Situación IVA',
+        margin_dashboard: 'Expectativa de Margen',
+        empleados: 'Mi Equipo',
+        arca: 'Mis Compras',
+        ventas: 'Mis Ventas',
+        estructurales: 'Gastos Fijos',
+        config: 'Ajustes del Sistema',
+        audit: 'Registro de Cambios',
+        guia: 'Ayuda y Guía'
+    };
 
     const addLog = (msg) => {
         const time = new Date().toLocaleTimeString();
@@ -464,6 +477,7 @@ const App = () => {
 
     const renderTabContent = () => {
         switch (activeTab) {
+            case 'iva_dashboard':
             case 'dashboard': return loading ? (
                 <div className="animate-fade-in space-y-6">
                     <div className="h-32 bg-slate-800/20 rounded-2xl skeleton" />
@@ -479,6 +493,7 @@ const App = () => {
                     defaultDate={defaultDate}
                     setDefaultDate={setDefaultDate}
                 />;
+            case 'margin_dashboard': return <MarginExpectationView />;
             case 'empleados': return loading ? <TableSkeleton /> : <EmployeesView />;
             case 'arca': return loading ? <TableSkeleton /> : <ArcaView />;
             case 'ventas': return loading ? <TableSkeleton /> : <VentasSistemaView />;
@@ -510,7 +525,7 @@ const App = () => {
                         Sistema de Gestión Administrativa
                     </p>
                     <h1 className="text-2xl font-black text-white tracking-tight">
-                        {activeTab === 'dashboard' ? 'Tablero de Control' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                        {TAB_TITLES[activeTab] || 'Panel de Control'}
                     </h1>
                 </div>
 
@@ -554,17 +569,13 @@ const App = () => {
 
             {/* NAVEGACIÓN POR DESPLEGABLES (CENTRADA) */}
             <nav className="flex flex-wrap items-center justify-center gap-3 mb-12 animate-fade-in">
-                <button
-                    onClick={() => setActiveTab('dashboard')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold transition-all border ${
-                        activeTab === 'dashboard'
-                        ? 'bg-white/10 text-white border-white/20 shadow-lg'
-                        : 'text-slate-400 border-transparent hover:bg-white/5 hover:text-slate-200'
-                    }`}
-                >
-                    <span className="text-sm opacity-80">📊</span>
-                    <span>Dashboard</span>
-                </button>
+                <NavDropdown 
+                    title="Tableros" icon="📊" activeTab={activeTab} setActiveTab={setActiveTab}
+                    items={[
+                        { id: 'iva_dashboard', label: 'Situación IVA', icon: '📊' },
+                        { id: 'margin_dashboard', label: 'Expectativa Margen', icon: '📈' },
+                    ]}
+                />
 
                 <NavDropdown 
                     title="Datos" icon="👥" activeTab={activeTab} setActiveTab={setActiveTab}
