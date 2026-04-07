@@ -450,6 +450,10 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
     const ventasNetas = getAdj(kpis.ventas_netas_reales);
     const margen = ventasNetas !== 0 ? ((utilidad / ventasNetas) * 100).toFixed(1) : '0.0';
 
+    const laboralEfectivo = Utils.num(egresos.laboral) > 0
+        ? Utils.num(egresos.laboral)
+        : Utils.arr(empData).reduce((acc, emp) => acc + Utils.num(emp.recibo) + Utils.num(emp.negro), 0);
+
     const egresoTotal = Object.entries(egresos)
         .filter(([k]) => k !== 'retenciones' && k !== 'amortizaciones') // retenciones y amortizaciones no van en % composición visual
         .reduce((a, [, b]) => a + getAdj(b), 0);
@@ -786,7 +790,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 16 }}>
                 {[
                     { label: 'Mis ventas del mes (sin IVA)', key: 'netos', val: Utils.fmt(ventasNetas), sub: 'Lo que facturé después de quitarle el IVA y las comisiones', color: '#10b981' },
-                    { label: 'Pagué a empleados', key: 'laboral', val: Utils.fmt(getAdj(egresos.laboral)), sub: `Representa el ${ventasNetas !== 0 ? ((getAdj(egresos.laboral) / ventasNetas) * 100).toFixed(1) : 0}% de mis ventas`, color: '#8b5cf6' },
+                    { label: 'Pagué a empleados', key: 'laboral', val: Utils.fmt(getAdj(laboralEfectivo)), sub: `Representa el ${ventasNetas !== 0 ? ((getAdj(laboralEfectivo) / ventasNetas) * 100).toFixed(1) : 0}% de mis ventas`, color: '#8b5cf6' },
                 ].map((k, i) => (
                     <Card key={i} style={{ padding: '14px 18px' }}>
                         <CardTitle title={k.label} onInfo={() => setInfoModalKey(k.key)} />

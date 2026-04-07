@@ -210,9 +210,12 @@ export default function MarginExpectationView() {
   const margenCafePesos = (mgnCafePct / 100) * ventaCafe;
   const margenProductoPesos = (mgnProductoPct / 100) * ventaProducto;
 
-  const sueldosTotal = n(egresos.laboral) + n(egresos.provision_sac) + n(egresos.provision_cargas);
-  const cantEmpleados = empData?.length || 0;
-  const promedioEmp = cantEmpleados > 0 ? n(egresos.laboral) / cantEmpleados : 0;
+  const laboralEfectivo = n(egresos.laboral) > 0
+    ? n(egresos.laboral)
+    : (empData || []).reduce((acc, emp) => acc + n(emp.recibo) + n(emp.negro), 0);
+  const sueldosTotal = laboralEfectivo + n(egresos.provision_sac) + n(egresos.provision_cargas);
+  const cantEmpleados = (empData || []).length;
+  const promedioEmp = cantEmpleados > 0 ? laboralEfectivo / cantEmpleados : 0;
   const operaciones = n(egresos.estructural);
   const excepcionales = parseFloat(manual.excepcionales) || 0;
 
