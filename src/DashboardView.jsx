@@ -361,11 +361,11 @@ const YoYComparison = ({ historial, currentPeriod, mode }) => {
 };
 
 const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaultDate }) => {
-    const { 
-        dashData: data, empData, arcaData, ventasData, 
-        loading, error, viewMode, setViewMode, 
-        localAjustes, setLocalAjustes, updateConfig, 
-        selectedYear, selectedMonth 
+    const {
+        dashData: data, empData, arcaData, ventasData,
+        loading, error, viewMode, setViewMode,
+        localAjustes, setLocalAjustes, updateConfig,
+        selectedYear, selectedMonth, cargasPct
     } = useFinance();
     const [infoModalKey, setInfoModalKey] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
@@ -452,19 +452,33 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
 
     const laboralEfectivo = Utils.num(egresos.laboral) > 0
         ? Utils.num(egresos.laboral)
-        : Utils.arr(empData).reduce((acc, emp) => acc + Utils.num(emp.recibo) + Utils.num(emp.negro), 0);
+        : Utils.arr(empData).reduce((acc, emp) => acc + (Utils.num(emp.costo_total) || Utils.num(emp.recibo) + Utils.num(emp.negro)), 0);
 
-    const egresoTotal = Object.entries(egresos)
-        .filter(([k]) => k !== 'retenciones' && k !== 'amortizaciones') // retenciones y amortizaciones no van en % composición visual
-        .reduce((a, [, b]) => a + getAdj(b), 0);
+    const reciboEfectivo = Utils.arr(empData).reduce((acc, emp) => acc + Utils.num(emp.recibo), 0);
+
+    const sacEfectivo = Utils.num(egresos.provision_sac) > 0
+        ? Utils.num(egresos.provision_sac)
+        : laboralEfectivo / 12;
+
+    const cargasEfectivo = Utils.num(egresos.provision_cargas) > 0
+        ? Utils.num(egresos.provision_cargas)
+        : reciboEfectivo * (parseFloat(cargasPct || 33) / 100);
+
+    const egresoTotal =
+        getAdj(laboralEfectivo) +
+        getAdj(sacEfectivo) +
+        getAdj(cargasEfectivo) +
+        getAdj(egresos.estructural || 0) +
+        getAdj(egresos.comisiones || 0) +
+        getAdj(egresos.otros || 0);
 
     const egresoComposicion = [
-        { label: 'Nómina', val: getAdj(egresos.laboral), color: '#8b5cf6', key: 'laboral' },
-        { label: 'Prov. SAC', val: getAdj(egresos.provision_sac || 0), color: '#7c3aed', key: 'sac' },
-        { label: 'Cargas Soc. Est.', val: getAdj(egresos.provision_cargas || 0), color: '#a78bfa', key: 'cargas' },
-        { label: 'Estructurales', val: getAdj(egresos.estructural), color: '#06b6d4', key: 'estructural' },
-        { label: 'Comisiones', val: getAdj(egresos.comisiones), color: '#f43f5e', key: 'comisiones' },
-        { label: 'Otros', val: getAdj(egresos.otros), color: '#64748b', key: 'otros' },
+        { label: 'Nómina', val: getAdj(laboralEfectivo), color: '#8b5cf6', key: 'laboral' },
+        { label: 'Prov. SAC', val: getAdj(sacEfectivo), color: '#7c3aed', key: 'sac' },
+        { label: 'Cargas Soc. Est.', val: getAdj(cargasEfectivo), color: '#a78bfa', key: 'cargas' },
+        { label: 'Estructurales', val: getAdj(egresos.estructural || 0), color: '#06b6d4', key: 'estructural' },
+        { label: 'Comisiones', val: getAdj(egresos.comisiones || 0), color: '#f43f5e', key: 'comisiones' },
+        { label: 'Otros', val: getAdj(egresos.otros || 0), color: '#64748b', key: 'otros' },
     ];
 
     if (loading) return (
@@ -560,7 +574,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
             title: '¿Cuánto necesito vender para no perder?',
             explanation: 'Es el monto exacto de ventas que necesitás en el mes para que los ingresos igualen a los gastos. Si vendés más que esto, empezás a tener excedente.',
             breakdown: [
-                { label: 'Costo de empleados', val: Utils.num(egresos.laboral) + Utils.num(egresos.provision_sac || 0) + Utils.num(egresos.provision_cargas || 0) },
+                { label: 'Costo de empleados', val: laboralEfectivo + sacEfectivo + cargasEfectivo },
                 { label: 'Gastos fijos (alquiler, luz, etc.)', val: Utils.num(egresos.estructural) },
                 { label: 'Ventas necesarias para equilibrar', val: Utils.num(kpis.break_even_mensual), total: true, color: 'text-blue-400' }
             ]
@@ -690,10 +704,10 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
 
 
             {/* Panel de Inteligencia Financiera */}
-            <AlertsPanel 
-                kpis={kpis} 
-                egresos={egresos} 
-                periodo={`${selectedYear}-${selectedMonth}`} 
+            <AlertsPanel
+                kpis={kpis}
+                egresos={{ ...egresos, laboral: laboralEfectivo }}
+                periodo={`${selectedYear}-${selectedMonth}`}
                 empData={empData}
                 arcaData={arcaData}
                 ventasData={ventasData}
