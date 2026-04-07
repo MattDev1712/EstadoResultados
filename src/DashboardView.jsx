@@ -139,7 +139,7 @@ const CardTitle = ({ title, onInfo }) => (
     </div>
 );
 
-const AlertsPanel = ({ kpis, egresos, periodo }) => {
+const AlertsPanel = ({ kpis, egresos, periodo, empData = [], arcaData = [], ventasData = [] }) => {
     const [dismissed, setDismissed] = useState(() => {
         try {
             return JSON.parse(localStorage.getItem(`alerts_dismissed_${periodo}`) || '[]');
@@ -159,15 +159,15 @@ const AlertsPanel = ({ kpis, egresos, periodo }) => {
         const ventasNetas = Utils.num(kpis.ventas_netas_reales);
 
         // 🟡 Faltas de Carga (Prioridad 1)
-        if (ventasNetas === 0) {
+        if (ventasNetas === 0 && ventasData.length === 0) {
             list.push({ id: 'sales_missing', type: 'warning', msg: 'Falta cargar Mis Ventas (resumen mensual de sistema de facturación).' });
         }
 
-        if (Utils.num(egresos.laboral) === 0) {
+        if (Utils.num(egresos.laboral) === 0 && empData.length === 0) {
             list.push({ id: 'labor_missing', type: 'warning', msg: 'Falta cargar Salarios en "Mi equipo".' });
         }
 
-        if (Utils.num(egresos.otros) === 0) {
+        if (Utils.num(egresos.otros) === 0 && arcaData.length === 0) {
             list.push({ id: 'arca_missing', type: 'warning', msg: 'Falta cargar Mis compras (ARCA).' });
         }
 
@@ -680,7 +680,14 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
 
 
             {/* Panel de Inteligencia Financiera */}
-            <AlertsPanel kpis={kpis} egresos={egresos} periodo={`${selectedYear}-${selectedMonth}`} />
+            <AlertsPanel 
+                kpis={kpis} 
+                egresos={egresos} 
+                periodo={`${selectedYear}-${selectedMonth}`} 
+                empData={empData}
+                arcaData={arcaData}
+                ventasData={ventasData}
+            />
 
             <div id="pnl-export-area" className="p-4" style={{ margin: '-16px' }}>
                 {/* IVA HERO — Primera card, ancho completo */}

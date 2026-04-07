@@ -124,7 +124,13 @@ const App = () => {
 
     useEffect(() => {
         fetchMetadata();
-    }, [activeTab, fetchMetadata]);
+    }, [activeTab, fetchMetadata, selectedYear, selectedMonth]);
+
+    useEffect(() => {
+        if (selectedYear && selectedMonth) {
+            setDefaultDate(`${selectedYear}-${selectedMonth}-01`);
+        }
+    }, [selectedYear, selectedMonth]);
 
 
     const handleDataReady = (data, origen) => {
@@ -147,6 +153,7 @@ const App = () => {
                 addLog(`✅ Éxito: ${res.insertados} insertados, ${res.omitidos ?? 0} duplicados omitidos.`);
                 // Forzar una recarga completa de datos y metadatos
                 fetchData(true);
+                fetchMetadata();
                 setPreviewData(null);
             } else {
                 addLog(`❌ El servidor respondió con error: ${res.message || res.status}`);
