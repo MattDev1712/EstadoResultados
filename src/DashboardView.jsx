@@ -452,6 +452,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
     const egresoComposicion = [
         { label: 'Nómina', val: getAdj(egresos.laboral), color: '#8b5cf6', key: 'laboral' },
         { label: 'Prov. SAC', val: getAdj(egresos.provision_sac || 0), color: '#7c3aed', key: 'sac' },
+        { label: 'Cargas Soc. Est.', val: getAdj(egresos.provision_cargas || 0), color: '#a78bfa', key: 'cargas' },
         { label: 'Estructurales', val: getAdj(egresos.estructural), color: '#06b6d4', key: 'estructural' },
         { label: 'Comisiones', val: getAdj(egresos.comisiones), color: '#f43f5e', key: 'comisiones' },
         { label: 'Otros', val: getAdj(egresos.otros), color: '#64748b', key: 'otros' },
@@ -550,7 +551,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
             title: '¿Cuánto necesito vender para no perder?',
             explanation: 'Es el monto exacto de ventas que necesitás en el mes para que los ingresos igualen a los gastos. Si vendés más que esto, empezás a tener excedente.',
             breakdown: [
-                { label: 'Costo de empleados', val: Utils.num(egresos.laboral) + Utils.num(egresos.provision_sac || 0) },
+                { label: 'Costo de empleados', val: Utils.num(egresos.laboral) + Utils.num(egresos.provision_sac || 0) + Utils.num(egresos.provision_cargas || 0) },
                 { label: 'Gastos fijos (alquiler, luz, etc.)', val: Utils.num(egresos.estructural) },
                 { label: 'Ventas necesarias para equilibrar', val: Utils.num(kpis.break_even_mensual), total: true, color: 'text-blue-400' }
             ]

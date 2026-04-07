@@ -686,7 +686,7 @@ function _crearEncabezados(sheet) {
  * @param {string} endDate - Fecha fin 'YYYY-MM-DD'.
  * @return {Object} JSON con KPIs calculados (Utilidad, IVA, Ticket Promedio, Mix Pagos).
  */
-function getFinancialSummary(startDate, endDate) {
+function getFinancialSummary(startDate, endDate, cargasPct = 33) {
   if (!startDate || !endDate) throw new Error("Rango de fechas inválido.");
 
   const _round = (num) => Math.round(((parseFloat(num) || 0) + Number.EPSILON) * 100) / 100;
@@ -709,6 +709,7 @@ function getFinancialSummary(startDate, endDate) {
   let egresoLaboral = 0;
   let egresoEstructural = 0;
   let egresoOtros = 0;
+  let totalRecibo = 0;
 
   const historyMap = {}; 
   const proveedoresMap = {};
@@ -737,7 +738,7 @@ function getFinancialSummary(startDate, endDate) {
       
       // Historial
       if (rowDate >= historyStart && rowDate <= endObj) {
-        if (!historyMap[k]) historyMap[k] = { ventas: 0, gastos: 0, ventas_real: 0, gastos_real: 0, mep: CONST_MEP[k] || 1400 };
+        if (!historyMap[k]) historyMap[k] = { ventas: 0, gastos: 0, ventas_real: 0, gastos_real: 0, mep: CONST_MEP[k] || 1400, recibo: 0 };
         const ipc = CONST_IPC[k] || 1.0;
         if (tipo === 'INGRESO') {
           historyMap[k].ventas += neto;
@@ -774,16 +775,20 @@ function getFinancialSummary(startDate, endDate) {
   // 2. PROCESAR SUELDOS
   const sheetSueldos = ss.getSheetByName(EMPLOYEES_SHEET_NAME);
   if (sheetSueldos && sheetSueldos.getLastRow() > 1) {
-    const dataS = sheetSueldos.getRange(2, 1, sheetSueldos.getLastRow() - 1, 11).getValues();
+    const dataS = sheetSueldos.getRange(2, 1, sheetSueldos.getLastRow() - 1, 12).getValues();
     dataS.forEach(row => {
-      const rowDate = new Date(row[1]), costo = parseFloat(row[10] || 0);
+      const rowDate = new Date(row[1]), costo = parseFloat(row[10] || 0), recibo = parseFloat(row[11] || 0);
       const k = `${rowDate.getFullYear()}-${String(rowDate.getMonth() + 1).padStart(2, '0')}`;
       if (rowDate >= historyStart && rowDate <= endObj) {
-        if (!historyMap[k]) historyMap[k] = { ventas: 0, gastos: 0, ventas_real: 0, gastos_real: 0, mep: CONST_MEP[k] || 1400 };
+        if (!historyMap[k]) historyMap[k] = { ventas: 0, gastos: 0, ventas_real: 0, gastos_real: 0, mep: CONST_MEP[k] || 1400, recibo: 0 };
         historyMap[k].gastos += costo;
+        historyMap[k].recibo += recibo;
         historyMap[k].gastos_real += (costo * (CONST_IPC[k] || 1.0));
       }
-      if (rowDate >= startObj && rowDate <= endObj) egresoLaboral += costo;
+      if (rowDate >= startObj && rowDate <= endObj) {
+        egresoLaboral += costo;
+        totalRecibo += recibo;
+      }
     });
   }
 
@@ -821,8 +826,9 @@ function getFinancialSummary(startDate, endDate) {
   // Ajustes Finales
   // Provisión SAC: 1/12 del costo laboral mensual. Impacta el resultado porque el SAC se devenga todos los meses.
   const provisionSAC = egresoLaboral / 12;
-  const resFinal = totalVentasNeto - (egresoLaboral + egresoEstructural + egresoOtros + provisionSAC) - totalComisiones;
-  const breakEven = (egresoLaboral + egresoEstructural + provisionSAC) / (totalVentasNeto > 0 ? (totalVentasNeto - totalComisiones) / totalVentasNeto : 1);
+  const provisionCargas = totalRecibo * (parseFloat(cargasPct) / 100);
+  const resFinal = totalVentasNeto - (egresoLaboral + egresoEstructural + egresoOtros + provisionSAC + provisionCargas) - totalComisiones;
+  const breakEven = (egresoLaboral + egresoEstructural + provisionSAC + provisionCargas) / (totalVentasNeto > 0 ? (totalVentasNeto - totalComisiones) / totalVentasNeto : 1);
 
   // Obtener coeficientes para el periodo actual
   const currentPeriod = `${startObj.getFullYear()}-${String(startObj.getMonth() + 1).padStart(2, '0')}`;
@@ -846,6 +852,7 @@ function getFinancialSummary(startDate, endDate) {
     egresos: {
       laboral: _round(egresoLaboral),
       provision_sac: _round(provisionSAC),
+      provision_cargas: _round(provisionCargas),
       estructural: _round(egresoEstructural),
       otros: _round(egresoOtros),
       comisiones: _round(totalComisiones)
@@ -853,9 +860,9 @@ function getFinancialSummary(startDate, endDate) {
     historial: Object.keys(historyMap).sort().reduce((obj, key) => {
       obj[key] = {
         v: _round(historyMap[key].ventas),
-        g: _round(historyMap[key].gastos),
+        g: _round(historyMap[key].gastos + (historyMap[key].recibo * (parseFloat(cargasPct) / 100))),
         vr: _round(historyMap[key].ventas_real),
-        gr: _round(historyMap[key].gastos_real),
+        gr: _round(historyMap[key].gastos_real + (historyMap[key].recibo * (parseFloat(cargasPct) / 100) * (CONST_IPC[key] || 1.0))),
         mep: historyMap[key].mep
       };
       return obj;
@@ -1151,7 +1158,8 @@ function doGet(e) {
     if (action === 'GET_DASHBOARD') {
       const start = e.parameter.start;
       const end = e.parameter.end;
-      const data = getFinancialSummary(start, end);
+      const cPct = e.parameter.cargasPct || 33;
+      const data = getFinancialSummary(start, end, cPct);
       return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -1163,8 +1171,9 @@ function doGet(e) {
     if (action === 'GET_COMPLETE_DATA') {
       const start = e.parameter.start;
       const end = e.parameter.end;
+      const cPct = e.parameter.cargasPct || 33;
 
-      const dashboard = getFinancialSummary(start, end);
+      const dashboard = getFinancialSummary(start, end, cPct);
       const employees = getEmployeesByPeriod(start, end);
       const arca = getArcaData(start, end);
       const ventas = getMaxirestRawData(start, end);

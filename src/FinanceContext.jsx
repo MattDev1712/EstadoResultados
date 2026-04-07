@@ -114,7 +114,7 @@ export const FinanceProvider = ({ children }) => {
             const lastDay = new Date(selectedYear, parseInt(selectedMonth), 0).getDate();
             const end = `${selectedYear}-${selectedMonth}-${lastDay}`;
             
-            const response = await fetch(`${finalApiUrl}?action=GET_COMPLETE_DATA&start=${start}&end=${end}`);
+            const response = await fetch(`${finalApiUrl}?action=GET_COMPLETE_DATA&start=${start}&end=${end}&cargasPct=${cargasPct}`);
             const result = await response.json();
             
             if (result.status === 'ERROR') throw new Error(result.message || "Error desconocido en el servidor");
