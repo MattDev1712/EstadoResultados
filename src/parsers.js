@@ -155,9 +155,21 @@ export const Parsers = {
         const records = [];
         const splitRe = /;(?=(?:(?:[^"]*"){2})*[^"]*$)/;
 
+        // Códigos numéricos AFIP de Notas de Crédito (reducen el gasto → signo negativo)
+        const NC_TYPES = new Set(['3', '8', '13', '21', '53']);
+
+        // Mapa de código AFIP → nombre legible
+        const TIPO_COMP_NAMES = {
+            '1': 'Factura A', '2': 'Nota de Débito A', '3': 'Nota de Crédito A',
+            '6': 'Factura B', '7': 'Nota de Débito B', '8': 'Nota de Crédito B',
+            '11': 'Factura C', '12': 'Nota de Débito C', '13': 'Nota de Crédito C',
+            '51': 'Factura M', '52': 'Nota de Débito M', '53': 'Nota de Crédito M',
+        };
+
         const cleanArcaNum = (val) => {
             if (!val) return 0;
             let clean = val.replace(/"/g, '').trim();
+            if (!clean) return 0;
             clean = clean.replace(/\./g, '').replace(',', '.');
             return parseFloat(clean) || 0;
         };
@@ -176,70 +188,131 @@ export const Parsers = {
                 isoDate = `${isoDate.substring(0,4)}-${isoDate.substring(4,6)}-${isoDate.substring(6,8)}`;
             }
 
-            // Detectar Notas de Crédito / Débito para invertir el signo
-            const tipoUpper = cols[1].toUpperCase();
-            const isNC = tipoUpper.includes('CREDITO') || tipoUpper.includes('CRÉDITO') || /\bNC\b/.test(tipoUpper);
-            const signoNC = isNC ? -1 : 1;
+            // Bug 2 fix: detectar NC por código numérico AFIP
+            const tipoCode = cols[1].trim();
+            const isNC = NC_TYPES.has(tipoCode);
+            const signo = isNC ? -1 : 1;
+
+            // Bug 3 fix: sumar neto gravado + no gravado + exentas; capturar otros tributos
+            const netoGravado   = cleanArcaNum(cols[24]);
+            const netoNoGravado = cleanArcaNum(cols[25]);
+            const exentas       = cleanArcaNum(cols[26]);
+            const otrosTributos = cleanArcaNum(cols[27]);
+            const totalIva      = cleanArcaNum(cols[28]);
+            const total         = cleanArcaNum(cols[29]);
+
+            const netoTotal = netoGravado + netoNoGravado + exentas;
+
+            // Bug 1 fix: Factura C (monotributista) → ARCA no desglosa, todo va al total
+            const netoFinal = (netoTotal === 0 && totalIva === 0 && total > 0)
+                ? total
+                : netoTotal;
+
+            // Inferir tasa de IVA desde netoGravado (antes de mezclar con no gravado)
+            const ivaPct = netoGravado > 0
+                ? Math.round(totalIva / netoGravado * 100 * 10) / 10
+                : 0;
 
             records.push({
-                fecha: isoDate,
-                tipo_comp: cols[1],
-                nro_comp: `${cols[2]}-${cols[3]}`,
-                cuit: cols[7],
-                entidad: cols[8] || 'S/D',
-                neto:  cleanArcaNum(cols[24]) * signoNC,
-                iva:   cleanArcaNum(cols[28]) * signoNC,
-                total: cleanArcaNum(cols[29]) * signoNC,
-                rubro: 'Compras'
+                fecha:          isoDate,
+                tipo_comp:      TIPO_COMP_NAMES[tipoCode] || `Tipo ${tipoCode}`,
+                nro_comp:       `${cols[2]}-${cols[3]}`,
+                cuit:           cols[7],
+                entidad:        cols[8] || 'S/D',
+                neto:           netoFinal      * signo,
+                iva:            totalIva       * signo,
+                otros_tributos: otrosTributos  * signo,
+                total:          total          * signo,
+                iva_pct:        ivaPct,
+                rubro:          'Compras'
             });
         }
         return records;
     },
 
     /**
-     * Parsea CSV de Sueldos (Planilla Mensual)
+     * Parsea una planilla de sueldos desde una matriz de filas (array de arrays).
+     * Detecta la fila de cabecera automáticamente y mapea columnas por nombre.
+     * Acepta XLS, XLSX y CSV (la conversión a matriz la hace el caller).
      */
-    sueldos: (text, dateRef) => {
-        const lines = text.split('\n');
-        const records = [];
-        
-        const cleanUSNum = (val) => {
-            if (!val) return 0;
-            let clean = val.replace(/["\s$]/g, '').replace(/,/g, '');
-            return parseFloat(clean) || 0;
-        };
-        
-        const cleanHrs = (val) => {
-            if (!val) return 0;
-            let clean = val.replace(/["\sA-Za-z]/g, ''); 
-            return parseFloat(clean) || 0;
+    sueldos: (rows, dateRef) => {
+        const SYNONYMS = {
+            nombre:      ['nombre', 'apellido', 'apellido y nombre', 'empleado', 'apellidos y nombres'],
+            tarea:       ['tarea', 'cargo', 'categoria', 'categoría', 'puesto', 'función', 'funcion', 'rol'],
+            dni:         ['dni', 'cuil', 'documento', 'nro. doc', 'nro doc', 'n° doc', 'n°doc'],
+            legajo:      ['legajo', 'nro legajo', 'n° legajo', 'leg'],
+            jornada:     ['jornada', 'modalidad', 'tipo jornada'],
+            total_hs:    ['horas', 'hs', 'total hs', 'total horas', 'horas trabajadas', 'hs trabajadas'],
+            recibo:      ['recibo', 'blanco', 'en blanco', 'formal', 'importe recibo', 'sueldo recibo'],
+            negro:       ['negro', 'informal', 'a cuenta', 'extraoficial', 'no registrado'],
+            costo_total: ['total', 'costo total', 'total a pagar', 'bruto', 'total bruto', 'importe total', 'total mes']
         };
 
+        const normalize = (str) =>
+            String(str ?? '').toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .trim();
+
+        const cleanNum = (val) => {
+            if (val === null || val === undefined || val === '') return 0;
+            if (typeof val === 'number') return val;
+            return parseFloat(String(val).replace(/["\s$]/g, '').replace(/,/g, '')) || 0;
+        };
+
+        // 1. Detectar fila de cabecera: la que tenga más matches con los sinónimos conocidos
+        const allKeywords = Object.values(SYNONYMS).flat();
+        let headerRowIdx = 0;
+        let bestScore = 0;
+
+        for (let i = 0; i < Math.min(rows.length, 15); i++) {
+            const row = rows[i];
+            if (!row) continue;
+            const score = row.filter(cell => allKeywords.includes(normalize(cell))).length;
+            if (score > bestScore) {
+                bestScore = score;
+                headerRowIdx = i;
+            }
+        }
+
+        // 2. Construir mapa campo → índice de columna
+        const headers = (rows[headerRowIdx] || []).map(normalize);
+        const colIdx = {};
+
+        for (const [field, variants] of Object.entries(SYNONYMS)) {
+            const idx = headers.findIndex(h => variants.includes(h));
+            if (idx !== -1) colIdx[field] = idx;
+        }
+
+        // 3. Parsear filas de datos
         const periodDate = dateRef || new Date().toISOString().split('T')[0];
+        const records = [];
 
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
-            const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim());
-            if (cols.length < 5) continue;
+        for (let i = headerRowIdx + 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || row.every(c => c === null || c === undefined || c === '')) continue;
 
-            const nombre = cols[1];
-            const costoTotal = cleanUSNum(cols[11]); 
-            const recibo = cleanUSNum(cols[12]);
+            const get = (field) => (colIdx[field] !== undefined ? row[colIdx[field]] : undefined);
+
+            const nombre = String(get('nombre') ?? '').trim();
+            const costoTotal = cleanNum(get('costo_total'));
+            const recibo = cleanNum(get('recibo'));
 
             if (!nombre || (costoTotal === 0 && recibo === 0)) continue;
 
             records.push({
-                fecha_periodo: periodDate, 
-                nombre: nombre,
-                tarea: cols[2],
-                dni: cols[4] || '0',
-                total_hs: cleanHrs(cols[9]),
-                recibo: recibo,
-                negro: cleanUSNum(cols[14]),
+                fecha_periodo: periodDate,
+                nombre,
+                tarea:      String(get('tarea') ?? '').trim(),
+                dni:        String(get('dni') ?? '0').replace(/\./g, '').trim(),
+                legajo:     String(get('legajo') ?? '').trim(),
+                jornada:    String(get('jornada') ?? '').trim(),
+                total_hs:   cleanNum(get('total_hs')),
+                recibo,
+                negro:      cleanNum(get('negro')),
                 costo_total: costoTotal
             });
         }
+
         return records;
     }
 };

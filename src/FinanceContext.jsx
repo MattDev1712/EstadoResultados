@@ -5,7 +5,16 @@ const FinanceContext = createContext();
 export const FinanceProvider = ({ children }) => {
     const [apiUrl, setApiUrl] = useState(localStorage.getItem('gas_api_url') || '');
     
-    const finalApiUrl = useMemo(() => apiUrl || '', [apiUrl]);
+    const finalApiUrl = useMemo(() => {
+        if (!apiUrl) return '';
+        if (apiUrl.startsWith('AKfy')) {
+            return `https://script.google.com/macros/s/${apiUrl}/exec`;
+        }
+        if (!apiUrl.startsWith('http')) {
+            return `https://${apiUrl}`;
+        }
+        return apiUrl;
+    }, [apiUrl]);
 
     const [dashData, setDashData] = useState(null);
     const [empData, setEmpData] = useState([]);

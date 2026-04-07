@@ -1,14 +1,13 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useFinance } from './FinanceContext';
 import { formatters as Utils } from './formatters'; // Asumo que tienes un archivo formatters.js con Utils
 
 // Componentes de Vista
 import DashboardView from './DashboardView';
 import EmployeesView from './EmployeesView';
-import ArcaView, { ProfessionalFeesView, StructuralCostsView } from './ArcaView';
+import ArcaView, { StructuralCostsView } from './ArcaView';
 import VentasSistemaView from './VentasSistemaView';
 import GuideView from './GuideView';
-import CategoriesView from './CategoriesView';
 import ConfigView from './ConfigView';
 import AuditView from './AuditView';
 import { TableSkeleton } from './Skeleton';
@@ -16,10 +15,67 @@ import { TableSkeleton } from './Skeleton';
 // Componentes Comunes
 import FileCard from './FileCard';
 import StructuralCostsModal from './StructuralCostsModal';
-import ProfessionalFeesModal from './ProfessionalFeesModal';
-import IIBBModal from './IIBBModal';
-import RetentionsModal from './RetentionsModal';
-import AssetsView from './AssetsView';
+
+// --- COMPONENTES AUXILIARES ---
+
+// Componente de Menú Desplegable Centrado
+const NavDropdown = ({ title, icon, items, activeTab, setActiveTab }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (containerRef.current && !containerRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const activeItem = items.find(item => item.id === activeTab);
+
+    return (
+        <div className="relative" ref={containerRef}>
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold transition-all border ${
+                    activeItem || isOpen
+                    ? 'bg-white/10 text-white border-white/20 shadow-lg'
+                    : 'text-slate-400 border-transparent hover:bg-white/5 hover:text-slate-200'
+                }`}
+            >
+                <span className="text-sm opacity-80">{icon}</span>
+                <span>{title}</span>
+                <span className={`text-[10px] opacity-40 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+
+            {isOpen && (
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-[100] overflow-hidden animate-pop-in">
+                    <div className="p-1 px-1.5 flex flex-col gap-1">
+                        {items.map(item => (
+                            <button
+                                key={item.id}
+                                onClick={() => {
+                                    setActiveTab(item.id);
+                                    setIsOpen(false);
+                                }}
+                                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold transition-all text-left ${
+                                    activeTab === item.id
+                                    ? 'bg-blue-600 text-white shadow-md'
+                                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                                }`}
+                            >
+                                <span className="text-sm">{item.icon}</span>
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const App = () => {
     const {
@@ -35,25 +91,31 @@ const App = () => {
         const now = new Date();
         for (let i = 8; i >= 0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const y = String(d.getFullYear());
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const periodId = `${y}-${m}`;
+
+            const meta = (availablePeriods || []).find(ap => ap.id === periodId);
+
             periods.push({
-                y: String(d.getFullYear()),
-                m: String(d.getMonth() + 1).padStart(2, '0'),
+                y,
+                m,
                 label: d.toLocaleDateString('es-AR', { month: 'short' }).replace('.', ''),
-                yearShort: d.toLocaleDateString('es-AR', { year: '2-digit' })
+                yearShort: d.toLocaleDateString('es-AR', { year: '2-digit' }),
+                isComplete: meta?.isComplete || false,
+                score: meta?.score || 0
             });
         }
         return periods;
-    }, []);
+    }, [availablePeriods]);
 
-    const [activeTab, setActiveTab] = useState('carga');
-    const [showProfModal, setShowProfModal] = useState(false);
+    const [activeTab, setActiveTab] = useState('dashboard');
     const [showStructModal, setShowStructModal] = useState(false);
-    const [showIIBBModal, setShowIIBBModal] = useState(false);
-    const [showRetModal, setShowRetModal] = useState(false);
     const [previewData, setPreviewData] = useState(null);
     const [previewOrigen, setPreviewOrigen] = useState(null);
     const [defaultDate, setDefaultDate] = useState(new Date().toISOString().split('T')[0]);
     const [logs, setLogs] = useState([]);
+    const [showLogs, setShowLogs] = useState(false);
 
     const addLog = (msg) => {
         const time = new Date().toLocaleTimeString();
@@ -61,9 +123,7 @@ const App = () => {
     };
 
     useEffect(() => {
-        if (activeTab !== 'carga') {
-            fetchMetadata();
-        }
+        fetchMetadata();
     }, [activeTab, fetchMetadata]);
 
 
@@ -87,7 +147,6 @@ const App = () => {
                 addLog(`✅ Éxito: ${res.insertados} insertados, ${res.omitidos ?? 0} duplicados omitidos.`);
                 // Forzar una recarga completa de datos y metadatos
                 fetchData(true);
-                setActiveTab('dashboard');
                 setPreviewData(null);
             } else {
                 addLog(`❌ El servidor respondió con error: ${res.message || res.status}`);
@@ -208,11 +267,13 @@ const App = () => {
         </div>
     );
 
-    const renderTabContent = () => {
-        if (previewData) return (
-            <div className="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden mb-8 animate-fade-in">
-                <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
-                    <div>
+    const renderPreviewModal = () => {
+        if (!previewData) return null;
+        return (
+            <div className="fixed inset-0 z-[100] flex justify-center items-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+                <div className="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 w-full max-w-6xl max-h-[90vh] flex flex-col animate-fade-in relative z-[101]">
+                    <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 flex-shrink-0">
+                        <div>
                         <h2 className="text-xl font-bold text-white">Verificar y Editar Datos</h2>
                         <div className="flex items-center gap-2 text-sm text-slate-400 mt-1">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-400" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
@@ -319,7 +380,7 @@ const App = () => {
                     </div>
                 ) : (
                     /* VISTA TABLA GENERICA (PARA ARCA / CSV) */
-                    <div className="overflow-x-auto max-h-[500px] p-0">
+                    <div className="overflow-x-auto overflow-y-auto flex-1 p-0">
 
                         {/* Herramienta de Corrección Masiva (Solo visible en tablas genéricas) */}
                         <div className="px-4 py-3 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between sticky left-0">
@@ -374,7 +435,7 @@ const App = () => {
                     </div>
                 )}
 
-                <div className="p-6 bg-slate-900/50 border-t border-slate-700 flex justify-end gap-4">
+                <div className="p-6 bg-slate-900/50 border-t border-slate-700 flex justify-end gap-4 flex-shrink-0">
                     <button
                         onClick={() => setPreviewData(null)}
                         className="px-6 py-2.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white transition font-medium"
@@ -389,9 +450,12 @@ const App = () => {
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
                     </button>
                 </div>
+                </div>
             </div>
         );
+    };
 
+    const renderTabContent = () => {
         switch (activeTab) {
             case 'dashboard': return loading ? (
                 <div className="animate-fade-in space-y-6">
@@ -402,246 +466,179 @@ const App = () => {
                         <CardSkeleton />
                     </div>
                 </div>
-            ) : <DashboardView />;
+            ) : <DashboardView 
+                    onDataReady={handleDataReady} 
+                    setShowStructModal={setShowStructModal} 
+                    defaultDate={defaultDate}
+                    setDefaultDate={setDefaultDate}
+                />;
             case 'empleados': return loading ? <TableSkeleton /> : <EmployeesView />;
             case 'arca': return loading ? <TableSkeleton /> : <ArcaView />;
             case 'ventas': return loading ? <TableSkeleton /> : <VentasSistemaView />;
-            case 'honorarios': return loading ? <TableSkeleton /> : <ProfessionalFeesView />;
+
             case 'estructurales': return loading ? <TableSkeleton /> : <StructuralCostsView />;
-            case 'categorias': return <CategoriesView />;
-            case 'activos': return <AssetsView />;
             case 'config': return <ConfigView />;
             case 'audit': return <AuditView />;
             case 'guia': return <GuideView />;
-            case 'carga': return (
-                <div className="space-y-8 animate-fade-in">
-                    {/* Hero Section de Carga */}
-                    <div className="group-card border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                            <div>
-                                <h2 className="text-xl font-bold text-white mb-1">Centro de Importación</h2>
-                                <p className="text-sm text-slate-400">Carga PDFs, CSVs o registra datos manuales para el periodo seleccionado.</p>
-                            </div>
-                            <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-700/50 flex flex-col gap-2 min-w-[240px]">
-                                <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Fecha para Cargas Manuales</label>
-                                <input
-                                    type="date"
-                                    value={defaultDate}
-                                    onChange={(e) => setDefaultDate(e.target.value)}
-                                    className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {/* Importadores Automáticos */}
-                        <div className="md:col-span-2 lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <FileCard title="Maxirest PDF" type="PDF" onDataReady={(d) => handleDataReady(d, 'MAXIREST')} />
-                            <FileCard title="ARCA CSV" type="CSV" onDataReady={(d) => handleDataReady(d, 'ARCA')} />
-                            <FileCard title="Sueldos CSV" type="CSV" parserMode="sueldos" defaultDate={defaultDate} onDataReady={(d) => handleDataReady(d, 'SUELDOS')} />
-                        </div>
-
-                        {/* Formularios Manuales */}
-                        <div className="md:col-span-2 lg:col-span-3">
-                            <div className="flex items-center gap-4 mb-4">
-                                <div className="h-px flex-1 bg-slate-800"></div>
-                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-[.3em]">Cargas Manuales Directas</span>
-                                <div className="h-px flex-1 bg-slate-800"></div>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                {[
-                                    { title: 'Honorarios', desc: 'Contadores, Asesores.', color: 'border-indigo-500/30', hover: 'hover:border-indigo-500', action: () => setShowProfModal(true), icon: '💼' },
-                                    { title: 'Estructurales', desc: 'Alquiler, Luz, Gas.', color: 'border-blue-500/30', hover: 'hover:border-blue-500', action: () => setShowStructModal(true), icon: '🔧' },
-                                    { title: 'Ingresos Brutos', desc: 'IIBB Locales, Convenio.', color: 'border-orange-500/30', hover: 'hover:border-orange-500', action: () => setShowIIBBModal(true), icon: '🏦' },
-                                    { title: 'Retenciones', desc: 'IVA, Ganancias Banco.', color: 'border-rose-500/30', hover: 'hover:border-rose-500', action: () => setShowRetModal(true), icon: '🏧' }
-                                ].map((card, i) => (
-                                    <div
-                                        key={i}
-                                        onClick={card.action}
-                                        className={`p-5 rounded-2xl border ${card.color} bg-slate-900/40 backdrop-blur-sm ${card.hover} cursor-pointer transition-all duration-300 group hover:translate-y--1`}
-                                    >
-                                        <div className="flex items-center justify-between mb-3">
-                                            <span className="text-2xl opacity-80">{card.icon}</span>
-                                            <span className="text-[8px] font-black px-1.5 py-0.5 bg-slate-800 rounded text-slate-400">MANUAL</span>
-                                        </div>
-                                        <h3 className="font-bold text-slate-100 group-hover:text-white transition-colors">{card.title}</h3>
-                                        <p className="text-slate-500 text-[10px] mt-1 pr-2">{card.desc}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-            default: return <DashboardView />;
+            default: return <DashboardView 
+                    onDataReady={handleDataReady} 
+                    setShowProfModal={setShowProfModal} 
+                    setShowStructModal={setShowStructModal} 
+                    setShowIIBBModal={setShowIIBBModal} 
+                    setShowRetModal={setShowRetModal} 
+                    defaultDate={defaultDate}
+                    setDefaultDate={setDefaultDate}
+                />;
         }
     };
 
-    return (
-        <div className="max-w-6xl mx-auto py-8 px-6">
 
-            {/* Cabecera Estilo "Executive Pulse" para TODAS las pestañas */}
-            <header className="flex flex-wrap items-center justify-between mb-8 animate-fade-in gap-4">
-                <div>
-                    <p className="text-[10px] font-bold text-slate-500 tracking-[0.2em] uppercase mb-1">Estado Result · Inteligencia Financiera</p>
-                    <h1 className="text-3xl font-extrabold text-white tracking-tight">
-                        {activeTab === 'dashboard' ? 'Executive Pulse' : activeTab === 'carga' ? 'Gestión de Carga' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+    return (
+        <div className="max-w-6xl mx-auto py-6 px-4">
+
+            {/* Cabecera Centrada y Refinada */}
+            <header className="flex flex-col items-center mb-8 animate-fade-in text-center">
+                <div className="mb-6">
+                    <p className="text-[10px] font-black text-blue-500/50 tracking-[0.3em] uppercase mb-1">
+                        Sistema de Gestión Administrativa
+                    </p>
+                    <h1 className="text-2xl font-black text-white tracking-tight">
+                        {activeTab === 'dashboard' ? 'Tablero de Control' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
                     </h1>
                 </div>
 
-                {/* Botones de Períodos integrados a la derecha */}
-                <div className="flex items-center gap-2 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800">
+                {/* Selector de Meses Centrado */}
+                <div className="flex items-center gap-1.5 p-1.5 bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl no-scrollbar overflow-x-auto max-w-full">
                     {periodButtons.map(p => {
                         const isSelected = selectedMonth === p.m && String(selectedYear) === p.y;
+                        const score = p.score;
+
+                        const scoreColors = [
+                            'border-slate-800 text-slate-500 hover:bg-slate-800/50',
+                            'border-rose-900/20 text-rose-400/80 bg-rose-500/5 hover:bg-rose-500/10',
+                            'border-orange-900/20 text-orange-400/80 bg-orange-500/5 hover:bg-orange-500/10',
+                            'border-lime-900/20 text-lime-400/80 bg-lime-500/5 hover:bg-lime-500/10',
+                            'border-emerald-900/20 text-emerald-400/80 bg-emerald-500/5 hover:bg-emerald-500/10',
+                        ];
+
                         return (
                             <button
                                 key={`${p.y}-${p.m}`}
                                 onClick={() => { setSelectedYear(p.y); setSelectedMonth(p.m); }}
-                                className={`flex flex-col items-center justify-center min-w-[56px] h-10 rounded-xl transition-all duration-300 relative group ${isSelected ? 'bg-blue-600 shadow-lg text-white' : 'hover:bg-slate-800 text-slate-500'
-                                    }`}
+                                className={`
+                                    flex flex-col items-center justify-center min-w-[56px] h-11 rounded-xl transition-all duration-300 relative group border text-[10px]
+                                    ${isSelected 
+                                        ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-900/40 z-10 scale-105' 
+                                        : scoreColors[score]
+                                    }
+                                `}
                             >
-                                <span className={`text-[9px] font-black uppercase tracking-tighter ${isSelected ? 'text-white' : 'text-slate-400'}`}>
-                                    {p.label}
-                                </span>
-                                <span className={`text-[8px] font-bold opacity-60 ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
-                                    {p.yearShort}
-                                </span>
+                                <span className="font-black uppercase tracking-tighter">{p.label}</span>
+                                <span className={`text-[8px] font-bold opacity-50 ${isSelected ? 'text-white' : ''}`}>{p.yearShort}</span>
+                                
+                                {score > 0 && !isSelected && (
+                                    <span className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-slate-950 ${score === 4 ? 'bg-emerald-500' : score === 3 ? 'bg-lime-500' : 'bg-orange-500'}`} />
+                                )}
                             </button>
                         );
                     })}
                 </div>
             </header>
 
-            {/* NAVEGACIÓN PROFESIONAL AGRUPADA */}
-            <div className="flex flex-col gap-6 mb-10 animate-fade-in sm:px-4">
-                <div className="flex flex-wrap items-center justify-center gap-6 md:gap-8 bg-slate-900/60 backdrop-blur-xl p-6 rounded-[2rem] border border-slate-800/50 shadow-2xl relative overflow-hidden group">
-                    {/* Brillo de fondo sutil */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-transparent to-emerald-500/5 pointer-events-none" />
+            {/* NAVEGACIÓN POR DESPLEGABLES (CENTRADA) */}
+            <nav className="flex flex-wrap items-center justify-center gap-3 mb-12 animate-fade-in">
+                <button
+                    onClick={() => setActiveTab('dashboard')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold transition-all border ${
+                        activeTab === 'dashboard'
+                        ? 'bg-white/10 text-white border-white/20 shadow-lg'
+                        : 'text-slate-400 border-transparent hover:bg-white/5 hover:text-slate-200'
+                    }`}
+                >
+                    <span className="text-sm opacity-80">📊</span>
+                    <span>Dashboard</span>
+                </button>
 
-                    {[
-                        {
-                            title: 'Principal',
-                            color: 'text-blue-400',
-                            items: [
-                                { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-                                { id: 'carga', label: 'Carga', icon: '📥' },
-                            ]
-                        },
-                        {
-                            title: 'Operativo',
-                            color: 'text-emerald-400',
-                            items: [
-                                { id: 'empleados', label: 'Nómina', icon: '👥' },
-                                { id: 'arca', label: 'ARCA', icon: '🧾' },
-                                { id: 'ventas', label: 'Ventas', icon: '💰' },
-                            ]
-                        },
-                        {
-                            title: 'Gastos',
-                            color: 'text-violet-400',
-                            items: [
-                                { id: 'honorarios', label: 'Honorarios', icon: '💼' },
-                                { id: 'estructurales', label: 'Estruct.', icon: '🔧' },
-                                { id: 'activos', label: 'Activos', icon: '🏧' },
-                            ]
-                        },
-                        {
-                            title: 'Sistema',
-                            color: 'text-slate-400',
-                            items: [
-                                { id: 'categorias', label: 'Categorías', icon: '🏷️' },
-                                { id: 'audit', label: 'Historial', icon: '📋' },
-                                { id: 'config', label: 'Config', icon: '⚙️' },
-                                { id: 'guia', label: 'Ayuda', icon: '📖' },
-                            ]
-                        }
-                    ].map((group, idx) => (
-                        <div key={idx} className="flex flex-col gap-2.5">
-                            <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${group.color} opacity-40 px-3`}>
-                                {group.title}
-                            </span>
-                            <div className="flex flex-wrap gap-1.5 bg-white/5 p-1.5 rounded-2xl border border-white/5">
-                                {group.items.map(tab => (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => {
-                                            setActiveTab(tab.id);
-                                            if (tab.id === 'carga') setPreviewData(null);
-                                        }}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold transition-all duration-300 ${activeTab === tab.id
-                                            ? 'bg-white/10 text-white shadow-lg shadow-white/5 ring-1 ring-white/20'
-                                            : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
-                                            }`}
-                                    >
-                                        <span className="text-sm opacity-80">{tab.icon}</span>
-                                        <span>{tab.label}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
+                <NavDropdown 
+                    title="Datos" icon="👥" activeTab={activeTab} setActiveTab={setActiveTab}
+                    items={[
+                        { id: 'empleados', label: 'Mi Equipo', icon: '👥' },
+                        { id: 'arca', label: 'Mis Compras', icon: '🧾' },
+                        { id: 'ventas', label: 'Mis Ventas', icon: '💰' },
+                    ]}
+                />
 
-                    {/* Botón de Refresh flotante / final */}
-                    <div className="flex flex-col gap-2.5 ml-auto">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 opacity-40 text-right pr-3">Data</span>
-                        <button
-                            onClick={() => fetchData(true)}
-                            disabled={loading}
-                            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-[11px] font-bold transition-all border border-blue-500/30 ${loading ? 'bg-blue-600/20 text-blue-400 cursor-not-allowed' : 'bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white shadow-lg shadow-blue-900/20'}`}
-                        >
-                            {loading ? (
-                                <svg className="animate-spin h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            ) : (
-                                <span className="text-base">↻</span>
-                            )}
-                            <span>{loading ? 'Sincro...' : 'Actualizar'}</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
+                <NavDropdown 
+                    title="Gastos" icon="💼" activeTab={activeTab} setActiveTab={setActiveTab}
+                    items={[
+                        { id: 'estructurales', label: 'Gastos Fijos', icon: '🏢' },
+                    ]}
+                />
+
+                <NavDropdown 
+                    title="Admin" icon="⚙️" activeTab={activeTab} setActiveTab={setActiveTab}
+                    items={[
+                        { id: 'audit', label: 'Registro de Cambios', icon: '📋' },
+                        { id: 'config', label: 'Ajustes de Sistema', icon: '⚙️' },
+                        { id: 'guia', label: 'Guía de Ayuda', icon: '📖' },
+                    ]}
+                />
+
+                <div className="w-px h-6 bg-white/10 mx-2 hidden sm:block"></div>
+
+                <button
+                    onClick={() => fetchData(true)}
+                    disabled={loading}
+                    className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all border ${
+                        loading 
+                        ? 'bg-blue-600/20 text-blue-400 border-blue-500/30' 
+                        : 'bg-blue-600/10 text-blue-400 border-blue-500/30 hover:bg-blue-600 hover:text-white'
+                    }`}
+                >
+                    {loading ? (
+                        <svg className="animate-spin h-3.5 w-3.5 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    ) : '↻'}
+                </button>
+            </nav>
 
             <main>{renderTabContent()}</main>
 
-            {/* Consola de Logs */}
-            <div className="bg-black/50 rounded-lg p-4 text-sm font-mono h-48 overflow-y-auto shadow-inner mt-8 border border-slate-800">
-                <p className="text-slate-500 mb-2 border-b border-slate-700 pb-1 text-[10px] uppercase font-black tracking-widest">System Logs</p>
-                {logs.length === 0 && <span className="text-slate-600 italic">Esperando acciones...</span>}
-                {logs.map((log, i) => (
-                    <div
-                        key={i}
-                        className={`mb-1 ${log.includes('❌') ? 'text-red-400' : log.includes('✅') ? 'text-green-400' : 'text-slate-300'}`}
-                    >
-                        {log}
+            {/* PREVIEW MODAL */}
+            {renderPreviewModal()}
+
+            {/* Consola de Logs — colapsable */}
+            <div className="mt-8">
+                <button
+                    onClick={() => setShowLogs(v => !v)}
+                    className="flex items-center gap-2 text-[10px] text-slate-600 hover:text-slate-400 transition font-bold uppercase tracking-widest"
+                >
+                    <span className={`transition-transform ${showLogs ? 'rotate-90' : ''}`}>▶</span>
+                    {showLogs ? 'Ocultar detalle técnico' : 'Ver detalle técnico'}
+                    {logs.some(l => l.includes('❌')) && (
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    )}
+                </button>
+                {showLogs && (
+                    <div className="bg-black/50 rounded-lg p-4 text-sm font-mono h-48 overflow-y-auto shadow-inner mt-2 border border-slate-800 animate-fade-in">
+                        {logs.length === 0 && <span className="text-slate-600 italic">Esperando acciones...</span>}
+                        {logs.map((log, i) => (
+                            <div
+                                key={i}
+                                className={`mb-1 ${log.includes('❌') ? 'text-red-400' : log.includes('✅') ? 'text-green-400' : 'text-slate-300'}`}
+                            >
+                                {log}
+                            </div>
+                        ))}
                     </div>
-                ))}
+                )}
             </div>
 
-            {/* Modales */}
-            <ProfessionalFeesModal
-                isOpen={showProfModal}
-                onClose={() => setShowProfModal(false)}
-                onConfirm={(data) => sendToBackend(data, 'MANUAL_COSTS')}
-                defaultDate={defaultDate}
-            />
             <StructuralCostsModal
                 isOpen={showStructModal}
                 onClose={() => setShowStructModal(false)}
-                onConfirm={(data) => sendToBackend(data, 'MANUAL_COSTS')}
-                defaultDate={defaultDate}
-            />
-            <IIBBModal
-                isOpen={showIIBBModal}
-                onClose={() => setShowIIBBModal(false)}
-                onConfirm={(data) => sendToBackend(data, 'MANUAL_COSTS')}
-                defaultDate={defaultDate}
-            />
-            <RetentionsModal
-                isOpen={showRetModal}
-                onClose={() => setShowRetModal(false)}
                 onConfirm={(data) => sendToBackend(data, 'MANUAL_COSTS')}
                 defaultDate={defaultDate}
             />

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import { Parsers } from './parsers'; 
+import * as XLSX from 'xlsx';
+import { Parsers } from './parsers';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
@@ -54,12 +55,29 @@ const FileCard = ({ title, type, parserMode, onDataReady, isLoading, defaultDate
                 content = fullText;
                 parsedData = Parsers.maxirest(content);
 
-            } else if (type === 'CSV' && (file.type.includes('csv') || file.type.includes('text') || file.name.toLowerCase().endsWith('.csv'))) {
-                content = await file.text();
-                if (parserMode === 'sueldos') {
-                    parsedData = Parsers.sueldos(content, defaultDate);
-                } else {
+            } else if (type === 'CSV') {
+                const name = file.name.toLowerCase();
+                const isExcel = name.endsWith('.xlsx') || name.endsWith('.xls');
+                const isCsv = name.endsWith('.csv') || file.type.includes('csv') || file.type.includes('text');
+
+                if (parserMode === 'sueldos' && isExcel) {
+                    const buffer = await file.arrayBuffer();
+                    const wb = XLSX.read(buffer, { type: 'array' });
+                    const ws = wb.Sheets[wb.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+                    parsedData = Parsers.sueldos(rows, defaultDate);
+                } else if (parserMode === 'sueldos' && isCsv) {
+                    content = await file.text();
+                    const rows = content.split('\n').map(line =>
+                        line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/^"|"$/g, '') || null)
+                    );
+                    parsedData = Parsers.sueldos(rows, defaultDate);
+                } else if (!parserMode && isCsv) {
+                    content = await file.text();
                     parsedData = Parsers.arca(content);
+                } else {
+                    setStats('Formato de archivo incorrecto.');
+                    return;
                 }
             } else {
                 setStats('Formato de archivo incorrecto.');
@@ -90,7 +108,9 @@ const FileCard = ({ title, type, parserMode, onDataReady, isLoading, defaultDate
         >
             <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-lg text-slate-200">{title}</h3>
-                <span className="text-xs font-semibold px-2 py-1 bg-slate-700 rounded text-slate-300">{type}</span>
+                <span className="text-xs font-semibold px-2 py-1 bg-slate-700 rounded text-slate-300">
+                    {parserMode === 'sueldos' ? 'XLS / CSV' : type}
+                </span>
             </div>
             
             <div className="text-center py-8 text-slate-500">
@@ -108,11 +128,11 @@ const FileCard = ({ title, type, parserMode, onDataReady, isLoading, defaultDate
                 )}
             </div>
             
-            <input 
-                type="file" 
-                className="hidden" 
+            <input
+                type="file"
+                className="hidden"
                 id={`file-${title.replace(/\s+/g, '-')}`}
-                accept={type === 'PDF' ? '.pdf' : '.csv'}
+                accept={type === 'PDF' ? '.pdf' : parserMode === 'sueldos' ? '.csv,.xls,.xlsx' : '.csv'}
                 onChange={(e) => handleFiles(e.target.files)}
             />
             <label 

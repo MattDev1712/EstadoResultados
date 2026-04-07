@@ -7,7 +7,6 @@ const ConfigView = () => {
     const [config, setConfig] = useState({
         LOCAL_NOMBRE: '',
         LOCAL_CUIT: '',
-        IIBB_ALICUOTA: '',
         OBJETIVO_MARGEN: '',
         OBJETIVO_VENTAS: ''
     });
@@ -89,19 +88,7 @@ const ConfigView = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-700/50">
-                        <div className="space-y-2">
-                            <label className="text-[10px] font-black text-amber-500/70 uppercase tracking-widest">Alícuota IIBB (Decimal)</label>
-                            <p className="text-[9px] text-slate-500">Ej: 0.035 para 3.5%</p>
-                            <input 
-                                name="IIBB_ALICUOTA" 
-                                type="number"
-                                step="0.0001"
-                                value={config.IIBB_ALICUOTA} 
-                                onChange={handleChange}
-                                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-amber-200 font-mono focus:ring-2 focus:ring-amber-500 outline-none transition"
-                            />
-                        </div>
+                    <div className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-700/50">
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-emerald-500/70 uppercase tracking-widest">Objetivo de Margen (Decimal)</label>
                             <p className="text-[9px] text-slate-500">Ej: 0.15 para 15%</p>
@@ -116,7 +103,17 @@ const ConfigView = () => {
                         </div>
                     </div>
 
-                    <div className="pt-8 border-t border-slate-700/40">
+                    <div className="pt-6 border-t border-slate-700/40">
+                        <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                            <span>📊 Coeficientes de Ajuste (IPC / MEP)</span>
+                        </h3>
+                        <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-xs text-amber-200/70 leading-relaxed space-y-1">
+                            <p>Los coeficientes <span className="font-bold text-amber-300">IPC</span> y <span className="font-bold text-violet-300">Dólar MEP</span> se configuran por período directamente en el <span className="font-bold text-white">Dashboard</span>, en el panel superior derecho.</p>
+                            <p className="text-slate-500">Los valores iniciales son estimaciones. Para que la vista "Real IPC" sea confiable, actualizá el coeficiente de cada mes con el dato real publicado por <span className="font-bold text-slate-400">INDEC</span> (indec.gob.ar → IPC Nivel General). El factor es: <span className="font-mono text-slate-300">inflación acumulada desde ese mes hasta hoy</span>.</p>
+                        </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-slate-700/40">
                         <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
                             <span>🔌 Conexión Técnica</span>
                             <span className="text-[9px] font-normal text-slate-400 bg-slate-900 border border-slate-700 px-2 py-0.5 rounded uppercase tracking-tighter">Avanzado</span>

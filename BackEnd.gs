@@ -274,11 +274,14 @@ const ArcaMapper = {
       comprobante_tipo: data.tipo_comp,
       comprobante_numero: data.nro_comp,
 
-      importe_neto: Math.abs(parseFloat(data.neto || 0)) * signo,
-      importe_iva: Math.abs(parseFloat(data.iva || 0)) * signo,
-      importe_total: Math.abs(parseFloat(data.total || 0)) * signo,
-      
-      metodo_pago: 'A Pagar / Cta Cte', // Por defecto compras AFIP
+      // El frontend ya envía NC con signo negativo; se aplica signo=-1 para
+      // convertir el positivo de facturas en egreso. Las NC quedan positivas (reducen egreso).
+      importe_neto: parseFloat(data.neto || 0) * signo,
+      importe_iva: parseFloat(data.iva || 0) * signo,
+      otros_tributos: parseFloat(data.otros_tributos || 0) * signo,
+      importe_total: parseFloat(data.total || 0) * signo,
+
+      metodo_pago: 'A Pagar / Cta Cte',
       observaciones: 'Imp. Mis Comprobantes'
     });
   }
@@ -657,110 +660,6 @@ function saveCuitCategories(payload) {
 
 
 
-/**
- * ============================================================================
- * ACTIVOS FIJOS Y AMORTIZACIONES
- * ============================================================================
- */
-const ASSETS_SHEET_NAME = 'Activos';
-const ASSETS_HEADERS = ['UUID', 'Nombre', 'Fecha Compra', 'Valor Original', 'Vida Util (meses)', 'Amort. Mensual', 'Notas'];
-
-function _initAssetsSheet(ss) {
-  let sheet = ss.getSheetByName(ASSETS_SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(ASSETS_SHEET_NAME);
-    sheet.getRange(1, 1, 1, ASSETS_HEADERS.length).setValues([ASSETS_HEADERS]).setFontWeight('bold');
-    sheet.setFrozenRows(1);
-    sheet.getRange(1, 1, 1, ASSETS_HEADERS.length).setBackground('#0f172a').setFontColor('#a78bfa');
-  }
-  return sheet;
-}
-
-function getActivos() {
-  const ss = SpreadsheetApp.openById(SS_ID);
-  const sheet = ss.getSheetByName(ASSETS_SHEET_NAME);
-  if (!sheet || sheet.getLastRow() < 2) return [];
-  return sheet.getRange(2, 1, sheet.getLastRow() - 1, 7).getValues()
-    .filter(r => r[0])
-    .map(r => ({
-      uuid:         r[0],
-      nombre:       r[1],
-      fecha_compra: r[2] instanceof Date ? Utilities.formatDate(r[2], Session.getScriptTimeZone(), 'yyyy-MM-dd') : r[2],
-      valor:        r[3],
-      vida_util:    r[4],
-      amort_mensual: r[5],
-      notas:        r[6]
-    }));
-}
-
-function saveActivo(payload) {
-  const ss = SpreadsheetApp.openById(SS_ID);
-  const sheet = _initAssetsSheet(ss);
-  let insertados = 0, actualizados = 0;
-
-  const lastRow = sheet.getLastRow();
-  const uuidToRow = {};
-  if (lastRow > 1) {
-    sheet.getRange(2, 1, lastRow - 1, 1).getValues().forEach(([uuid], i) => {
-      if (uuid) uuidToRow[uuid] = i + 2;
-    });
-  }
-
-  payload.forEach(a => {
-    const uuid = a.uuid || `ASSET-${Utilities.getUuid().substring(0,8)}`;
-    const amortM = (parseFloat(a.valor) || 0) / (parseInt(a.vida_util) || 1);
-    const fechaDate = a.fecha_compra ? new Date(a.fecha_compra + 'T12:00:00') : new Date();
-    const row = [uuid, a.nombre, fechaDate, parseFloat(a.valor), parseInt(a.vida_util), amortM, a.notas || ''];
-    if (uuidToRow[uuid]) {
-      sheet.getRange(uuidToRow[uuid], 1, 1, row.length).setValues([row]);
-      actualizados++;
-    } else {
-      sheet.appendRow(row);
-      insertados++;
-    }
-  });
-  return { status: 'OK', insertados, actualizados };
-}
-
-function deleteActivo(payload) {
-  const ss = SpreadsheetApp.openById(SS_ID);
-  const sheet = ss.getSheetByName(ASSETS_SHEET_NAME);
-  if (!sheet || sheet.getLastRow() < 2) return { status: 'NO_DATA' };
-  const uuids = payload.map(p => p.uuid);
-  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
-  // Delete from bottom to avoid row-shift issues
-  for (let i = data.length - 1; i >= 0; i--) {
-    if (uuids.includes(data[i][0])) sheet.deleteRow(i + 2);
-  }
-  return { status: 'OK' };
-}
-
-/**
- * Calcula la amortización mensual total de todos los activos activos en el período.
- * Un activo está activo si su vida útil no se agotó (fecha_compra + vida_util > startObj).
- */
-function _calcAmortizacion(ss, startObj) {
-  const sheet = ss.getSheetByName(ASSETS_SHEET_NAME);
-  if (!sheet || sheet.getLastRow() < 2) return 0;
-  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 7).getValues();
-  let total = 0;
-  data.forEach(r => {
-    if (!r[0]) return;
-    const valor = parseFloat(r[3]) || 0;
-    const vidaUtil = parseInt(r[4]) || 1;
-    const amortM = parseFloat(r[5]) || (valor / vidaUtil);
-    const fechaCompra = r[2] instanceof Date ? r[2] : new Date(r[2] + 'T12:00:00');
-    // Calcular mes fin de vida útil
-    const fechaFin = new Date(fechaCompra);
-    fechaFin.setMonth(fechaFin.getMonth() + vidaUtil);
-    // El activo está activo si el período está dentro de su vida útil
-    if (startObj >= fechaCompra && startObj < fechaFin) {
-      total += amortM;
-    }
-  });
-  return total;
-}
-
 
 function _crearEncabezados(sheet) {
   const headers = [
@@ -796,8 +695,6 @@ function getFinancialSummary(startDate, endDate) {
   // Sincronizar configuración dinámica antes de procesar
   _syncConfigFromSheet(ss);
   
-  // Cargar mapa CUIT → Categoría (clasificación permanente por CUIT)
-  const cuitCategoryMap = _getCuitCategoryMap(ss);
   
   // Acumuladores Nominales
   let utilidadNeta = 0;
@@ -809,12 +706,8 @@ function getFinancialSummary(startDate, endDate) {
   let cantidadVentas = 0;
   
   // Categorización de Egresos
-  let egresoCMV = 0;
   let egresoLaboral = 0;
   let egresoEstructural = 0;
-  let egresoHonorarios = 0;
-  let egresoIIBB = 0;
-  let egresoRetenciones = 0;
   let egresoOtros = 0;
 
   const historyMap = {}; 
@@ -857,22 +750,11 @@ function getFinancialSummary(startDate, endDate) {
         const absNeto = Math.abs(neto);
         creditoFiscal += Math.abs(iva);
         
-        // Categorización: prioridad CUIT > rubro explícito > keywords de nombre
-        const cuitRow = (row[8] || '').toString().trim();
+        // Categorización: prioridad rubro explícito > keywords de nombre
         const rubroRow = (row[5] || '').trim();
         const entLow = entidad.toLowerCase();
-        const cuitCat = cuitCategoryMap[cuitRow];
 
-        if      (cuitCat === 'CMV')         egresoCMV += absNeto;
-        else if (cuitCat === 'Estructural') egresoEstructural += absNeto;
-        else if (cuitCat === 'Honorarios') egresoHonorarios += absNeto;
-        else if (cuitCat === 'IIBB')        egresoIIBB += absNeto;
-        else if (cuitCat === 'Otros')       egresoOtros += absNeto;
-        else if (rubroRow === 'IIBB')        egresoIIBB += absNeto;
-        else if (rubroRow === 'Retenciones') egresoRetenciones += absNeto;
-        else if (KEYWORDS_CMV.some(kw => entLow.includes(kw)))          egresoCMV += absNeto;
-        else if (KEYWORDS_ESTRUCTURAL.some(kw => entLow.includes(kw)))  egresoEstructural += absNeto;
-        else if (entLow.includes('honorarios') || entLow.includes('contador')) egresoHonorarios += absNeto;
+        if (KEYWORDS_ESTRUCTURAL.some(kw => entLow.includes(kw)))  egresoEstructural += absNeto;
         else egresoOtros += absNeto;
 
         if (!proveedoresMap[entidad]) proveedoresMap[entidad] = 0;
@@ -929,15 +811,11 @@ function getFinancialSummary(startDate, endDate) {
     });
   }
 
-  // 4. AMORTIZACIONES (Activos Fijos)
-  const egresoAmortizaciones = _calcAmortizacion(ss, startObj);
-
   // Ajustes Finales
-  const resFinal = totalVentasNeto - (egresoCMV + egresoLaboral + egresoEstructural + egresoHonorarios + egresoIIBB + egresoRetenciones + egresoOtros + egresoAmortizaciones) - totalComisiones;
-  const breakEven = (egresoLaboral + egresoEstructural + egresoHonorarios + egresoIIBB + egresoAmortizaciones) / (totalVentasNeto > 0 ? (totalVentasNeto - egresoCMV) / totalVentasNeto : 1);
-
-  // Provisión SAC informativa (no impacta el resultado, sirve de referencia)
+  // Provisión SAC: 1/12 del costo laboral mensual. Impacta el resultado porque el SAC se devenga todos los meses.
   const provisionSAC = egresoLaboral / 12;
+  const resFinal = totalVentasNeto - (egresoLaboral + egresoEstructural + egresoOtros + provisionSAC) - totalComisiones;
+  const breakEven = (egresoLaboral + egresoEstructural + provisionSAC) / (totalVentasNeto > 0 ? (totalVentasNeto - totalComisiones) / totalVentasNeto : 1);
 
   // Obtener coeficientes para el periodo actual
   const currentPeriod = `${startObj.getFullYear()}-${String(startObj.getMonth() + 1).padStart(2, '0')}`;
@@ -954,19 +832,14 @@ function getFinancialSummary(startDate, endDate) {
       utilidad_neta: _round(resFinal),
       ventas_netas_reales: _round(totalVentasNeto - totalComisiones),
       iva_posicion: _round(debitoFiscal - creditoFiscal),
-      margen_contribuccion: _round(totalVentasNeto - egresoCMV - totalComisiones),
+      margen_contribuccion: _round(totalVentasNeto - totalComisiones),
       ticket_promedio: _round(cantidadVentas > 0 ? totalVentasNeto / cantidadVentas : 0),
       break_even_mensual: _round(breakEven),
-      provision_sac: _round(provisionSAC)
     },
     egresos: {
-      cmv: _round(egresoCMV),
       laboral: _round(egresoLaboral),
+      provision_sac: _round(provisionSAC),
       estructural: _round(egresoEstructural),
-      honorarios: _round(egresoHonorarios),
-      iibb: _round(egresoIIBB),
-      retenciones: _round(egresoRetenciones),
-      amortizaciones: _round(egresoAmortizaciones),
       otros: _round(egresoOtros),
       comisiones: _round(totalComisiones)
     },
@@ -1091,12 +964,6 @@ function doPost(e) {
       case 'SAVE_CATEGORIES':
         resultado = saveCuitCategories(payload);
         break;
-      case 'SAVE_ASSET':
-        resultado = saveActivo(payload);
-        break;
-      case 'DELETE_ASSET':
-        resultado = deleteActivo(payload);
-        break;
       case 'SUELDOS':
         resultado = saveSueldos(payload.map(item => SueldosMapper.mapEmpleado(item)));
         _logAudit(SpreadsheetApp.openById(SS_ID), 'CARGA_SUELDOS', payload.length, payload[0]?.fecha_periodo || 'N/A');
@@ -1132,47 +999,67 @@ function doPost(e) {
  */
 function getDataMetadata() {
   const ss = SpreadsheetApp.openById(SS_ID);
+  const periodsMap = {}; // { "YYYY-MM": { v, a, e, g } }
 
-  let minTs = Infinity;
-  let maxTs = -Infinity;
-  let found = false;
-  const periods = new Set();
-
-  // Helper para escanear fechas de una hoja
-  const scanSheet = (sheetName) => {
+  const scan = (sheetName, type) => {
     const sheet = ss.getSheetByName(sheetName);
     if (!sheet || sheet.getLastRow() < 2) return;
-    // Columna B (índice 2) siempre es Fecha en ambos esquemas
-    const rawDates = sheet.getRange(2, 2, sheet.getLastRow() - 1, 1).getValues().flat();
-    rawDates.forEach(d => {
-      if (d instanceof Date) {
-        const t = d.getTime();
-        if (t < minTs) minTs = t;
-        if (t > maxTs) maxTs = t;
-        found = true;
-        
-        // Registrar periodo disponible YYYY-MM
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        periods.add(`${y}-${m}`);
+    
+    const numCols = sheet.getLastColumn();
+    const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, numCols).getValues();
+    
+    data.forEach(row => {
+      let dateVal = row[1]; // Fecha suele estar en Col B (index 1)
+      if (!(dateVal instanceof Date)) {
+        if (typeof dateVal === 'string' && dateVal.includes('-')) {
+          dateVal = new Date(dateVal + 'T12:00:00');
+        } else {
+          return;
+        }
+      }
+      
+      const y = dateVal.getFullYear();
+      const m = String(dateVal.getMonth() + 1).padStart(2, '0');
+      const p = `${y}-${m}`;
+      
+      if (!periodsMap[p]) periodsMap[p] = { v: false, a: false, e: false, g: false };
+      
+      if (type === 'ventas') periodsMap[p].v = true;
+      if (type === 'empleados') periodsMap[p].e = true;
+      if (type === 'movimientos') {
+        const tipo = row[3];   // Col D: Tipo Movimiento
+        const rubro = String(row[5] || ''); // Col F: Rubro
+        if (tipo === 'EGRESO') {
+          if (rubro === 'Costos Estructurales') {
+            periodsMap[p].g = true;
+          } else {
+            periodsMap[p].a = true;
+          }
+        }
       }
     });
   };
 
-  // Escanear ambas fuentes
-  scanSheet(SHEET_NAME);
-  scanSheet(MAXIREST_SHEET_NAME);
-  scanSheet(EMPLOYEES_SHEET_NAME); // Escanear también fechas de empleados
+  scan(MAXIREST_SHEET_NAME, 'ventas');
+  scan(EMPLOYEES_SHEET_NAME, 'empleados');
+  scan(SHEET_NAME, 'movimientos');
 
-  if (!found) return { minDate: null, maxDate: null };
+  const sortedPeriods = Object.keys(periodsMap).sort().reverse().map(p => {
+    const meta = periodsMap[p];
+    const score = (meta.v ? 1 : 0) + (meta.a ? 1 : 0) + (meta.e ? 1 : 0) + (meta.g ? 1 : 0);
+    return {
+      id: p,
+      ...meta,
+      score,
+      isComplete: score === 4
+    };
+  });
 
-  const tz = Session.getScriptTimeZone();
   return {
-    minDate: Utilities.formatDate(new Date(minTs), tz, 'yyyy-MM-dd'),
-    maxDate: Utilities.formatDate(new Date(maxTs), tz, 'yyyy-MM-dd'),
-    periods: Array.from(periods).sort().reverse()
+    periods: sortedPeriods
   };
 }
+
 
 function getEmployeesByPeriod(startStr, endStr) {
   const ss = SpreadsheetApp.openById(SS_ID);
@@ -1294,10 +1181,6 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(catMap)).setMimeType(ContentService.MimeType.JSON);
     }
 
-    if (action === 'GET_ASSETS') {
-      const assets = getActivos();
-      return ContentService.createTextOutput(JSON.stringify(assets)).setMimeType(ContentService.MimeType.JSON);
-    }
 
     if (action === 'GET_EMPLOYEES') {
       const data = getEmployeesByPeriod(e.parameter.start, e.parameter.end);

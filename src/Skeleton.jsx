@@ -8,9 +8,9 @@ const Skeleton = ({ className = "", style = {} }) => (
 );
 
 export const CardSkeleton = () => (
-    <div className="bg-slate-900/40 border border-slate-800/40 rounded-2xl p-6 h-40 flex flex-col justify-between">
+    <div className="bg-slate-900/40 border border-slate-800/40 rounded-2xl p-6 h-32 flex flex-col justify-between">
         <Skeleton className="w-1/3 h-4" />
-        <Skeleton className="w-2/3 h-10" />
+        <Skeleton className="w-2/3 h-8" />
         <div className="space-y-2">
             <Skeleton className="w-full h-2" />
             <Skeleton className="w-full h-2" />

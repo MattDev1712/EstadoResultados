@@ -77,15 +77,15 @@ const VentasSistemaView = ({ data: dataProp }) => {
             {/* ── KPIs principales ──────────────────────────── */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <KpiCard
-                    label="Venta Bruta"
+                    label="Ventas Totales (con IVA)"
                     value={Utils.fmt(stats.total)}
-                    sub={`${data.length} período${data.length !== 1 ? 's' : ''} cargado${data.length !== 1 ? 's' : ''}`}
+                    sub={`${data.length} carga${data.length !== 1 ? 's' : ''} de datos`}
                     color="blue"
                 />
                 <KpiCard
-                    label="Neto Fiscal"
+                    label="Ventas sin impuestos"
                     value={Utils.fmt(stats.neto)}
-                    sub={`IVA débito: ${Utils.fmt(stats.iva)}`}
+                    sub={`IVA del total: ${Utils.fmt(stats.iva)}`}
                     color="violet"
                 />
                 <KpiCard
@@ -101,7 +101,7 @@ const VentasSistemaView = ({ data: dataProp }) => {
                     value={Utils.fmt(stats.tarj + stats.otros)}
                     bar={stats.mixTarj + stats.mixOtros}
                     barColor="bg-blue-500"
-                    sub={`Presión IVA: ${stats.presion.toFixed(1)}%`}
+                    sub={`% de IVA en ventas: ${stats.presion.toFixed(1)}%`}
                     color="rose"
                 />
             </div>
@@ -109,8 +109,8 @@ const VentasSistemaView = ({ data: dataProp }) => {
             {/* ── Composición facturación ───────────────────── */}
             <div className="group-card !p-5 space-y-3">
                 <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Composición de Facturación</p>
-                    <p className="text-[10px] text-slate-600">Fact. B Electrónica vs Fact. B Manual (Exenta)</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">¿Cómo se facturó?</p>
+                    <p className="text-[10px] text-slate-600">Con factura fiscal vs. Ticket manual manual (Sin IVA)</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="flex-1 h-3 bg-slate-900 rounded-full overflow-hidden flex">
@@ -121,13 +121,13 @@ const VentasSistemaView = ({ data: dataProp }) => {
                 <div className="flex gap-6 text-[11px]">
                     <span className="flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />
-                        <span className="text-slate-400">Fact. B Electrónica</span>
+                        <span className="text-slate-400">Facturas registradas</span>
                         <span className="text-amber-400 font-bold">{Utils.fmt(stats.bElec)}</span>
                         <span className="text-slate-600">({stats.pctBElec.toFixed(1)}%)</span>
                     </span>
                     <span className="flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 rounded-sm bg-slate-600 inline-block" />
-                        <span className="text-slate-400">Fact. B Manual</span>
+                        <span className="text-slate-400">Tickets manuales (Sin IVA)</span>
                         <span className="text-slate-300 font-bold">{Utils.fmt(stats.bManual)}</span>
                         <span className="text-slate-600">({(100 - stats.pctBElec).toFixed(1)}%)</span>
                     </span>
@@ -148,15 +148,15 @@ const VentasSistemaView = ({ data: dataProp }) => {
                     <table className="w-full text-xs text-left min-w-[960px]">
                         <thead className="bg-slate-900/80 text-slate-500 uppercase text-[10px] font-black tracking-widest">
                             <tr>
-                                <th className="px-5 py-4 sticky left-0 bg-slate-900/80">Período</th>
-                                <th className="px-5 py-4 text-right text-amber-500/80">Fact. B Elec.</th>
-                                <th className="px-5 py-4 text-right">Fact. B Manual</th>
-                                <th className="px-5 py-4 text-right text-violet-500/80">Neto 21%</th>
-                                <th className="px-5 py-4 text-right text-rose-500/80">IVA 21%</th>
+                                <th className="px-5 py-4 sticky left-0 bg-slate-900/80">Fecha</th>
+                                <th className="px-5 py-4 text-right text-amber-500/80">Venta con Factura</th>
+                                <th className="px-5 py-4 text-right">Venta Manual (Sin IVA)</th>
+                                <th className="px-5 py-4 text-right text-violet-500/80">Venta sin IVA</th>
+                                <th className="px-5 py-4 text-right text-rose-500/80">IVA Pagado</th>
                                 <th className="px-5 py-4 text-right text-emerald-500/80">Efectivo</th>
                                 <th className="px-5 py-4 text-right text-blue-500/80">Tarjetas</th>
                                 <th className="px-5 py-4 text-right">Otros</th>
-                                <th className="px-5 py-4 text-right text-white bg-white/5 border-l border-white/10">Venta Bruta</th>
+                                <th className="px-5 py-4 text-right text-white bg-white/5 border-l border-white/10">Total Recaudado</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700/40">
@@ -201,7 +201,7 @@ const VentasSistemaView = ({ data: dataProp }) => {
             </div>
 
             <p className="px-2 text-[10px] text-slate-600 italic">
-                * La Venta Bruta surge de Efectivo + Tarjetas + Otros y debe coincidir con Neto + IVA. El Neto Fiscal se calcula como Fact. B Electrónica / 1,21 + Fact. B Manual.
+                * El Total Recaudado surge de Efectivo + Tarjetas + Otros. La "Venta sin IVA" se calcula separando el impuesto de las ventas facturadas sumado a las ventas manuales.
             </p>
         </div>
     );

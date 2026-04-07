@@ -22,7 +22,7 @@ const EmployeesView = () => {
     const totalRealConCargas = totals.costo + montoCargas;
 
     const chartDataComposicion = useMemo(() => ({
-        labels: ['En Blanco (Recibo)', 'Fuera de Convenio (Negro)'],
+        labels: ['Sueldo registrado (Blanco)', 'Pago en mano (Informal)'],
         datasets: [{
             data: [totals.recibo, totals.negro],
             backgroundColor: ['#10b981', '#f43f5e'],
@@ -61,14 +61,14 @@ const EmployeesView = () => {
             <div className="w-full mb-6">
                 <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-[2.5rem] border border-slate-700 shadow-2xl relative overflow-hidden group">
                     <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-all duration-700"></div>
-                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-[0.3em] mb-4">Costo Real de Nómina (Sueldos + Cargas Est.)</p>
+                    <p className="section-label !mb-3">Lo que realmente cuesta el equipo (Sueldos + Impuestos Est.)</p>
                     <div className="flex flex-col md:flex-row md:items-baseline gap-2 md:gap-6">
-                        <h2 className="text-4xl md:text-6xl font-black text-white font-mono tracking-tighter">
+                        <h2 className="text-4xl font-black text-white font-mono tracking-tighter leading-none">
                             {Utils.fmt(totalRealConCargas)}
                         </h2>
                         <div className="flex items-center gap-2 text-slate-500 text-xs font-medium border-l border-slate-700 md:pl-6">
                             <span className="bg-slate-700 px-2 py-0.5 rounded text-[10px] text-slate-300">ESTIMADO</span>
-                            <span>Incluye {Utils.fmt(montoCargas)} de cargas proyectadas</span>
+                            <span>Incluye {Utils.fmt(montoCargas)} de impuestos al sueldo (proyectado)</span>
                         </div>
                     </div>
                 </div>
@@ -76,22 +76,22 @@ const EmployeesView = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-2">Dotación del Periodo</p>
-                    <h2 className="text-2xl lg:text-3xl font-extrabold text-blue-400 truncate">{Utils.arr(employees).length} <span className="text-sm text-slate-600 font-medium uppercase tracking-tighter">Personas</span></h2>
+                    <p className="section-label !mb-2">Cantidad de personas</p>
+                    <h2 className="text-2xl font-black text-blue-400 truncate">{Utils.arr(employees).length} <span className="text-xs text-slate-600 font-bold uppercase tracking-tighter ml-1">Personas</span></h2>
                 </div>
                 
                 <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-2">Incidencia Blanco</p>
-                    <h2 className="text-2xl lg:text-3xl font-extrabold text-slate-200 truncate">{Utils.num(totals.costo) > 0 ? Utils.pct(Utils.num(totals.recibo), Utils.num(totals.costo)) : 0}%</h2>
+                    <p className="section-label !mb-2">% Pago en blanco</p>
+                    <h2 className="text-2xl font-black text-slate-100 truncate">{Utils.num(totals.costo) > 0 ? Utils.pct(Utils.num(totals.recibo), Utils.num(totals.costo)) : 0}%</h2>
                 </div>
                 
                 <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-                    <p className="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-2">Incidencia s/ Ventas</p>
-                    <h2 className="text-2xl lg:text-3xl font-extrabold text-rose-400 truncate">{Utils.num(ventasNetas) > 0 ? Utils.pct(Utils.num(totals.costo), Utils.num(ventasNetas)) : 0}%</h2>
+                    <p className="section-label !mb-2">% Costo sobre ventas</p>
+                    <h2 className="text-2xl font-black text-rose-400 truncate">{Utils.num(ventasNetas) > 0 ? Utils.pct(Utils.num(totals.costo), Utils.num(ventasNetas)) : 0}%</h2>
                 </div>
 
                 <div className="bg-slate-800 p-6 rounded-2xl border border-blue-500/30 shadow-xl bg-blue-500/[0.02]">
-                    <p className="text-blue-400/70 text-[10px] uppercase font-bold tracking-widest mb-2">Cargas Sociales (%)</p>
+                    <p className="section-label !text-blue-400/70 !mb-2">Impuestos al sueldo (%)</p>
                     <div className="flex items-center gap-2">
                         <input 
                             type="number"
@@ -109,7 +109,7 @@ const EmployeesView = () => {
                 <div className="lg:col-span-1">
                     <ChartComponent 
                         type="pie" 
-                        title="Composición Salarial" 
+                        title="Cómo se reparte el pago" 
                         data={chartDataComposicion}
                         options={cakeOptions}
                     />
@@ -119,14 +119,14 @@ const EmployeesView = () => {
                     <h3 className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mb-8">Análisis de Composición</h3>
                     <div className="space-y-6">
                         <div className="flex justify-between items-center">
-                            <span className="text-emerald-500 font-bold text-sm">Base Imponible (Recibo)</span>
+                            <span className="text-emerald-500 font-bold text-sm">Sueldo registrado (Blanco)</span>
                             <span className="text-2xl font-mono font-black text-white">{Utils.fmt(Utils.num(totals.recibo))}</span>
                         </div>
                         <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
                             <div className="bg-emerald-500 h-full" style={{ width: `${Utils.pct(Utils.num(totals.recibo), Utils.num(totals.costo))}%` }}></div>
                         </div>
                         <div className="flex justify-between items-center">
-                            <span className="text-rose-500 font-bold text-sm">Pago Directo (Negro)</span>
+                            <span className="text-rose-500 font-bold text-sm">Pago en mano (Informal)</span>
                             <span className="text-2xl font-mono font-black text-white">{Utils.fmt(Utils.num(totals.negro))}</span>
                         </div>
                         <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
@@ -143,8 +143,8 @@ const EmployeesView = () => {
                             <th className="px-6 py-4">Empleado / Tarea</th>
                             <th className="px-6 py-4">DNI / CUIL</th>
                             <th className="px-6 py-4 text-center">Horas</th>
-                            <th className="px-6 py-4 text-right">Recibo</th>
-                            <th className="px-6 py-4 text-right">Negro</th>
+                            <th className="px-6 py-4 text-right">Sueldo Blanco</th>
+                            <th className="px-6 py-4 text-right">Sueldo Manual</th>
                             <th className="px-6 py-4 text-right">Costo Total</th>
                         </tr>
                     </thead>
