@@ -12,14 +12,14 @@ const EmployeesView = () => {
 
     // Memorización de totales de nómina
     const totals = useMemo(() => Utils.arr(employees).reduce((acc, emp) => {
-        acc.costo += Utils.num(emp.costo_total);
         acc.recibo += Utils.num(emp.recibo);
         acc.negro += Utils.num(emp.negro);
         return acc;
-    }, { costo: 0, recibo: 0, negro: 0 }), [employees]);
+    }, { recibo: 0, negro: 0 }), [employees]);
 
+    const totalNomina = totals.recibo + totals.negro;
     const montoCargas = totals.recibo * (Utils.num(cargasPct) / 100);
-    const totalRealConCargas = totals.costo + montoCargas;
+    const totalRealConCargas = totalNomina + montoCargas;
 
     const chartDataComposicion = useMemo(() => ({
         labels: ['Sueldo registrado (Blanco)', 'Pago en mano (Informal)'],
@@ -59,47 +59,67 @@ const EmployeesView = () => {
         <div className="animate-fade-in mt-4">
             {/* Fila Destacada: Costo Total Estimado */}
             <div className="w-full mb-6">
-                <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-[2.5rem] border border-slate-700 shadow-2xl relative overflow-hidden group">
-                    <div className="absolute -right-10 -top-10 w-40 h-40 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/10 transition-all duration-700"></div>
-                    <p className="section-label !mb-3">Lo que realmente cuesta el equipo (Sueldos + Impuestos Est.)</p>
-                    <div className="flex flex-col md:flex-row md:items-baseline gap-2 md:gap-6">
-                        <h2 className="text-4xl font-black text-white font-mono tracking-tighter leading-none">
-                            {Utils.fmt(totalRealConCargas)}
-                        </h2>
-                        <div className="flex items-center gap-2 text-slate-500 text-xs font-medium border-l border-slate-700 md:pl-6">
-                            <span className="bg-slate-700 px-2 py-0.5 rounded text-[10px] text-slate-300">ESTIMADO</span>
-                            <span>Incluye {Utils.fmt(montoCargas)} de impuestos al sueldo (proyectado)</span>
+                <div className="relative p-[1px] rounded-[2.5rem] bg-gradient-to-br from-emerald-500/40 via-slate-700/20 to-blue-500/20 shadow-2xl">
+                    <div className="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-900 p-8 rounded-[calc(2.5rem-1px)] relative overflow-hidden group">
+                        <div className="absolute -right-16 -top-16 w-64 h-64 bg-emerald-500/8 rounded-full blur-3xl group-hover:bg-emerald-500/15 transition-all duration-700"></div>
+                        <div className="absolute -left-8 -bottom-8 w-48 h-48 bg-blue-500/5 rounded-full blur-3xl"></div>
+                        <p className="section-label !mb-3 !text-emerald-400/80">Lo que realmente cuesta el equipo (Sueldos + Impuestos Est.)</p>
+                        <div className="flex flex-col md:flex-row md:items-baseline gap-2 md:gap-6">
+                            <h2 className="text-5xl font-black text-white font-mono tracking-tighter leading-none drop-shadow-lg">
+                                {Utils.fmt(totalRealConCargas)}
+                            </h2>
+                            <div className="flex items-center gap-2 text-slate-400 text-xs font-medium border-l border-slate-600 md:pl-6">
+                                <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider">ESTIMADO</span>
+                                <span>Incluye <span className="text-slate-200 font-semibold">{Utils.fmt(montoCargas)}</span> de impuestos al sueldo (proyectado)</span>
+                            </div>
+                        </div>
+                        <div className="mt-5 flex gap-6">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                                <span className="text-xs text-slate-500">Blanco <span className="text-slate-300 font-semibold">{Utils.fmt(totals.recibo)}</span></span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-rose-400"></div>
+                                <span className="text-xs text-slate-500">Informal <span className="text-slate-300 font-semibold">{Utils.fmt(totals.negro)}</span></span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                                <span className="text-xs text-slate-500">Cargas est. <span className="text-slate-300 font-semibold">{Utils.fmt(montoCargas)}</span></span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-                    <p className="section-label !mb-2">Cantidad de personas</p>
-                    <h2 className="text-2xl font-black text-blue-400 truncate">{Utils.arr(employees).length} <span className="text-xs text-slate-600 font-bold uppercase tracking-tighter ml-1">Personas</span></h2>
-                </div>
-                
-                <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-                    <p className="section-label !mb-2">% Pago en blanco</p>
-                    <h2 className="text-2xl font-black text-slate-100 truncate">{Utils.num(totals.costo) > 0 ? Utils.pct(Utils.num(totals.recibo), Utils.num(totals.costo)) : 0}%</h2>
-                </div>
-                
-                <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
-                    <p className="section-label !mb-2">% Costo sobre ventas</p>
-                    <h2 className="text-2xl font-black text-rose-400 truncate">{Utils.num(ventasNetas) > 0 ? Utils.pct(Utils.num(totals.costo), Utils.num(ventasNetas)) : 0}%</h2>
+                <div className="bg-gradient-to-br from-blue-500/10 to-slate-800 p-6 rounded-2xl border border-blue-500/20 shadow-xl">
+                    <p className="section-label !mb-3 !text-blue-400/70">Cantidad de personas</p>
+                    <h2 className="text-3xl font-black text-blue-400 leading-none">{Utils.arr(employees).length}</h2>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Personas</p>
                 </div>
 
-                <div className="bg-slate-800 p-6 rounded-2xl border border-blue-500/30 shadow-xl bg-blue-500/[0.02]">
-                    <p className="section-label !text-blue-400/70 !mb-2">Impuestos al sueldo (%)</p>
-                    <div className="flex items-center gap-2">
-                        <input 
+                <div className="bg-gradient-to-br from-emerald-500/10 to-slate-800 p-6 rounded-2xl border border-emerald-500/20 shadow-xl">
+                    <p className="section-label !mb-3 !text-emerald-400/70">% Pago en blanco</p>
+                    <h2 className="text-3xl font-black text-emerald-400 leading-none">{totalNomina > 0 ? Utils.pct(totals.recibo, totalNomina) : 0}%</h2>
+                    <p className="text-[10px] text-slate-500 mt-1">{Utils.fmt(totals.recibo)} registrado</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-rose-500/10 to-slate-800 p-6 rounded-2xl border border-rose-500/20 shadow-xl">
+                    <p className="section-label !mb-3 !text-rose-400/70">% Costo sobre ventas</p>
+                    <h2 className="text-3xl font-black text-rose-400 leading-none">{Utils.num(ventasNetas) > 0 ? Utils.pct(totalNomina, Utils.num(ventasNetas)) : '—'}%</h2>
+                    <p className="text-[10px] text-slate-500 mt-1">de {Utils.fmt(ventasNetas)} en ventas</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-violet-500/10 to-slate-800 p-6 rounded-2xl border border-violet-500/25 shadow-xl">
+                    <p className="section-label !text-violet-400/70 !mb-3">Impuestos al sueldo (%)</p>
+                    <div className="flex items-baseline gap-1.5">
+                        <input
                             type="number"
                             value={cargasPct}
                             onChange={(e) => setCargasPct(e.target.value)}
-                            className="bg-slate-900/50 border border-slate-700 rounded-lg w-20 px-3 py-1 text-xl font-black text-white outline-none focus:border-blue-500 transition-all"
+                            className="bg-slate-900/80 border border-violet-500/30 rounded-lg w-20 px-3 py-1 text-2xl font-black text-white outline-none focus:border-violet-400 transition-all"
                         />
-                        <span className="text-2xl font-bold text-slate-600">%</span>
+                        <span className="text-xl font-bold text-slate-500">%</span>
                     </div>
                     <p className="text-[10px] text-slate-500 mt-2">Sobre {Utils.fmt(totals.recibo)} (Blanco)</p>
                 </div>
@@ -115,23 +135,31 @@ const EmployeesView = () => {
                     />
                 </div>
                 
-                <div className="lg:col-span-2 bg-slate-800/50 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-center">
-                    <h3 className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] mb-8">Análisis de Composición</h3>
-                    <div className="space-y-6">
-                        <div className="flex justify-between items-center">
-                            <span className="text-emerald-500 font-bold text-sm">Sueldo registrado (Blanco)</span>
+                <div className="lg:col-span-2 bg-slate-800/50 p-8 rounded-2xl border border-slate-700 shadow-xl flex flex-col justify-center gap-8">
+                    <h3 className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em]">Análisis de Composición</h3>
+                    <div>
+                        <div className="flex justify-between items-baseline mb-3">
+                            <span className="text-emerald-400 font-bold text-sm">Sueldo registrado (Blanco)</span>
                             <span className="text-2xl font-mono font-black text-white">{Utils.fmt(Utils.num(totals.recibo))}</span>
                         </div>
-                        <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
-                            <div className="bg-emerald-500 h-full" style={{ width: `${Utils.pct(Utils.num(totals.recibo), Utils.num(totals.costo))}%` }}></div>
+                        <div className="w-full bg-slate-900 h-3 rounded-full overflow-hidden">
+                            <div className="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" style={{ width: `${totalNomina > 0 ? Utils.pct(totals.recibo, totalNomina) : 0}%` }}></div>
                         </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-rose-500 font-bold text-sm">Pago en mano (Informal)</span>
+                        <p className="text-[10px] text-slate-500 mt-1.5">{totalNomina > 0 ? Utils.pct(totals.recibo, totalNomina) : 0}% del total</p>
+                    </div>
+                    <div>
+                        <div className="flex justify-between items-baseline mb-3">
+                            <span className="text-rose-400 font-bold text-sm">Pago en mano (Informal)</span>
                             <span className="text-2xl font-mono font-black text-white">{Utils.fmt(Utils.num(totals.negro))}</span>
                         </div>
-                        <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
-                            <div className="bg-rose-500 h-full" style={{ width: `${Utils.pct(Utils.num(totals.negro), Utils.num(totals.costo))}%` }}></div>
+                        <div className="w-full bg-slate-900 h-3 rounded-full overflow-hidden">
+                            <div className="bg-gradient-to-r from-rose-600 to-rose-400 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(244,63,94,0.4)]" style={{ width: `${totalNomina > 0 ? Utils.pct(totals.negro, totalNomina) : 0}%` }}></div>
                         </div>
+                        <p className="text-[10px] text-slate-500 mt-1.5">{totalNomina > 0 ? Utils.pct(totals.negro, totalNomina) : 0}% del total</p>
+                    </div>
+                    <div className="border-t border-slate-700 pt-5 flex justify-between items-center">
+                        <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total nómina</span>
+                        <span className="text-xl font-mono font-black text-slate-200">{Utils.fmt(totalNomina)}</span>
                     </div>
                 </div>
             </div>
