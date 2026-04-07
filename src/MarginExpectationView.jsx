@@ -137,6 +137,13 @@ export default function MarginExpectationView() {
     setSaveStatus(null);
   }, []);
 
+  const setMixCafe = useCallback((val) => {
+    const num = parseFloat(val);
+    const producto = isNaN(num) ? '' : (100 - Math.min(100, Math.max(0, num))).toFixed(1);
+    setManual(prev => ({ ...prev, mix_cafe: val, mix_producto: producto }));
+    setSaveStatus(null);
+  }, []);
+
   const handleSave = async () => {
     if (!apiUrl) return;
     setSaving(true);
@@ -192,6 +199,16 @@ export default function MarginExpectationView() {
   const ventaNeta = n(kpis.ventas_netas_reales);
   const cantOps = n(kpis.cant_operaciones);
   const ticketProm = n(kpis.ticket_promedio);
+
+  const mixCafePct = parseFloat(manual.mix_cafe) || 0;
+  const mixProductoPct = parseFloat(manual.mix_producto) || 0;
+  const mgnCafePct = parseFloat(manual.mgn_cafe) || 0;
+  const mgnProductoPct = parseFloat(manual.mgn_producto) || 0;
+
+  const ventaCafe = (mixCafePct / 100) * ventaNeta;
+  const ventaProducto = (mixProductoPct / 100) * ventaNeta;
+  const margenCafePesos = (mgnCafePct / 100) * ventaCafe;
+  const margenProductoPesos = (mgnProductoPct / 100) * ventaProducto;
 
   const sueldosTotal = n(egresos.laboral) + n(egresos.provision_sac) + n(egresos.provision_cargas);
   const cantEmpleados = empData?.length || 0;
@@ -271,22 +288,46 @@ export default function MarginExpectationView() {
 
           <Row
             label="Mix Cafetería"
-            right={<PctInput value={manual.mix_cafe} onChange={setField('mix_cafe')} />}
+            right={
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                <PctInput value={manual.mix_cafe} onChange={setMixCafe} />
+                {ventaCafe > 0 && <span style={{ fontSize: 11, color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>{Utils.fmt(ventaCafe)}</span>}
+              </div>
+            }
           />
           <Row
             label="Mix Producto"
-            right={<PctInput value={manual.mix_producto} onChange={setField('mix_producto')} />}
+            right={
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#60a5fa', background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.3)', borderRadius: 4, padding: '1px 5px' }}>auto</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#fbbf24', fontVariantNumeric: 'tabular-nums' }}>{mixProductoPct.toFixed(1)}</span>
+                  <span style={{ fontSize: 12, color: '#64748b' }}>%</span>
+                </div>
+                {ventaProducto > 0 && <span style={{ fontSize: 11, color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>{Utils.fmt(ventaProducto)}</span>}
+              </div>
+            }
           />
 
           <div style={S.sectionDivider}>Margen de contribución</div>
 
           <Row
             label="MGN Cafetería"
-            right={<PctInput value={manual.mgn_cafe} onChange={setField('mgn_cafe')} />}
+            right={
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                <PctInput value={manual.mgn_cafe} onChange={setField('mgn_cafe')} />
+                {margenCafePesos > 0 && <span style={{ fontSize: 11, color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>{Utils.fmt(margenCafePesos)}</span>}
+              </div>
+            }
           />
           <Row
             label="MGN Producto"
-            right={<PctInput value={manual.mgn_producto} onChange={setField('mgn_producto')} />}
+            right={
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                <PctInput value={manual.mgn_producto} onChange={setField('mgn_producto')} />
+                {margenProductoPesos > 0 && <span style={{ fontSize: 11, color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>{Utils.fmt(margenProductoPesos)}</span>}
+              </div>
+            }
           />
         </div>
 

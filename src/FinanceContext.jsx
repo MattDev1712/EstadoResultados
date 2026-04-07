@@ -96,7 +96,7 @@ export const FinanceProvider = ({ children }) => {
                 try {
                     const parsed = JSON.parse(cached);
                     setDashData(parsed.dash);
-                    setEmpData(parsed.emp);
+                    setEmpData(parsed.emp || []);
                     setArcaData(parsed.arca);
                     setVentasData(parsed.ventas);
                     setLoading(false);
