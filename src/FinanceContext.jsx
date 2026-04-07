@@ -117,7 +117,9 @@ export const FinanceProvider = ({ children }) => {
             const response = await fetch(`${finalApiUrl}?action=GET_COMPLETE_DATA&start=${start}&end=${end}`);
             const result = await response.json();
             
+            if (result.status === 'ERROR') throw new Error(result.message || "Error desconocido en el servidor");
             if (result.error) throw new Error(result.error);
+            if (!result.dashboard) throw new Error("No se recibieron datos del tablero (dashboard).");
 
             setDashData(result.dashboard);
             setEmpData(result.employees || []);

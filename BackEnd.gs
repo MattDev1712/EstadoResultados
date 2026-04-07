@@ -715,9 +715,14 @@ function getFinancialSummary(startDate, endDate) {
   const mixPagos = {};
   const aliasMap = _getProviderAliasMap();
 
-  const sParts = startDate.split('-'), eParts = endDate.split('-');
+  const sParts = String(startDate).split('-'), eParts = String(endDate).split('-');
+  if (sParts.length < 3 || eParts.length < 3) throw new Error("Formato de fecha inválido. Se espera YYYY-MM-DD.");
+
   const startObj = new Date(parseInt(sParts[0]), parseInt(sParts[1]) - 1, parseInt(sParts[2]), 0, 0, 0);
   const endObj = new Date(parseInt(eParts[0]), parseInt(eParts[1]) - 1, parseInt(eParts[2]), 23, 59, 59);
+  
+  if (isNaN(startObj.getTime()) || isNaN(endObj.getTime())) throw new Error("Fecha inválida.");
+  
   const historyStart = new Date(startObj.getFullYear(), startObj.getMonth() - 13, 1, 0, 0, 0);
 
   // 1. PROCESAR MOVIMIENTOS (EGRESOS / MANUALES)
@@ -725,7 +730,9 @@ function getFinancialSummary(startDate, endDate) {
   if (sheetMov && sheetMov.getLastRow() >= 2) {
     const data = sheetMov.getRange(2, 1, sheetMov.getLastRow() - 1, 17).getValues();
     data.forEach(row => {
-      const rowDate = new Date(row[1]), tipo = row[3], neto = parseFloat(row[11] || 0), iva = parseFloat(row[12] || 0), total = parseFloat(row[14] || 0);
+      const rowDate = new Date(row[1]);
+      if (isNaN(rowDate.getTime())) return; // Saltar filas con fechas corruptas
+      const tipo = row[3], neto = parseFloat(row[11] || 0), iva = parseFloat(row[12] || 0), total = parseFloat(row[14] || 0);
       const k = `${rowDate.getFullYear()}-${String(rowDate.getMonth() + 1).padStart(2, '0')}`;
       
       // Historial
@@ -743,7 +750,7 @@ function getFinancialSummary(startDate, endDate) {
 
       // KPI Actual
       if (rowDate < startObj || rowDate > endObj) return;
-      let entidad = (row[7] || 'Varios');
+      let entidad = String(row[7] || 'Varios');
       if (aliasMap[entidad]) entidad = aliasMap[entidad];
 
       if (tipo === 'EGRESO') {
@@ -751,10 +758,10 @@ function getFinancialSummary(startDate, endDate) {
         creditoFiscal += Math.abs(iva);
         
         // Categorización: prioridad rubro explícito > keywords de nombre
-        const rubroRow = (row[5] || '').trim();
+        const rubroRow = String(row[5] || '').trim();
         const entLow = entidad.toLowerCase();
 
-        if (KEYWORDS_ESTRUCTURAL.some(kw => entLow.includes(kw)))  egresoEstructural += absNeto;
+        if (KEYWORDS_ESTRUCTURAL.some(kw => entLow.includes(kw)) || rubroRow === 'Costos Estructurales')  egresoEstructural += absNeto;
         else egresoOtros += absNeto;
 
         if (!proveedoresMap[entidad]) proveedoresMap[entidad] = 0;

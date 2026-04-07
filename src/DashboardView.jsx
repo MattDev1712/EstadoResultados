@@ -34,7 +34,9 @@ const EvolutionChart = ({ historial, mode = 'NOMINAL' }) => {
         const sorted = Object.entries(historial).sort((a, b) => a[0].localeCompare(b[0]));
         return {
             labels: sorted.map(([k]) => {
-                const [y, m] = k.split('-');
+                const parts = k.split('-');
+                const y = parts[0] || '0000';
+                const m = parts[1] || '01';
                 return new Date(+y, +m - 1, 1).toLocaleDateString('es-AR', { month: 'short' }).replace('.', '').toUpperCase();
             }),
             ingresos: sorted.map(([, v]) => {
@@ -296,6 +298,7 @@ const YoYComparison = ({ historial, currentPeriod, mode }) => {
         };
 
         const getGastos = (v) => {
+            if (!v) return 0;
             if (mode === 'REAL_IPC') return Utils.num(v.gr);
             if (mode === 'DOLAR_MEP') return Utils.num(v.g) / Utils.num(v.mep);
             return Utils.num(v.g);
