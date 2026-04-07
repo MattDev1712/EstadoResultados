@@ -504,10 +504,7 @@ const App = () => {
             case 'guia': return <GuideView />;
             default: return <DashboardView 
                     onDataReady={handleDataReady} 
-                    setShowProfModal={setShowProfModal} 
                     setShowStructModal={setShowStructModal} 
-                    setShowIIBBModal={setShowIIBBModal} 
-                    setShowRetModal={setShowRetModal} 
                     defaultDate={defaultDate}
                     setDefaultDate={setDefaultDate}
                 />;

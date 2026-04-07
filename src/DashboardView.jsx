@@ -361,7 +361,12 @@ const YoYComparison = ({ historial, currentPeriod, mode }) => {
 };
 
 const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaultDate }) => {
-    const { dashData: data, loading, error, viewMode, setViewMode, localAjustes, setLocalAjustes, updateConfig, selectedYear, selectedMonth } = useFinance();
+    const { 
+        dashData: data, empData, arcaData, ventasData, 
+        loading, error, viewMode, setViewMode, 
+        localAjustes, setLocalAjustes, updateConfig, 
+        selectedYear, selectedMonth 
+    } = useFinance();
     const [infoModalKey, setInfoModalKey] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
