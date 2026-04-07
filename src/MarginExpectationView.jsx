@@ -198,7 +198,7 @@ export default function MarginExpectationView() {
   const ivaDébito = n(kpis.iva_debito);
   const ventaNeta = n(kpis.ventas_netas_reales);
   const cantOps = n(kpis.cant_operaciones);
-  const ticketProm = n(kpis.ticket_promedio);
+  const ticketProm = cantOps > 0 ? ventaBruta / cantOps : 0;
 
   const mixCafePct = parseFloat(manual.mix_cafe) || 0;
   const mixProductoPct = parseFloat(manual.mix_producto) || 0;
