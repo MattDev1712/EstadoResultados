@@ -12,6 +12,7 @@ const MAXIREST_SHEET_NAME = 'Resumen Maxirest';
 const CONFIG_SHEET_NAME = 'Config';
 const BUSINESS_CONFIG_SHEET_NAME = 'Empresa';
 const AUDIT_LOG_SHEET_NAME = 'AuditLog';
+const ESTADO_RESULT_MANUAL_SHEET_NAME = 'EstadoResultManual';
 
 /**
  * CONFIGURACIÓN FINANCIERA PROFESIONAL
@@ -844,6 +845,9 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
     kpis: {
       utilidad_neta: _round(resFinal),
       ventas_netas_reales: _round(totalVentasNeto - totalComisiones),
+      venta_bruta: _round(totalVentasBruto),
+      iva_debito: _round(debitoFiscal),
+      cant_operaciones: cantidadVentas,
       iva_posicion: _round(debitoFiscal - creditoFiscal),
       margen_contribuccion: _round(totalVentasNeto - totalComisiones),
       ticket_promedio: _round(cantidadVentas > 0 ? totalVentasNeto / cantidadVentas : 0),
@@ -931,6 +935,51 @@ function getAuditLog() {
 
 /**
  * ============================================================================
+ * ESTADO DE RESULTADO — CAMPOS MANUALES
+ * ============================================================================
+ */
+
+function _getEstadoResultManual(periodo) {
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const sheet = ss.getSheetByName(ESTADO_RESULT_MANUAL_SHEET_NAME);
+  if (!sheet || sheet.getLastRow() < 2) return null;
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 6).getValues();
+  const row = data.find(r => r[0] === periodo);
+  if (!row) return null;
+  return {
+    mix_cafe: row[1],
+    mix_producto: row[2],
+    mgn_cafe: row[3],
+    mgn_producto: row[4],
+    excepcionales: row[5]
+  };
+}
+
+function _saveEstadoResultManual(payload) {
+  const { periodo, mix_cafe, mix_producto, mgn_cafe, mgn_producto, excepcionales } = payload;
+  if (!periodo) throw new Error('Periodo requerido');
+  const ss = SpreadsheetApp.openById(SS_ID);
+  let sheet = ss.getSheetByName(ESTADO_RESULT_MANUAL_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(ESTADO_RESULT_MANUAL_SHEET_NAME);
+    sheet.appendRow(['periodo', 'mix_cafe', 'mix_producto', 'mgn_cafe', 'mgn_producto', 'excepcionales', 'updated_at']);
+  }
+  const lastRow = sheet.getLastRow();
+  if (lastRow >= 2) {
+    const periodos = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (let i = 0; i < periodos.length; i++) {
+      if (periodos[i][0] === periodo) {
+        sheet.getRange(i + 2, 1, 1, 7).setValues([[periodo, mix_cafe, mix_producto, mgn_cafe, mgn_producto, excepcionales, new Date()]]);
+        return { status: 'OK', action: 'updated' };
+      }
+    }
+  }
+  sheet.appendRow([periodo, mix_cafe, mix_producto, mgn_cafe, mgn_producto, excepcionales, new Date()]);
+  return { status: 'OK', action: 'inserted' };
+}
+
+/**
+ * ============================================================================
  * API CONTROLLER (doPost)
  * ============================================================================
  */
@@ -987,6 +1036,9 @@ function doPost(e) {
         break;
       case 'SAVE_BUSINESS_CONFIG':
         resultado = _saveBusinessConfig(payload);
+        break;
+      case 'SAVE_ESTADO_RESULT':
+        resultado = _saveEstadoResultManual(payload);
         break;
       default:
         throw new Error(`Origen '${origen}' no soportado.`);
@@ -1177,12 +1229,13 @@ function doGet(e) {
       const employees = getEmployeesByPeriod(start, end);
       const arca = getArcaData(start, end);
       const ventas = getMaxirestRawData(start, end);
+      dashboard.estado_result_manual = _getEstadoResultManual(start.substring(0, 7));
 
       const consolidatedData = {
         dashboard: dashboard,
         employees: employees,
         arca: arca,
-        ventas: ventas
+        ventas: ventas,
       };
       return ContentService.createTextOutput(JSON.stringify(consolidatedData)).setMimeType(ContentService.MimeType.JSON);
     }
