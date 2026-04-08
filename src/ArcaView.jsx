@@ -372,8 +372,7 @@ const ArcaView = ({ data: dataProp }) => {
     const nc = useMemo(() =>
         Utils.arr(data).filter(r => NC_NAMES.has(r.tipo_comp)), [data]);
 
-    // Si se usa como subtabla (ProfessionalFeesView / StructuralCostsView), no mostrar tabs
-    if (dataProp !== undefined) {
+if (dataProp !== undefined) {
         return (
             <div className="animate-fade-in mt-4">
                 <ArcaTable data={data} aliasMap={aliasMap} />

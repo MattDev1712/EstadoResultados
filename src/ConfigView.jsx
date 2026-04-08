@@ -36,7 +36,7 @@ const ConfigView = () => {
             const res = await fetch(finalApiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'SAVE_BUSINESS_CONFIG', payload: config })
+                body: JSON.stringify({ action: 'CARGAR_DATOS', origen: 'SAVE_BUSINESS_CONFIG', payload: config })
             });
             const data = await res.json();
             if (data.status === 'OK') {
