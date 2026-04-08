@@ -785,6 +785,7 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
         historyMap[k].gastos += costo;
         historyMap[k].recibo += recibo;
         historyMap[k].gastos_real += (costo * (CONST_IPC[k] || 1.0));
+        historyMap[k].emp_count = (historyMap[k].emp_count || 0) + 1;
       }
       if (rowDate >= startObj && rowDate <= endObj) {
         egresoLaboral += costo;
@@ -805,6 +806,7 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
         if (!historyMap[k]) historyMap[k] = { ventas: 0, gastos: 0, ventas_real: 0, gastos_real: 0, mep: CONST_MEP[k] || 1400 };
         historyMap[k].ventas += neto;
         historyMap[k].ventas_real += (neto * (CONST_IPC[k] || 1.0));
+        historyMap[k].ops = (historyMap[k].ops || 0) + parseFloat(row[5] || 0);
       }
 
       if (rowDate < startObj || rowDate > endObj) return;
@@ -835,6 +837,7 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
   const currentPeriod = `${startObj.getFullYear()}-${String(startObj.getMonth() + 1).padStart(2, '0')}`;
   const currentIPC = CONST_IPC[currentPeriod] || 1.0;
   const currentMEP = CONST_MEP[currentPeriod] || 1400;
+  const erMap = _getAllEstadoResultManual();
 
   return {
     periodo: `${startDate} al ${endDate}`,
@@ -862,12 +865,25 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
       comisiones: _round(totalComisiones)
     },
     historial: Object.keys(historyMap).sort().reduce((obj, key) => {
+      const h = historyMap[key];
+      const ops = h.ops || 0;
+      const emp = h.emp_count || 0;
+      const sueldo_prom = emp > 0 ? _round((h.recibo || 0) / emp) : 0;
+      const m = erMap[key];
+      const resultado_mgn = m
+        ? _round((m.mix_cafe / 100) * h.ventas * (m.mgn_cafe / 100) + (m.mix_producto / 100) * h.ventas * (m.mgn_producto / 100))
+        : null;
       obj[key] = {
-        v: _round(historyMap[key].ventas),
-        g: _round(historyMap[key].gastos + (historyMap[key].recibo * (parseFloat(cargasPct) / 100))),
-        vr: _round(historyMap[key].ventas_real),
-        gr: _round(historyMap[key].gastos_real + (historyMap[key].recibo * (parseFloat(cargasPct) / 100) * (CONST_IPC[key] || 1.0))),
-        mep: historyMap[key].mep
+        v: _round(h.ventas),
+        g: _round(h.gastos + ((h.recibo || 0) * (parseFloat(cargasPct) / 100))),
+        vr: _round(h.ventas_real),
+        gr: _round(h.gastos_real + ((h.recibo || 0) * (parseFloat(cargasPct) / 100) * (CONST_IPC[key] || 1.0))),
+        mep: h.mep,
+        ops,
+        ticket: ops > 0 ? _round(h.ventas / ops) : 0,
+        emp,
+        sueldo_prom,
+        resultado_mgn,
       };
       return obj;
     }, {}),
@@ -953,6 +969,17 @@ function _getEstadoResultManual(periodo) {
     mgn_producto: row[4],
     excepcionales: row[5]
   };
+}
+
+function _getAllEstadoResultManual() {
+  const ss = SpreadsheetApp.openById(SS_ID);
+  const sheet = ss.getSheetByName(ESTADO_RESULT_MANUAL_SHEET_NAME);
+  if (!sheet || sheet.getLastRow() < 2) return {};
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 5).getValues();
+  return data.reduce((map, r) => {
+    if (r[0]) map[r[0]] = { mix_cafe: r[1], mix_producto: r[2], mgn_cafe: r[3], mgn_producto: r[4] };
+    return map;
+  }, {});
 }
 
 function _saveEstadoResultManual(payload) {

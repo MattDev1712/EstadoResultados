@@ -177,9 +177,19 @@ const ConfigView = () => {
                         </div>
                     </div>
 
-                    <div className="flex justify-end pt-6">
-                        <button 
-                            type="submit" 
+                    <div className="flex justify-between items-center pt-6">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                localStorage.clear();
+                                window.location.reload();
+                            }}
+                            className="bg-red-900/30 hover:bg-red-800/40 text-red-400 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition border border-red-700/30"
+                        >
+                            Limpiar caché
+                        </button>
+                        <button
+                            type="submit"
                             disabled={saving}
                             className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-emerald-900/40 transition disabled:opacity-50"
                         >

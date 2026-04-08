@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Chart, registerables } from 'chart.js';
 import { useFinance } from './FinanceContext';
 import { formatters as Utils } from './formatters';
+
+Chart.register(...registerables);
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -94,6 +97,132 @@ const Row = ({ label, bold, value, valueColor, right }) => (
     {right || <span style={{ ...S.rowValue, color: valueColor || '#e2e8f0' }}>{value}</span>}
   </div>
 );
+
+const METRICS_DINERO = [
+  { key: 'v',             label: 'Venta neta s/IVA',      color: '#10b981' },
+  { key: 'ticket',        label: 'Ticket Promedio',        color: '#fbbf24' },
+  { key: 'sueldo_prom',   label: 'Sueldo prom./empleado', color: '#f97316' },
+  { key: 'resultado_mgn', label: 'Resultado márgenes',    color: '#4ade80' },
+];
+
+const METRICS_CANTIDAD = [
+  { key: 'ops', label: 'Cant. Operaciones', color: '#60a5fa' },
+  { key: 'emp', label: 'Cant. Empleados',   color: '#a78bfa' },
+];
+
+function HistorialLineChart({ metrics, historial, title, isPesos, defaultActive }) {
+  const chartRef = useRef(null);
+  const canvasRef = useRef(null);
+  const [active, setActive] = useState(defaultActive);
+  const [open, setOpen] = useState(false);
+
+  const last6 = Object.keys(historial || {}).sort().slice(-6);
+  const labels = last6.map(k => {
+    const [y, m] = k.split('-');
+    return `${MESES[parseInt(m) - 1].slice(0, 3)} ${y}`;
+  });
+
+  useEffect(() => {
+    if (!canvasRef.current || last6.length === 0) return;
+    if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
+
+    const datasets = metrics
+      .filter(m => active[m.key])
+      .map(m => ({
+        label: m.label,
+        data: last6.map(k => historial[k]?.[m.key] ?? null),
+        borderColor: m.color,
+        backgroundColor: m.color + '18',
+        borderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        tension: 0.3,
+        fill: false,
+      }));
+
+    chartRef.current = new Chart(canvasRef.current.getContext('2d'), {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(15,23,42,0.95)',
+            titleColor: '#f8fafc',
+            bodyColor: '#cbd5e1',
+            borderColor: 'rgba(51,65,85,0.5)',
+            borderWidth: 1,
+            padding: 10,
+            callbacks: {
+              label: ctx => {
+                const v = ctx.parsed.y;
+                if (v === null || v === undefined) return `${ctx.dataset.label}: —`;
+                return isPesos
+                  ? `${ctx.dataset.label}: ${Utils.fmt(v)}`
+                  : `${ctx.dataset.label}: ${Math.round(v).toLocaleString('es-AR')}`;
+              },
+            },
+          },
+          datalabels: { display: false },
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: '#64748b', font: { size: 11 } },
+          },
+          y: {
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: {
+              color: '#64748b',
+              font: { size: 10 },
+              callback: v => isPesos ? `$${(v / 1000).toFixed(0)}k` : Math.round(v).toLocaleString('es-AR'),
+            },
+          },
+        },
+      },
+    });
+
+    return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+  }, [active, historial]);
+
+  const toggle = key => setActive(prev => ({ ...prev, [key]: !prev[key] }));
+
+  return (
+    <div style={{ ...S.card, padding: '20px 20px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#64748b' }}>
+          {title}
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Leyenda inline */}
+          {metrics.map(m => (
+            <div
+              key={m.key}
+              onClick={() => toggle(m.key)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                cursor: 'pointer', opacity: active[m.key] ? 1 : 0.35,
+                transition: 'opacity 0.15s',
+              }}
+            >
+              <span style={{ width: 20, height: 2, background: m.color, borderRadius: 2, display: 'inline-block' }} />
+              <span style={{ fontSize: 11, color: '#94a3b8' }}>{m.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{ height: 220, position: 'relative' }}>
+        {last6.length === 0
+          ? <p style={{ color: '#475569', textAlign: 'center', paddingTop: 90, fontSize: 13 }}>Sin historial disponible.</p>
+          : <canvas ref={canvasRef} />
+        }
+      </div>
+    </div>
+  );
+}
 
 export default function MarginExpectationView() {
   const {
@@ -248,8 +377,41 @@ export default function MarginExpectationView() {
   const mesNombre = MESES[parseInt(selectedMonth) - 1];
   const periodoLabel = `${mesNombre} ${selectedYear}`;
 
+  const [debugOpen, setDebugOpen] = useState(false);
+  const debugInfo = {
+    periodo: `${selectedYear}-${selectedMonth}`,
+    apiUrl: finalApiUrl ? finalApiUrl.slice(0, 60) + '...' : '(vacío)',
+    error,
+    historial_keys: dashData?.historial ? Object.keys(dashData.historial) : 'undefined',
+    historial_sample: dashData?.historial ? Object.entries(dashData.historial).slice(-2) : null,
+    estado_result_manual: dashData?.estado_result_manual,
+    kpis_venta: dashData?.kpis?.ventas_netas_reales,
+  };
+
   return (
     <div className="animate-fade-in mt-6" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Debug overlay */}
+      {debugOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.75)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }} onClick={() => setDebugOpen(false)}>
+          <div style={{
+            background: '#0b1121', border: '1px solid #334155', borderRadius: 14,
+            padding: 24, maxWidth: 680, width: '90%', maxHeight: '80vh', overflowY: 'auto',
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Debug — Estado</span>
+              <button onClick={() => setDebugOpen(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 18 }}>✕</button>
+            </div>
+            <pre style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              {JSON.stringify(debugInfo, null, 2)}
+            </pre>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -261,6 +423,11 @@ export default function MarginExpectationView() {
             {periodoLabel}
           </p>
         </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button onClick={() => setDebugOpen(true)} style={{
+          background: 'rgba(255,255,255,0.05)', border: '1px solid #334155',
+          borderRadius: 8, color: '#475569', fontSize: 11, padding: '5px 10px', cursor: 'pointer',
+        }}>debug</button>
         {saveStatus === 'ok' && (
           <span style={{
             fontSize: 12, fontWeight: 600, color: '#4ade80',
@@ -279,6 +446,7 @@ export default function MarginExpectationView() {
             ✗ Error al guardar
           </span>
         )}
+        </div>
       </div>
 
       {/* KPI strip */}
@@ -425,6 +593,22 @@ export default function MarginExpectationView() {
           <p style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>sobre venta neta</p>
         </div>
       </div>
+
+      {/* Gráficos históricos */}
+      <HistorialLineChart
+        metrics={METRICS_DINERO}
+        historial={dashData.historial || {}}
+        title="Evolución — últimos 6 meses (pesos)"
+        isPesos
+        defaultActive={{ v: true }}
+      />
+      <HistorialLineChart
+        metrics={METRICS_CANTIDAD}
+        historial={dashData.historial || {}}
+        title="Evolución — últimos 6 meses (cantidades)"
+        isPesos={false}
+        defaultActive={{ ops: true, emp: true }}
+      />
 
       {/* Save bar */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', paddingBottom: 8 }}>
