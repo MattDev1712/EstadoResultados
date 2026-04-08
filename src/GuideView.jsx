@@ -241,7 +241,7 @@ const GuideView = () => {
                         </div>
                         <div style={{ marginTop: 12 }}>
                             <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>
-                                Esta es una <Highlight>herramienta de gestión operativa</Highlight>: te ayuda a saber si el negocio va bien o mal, semana a semana, sin esperar el balance de tu contador.
+                                Esta es una <Highlight>herramienta de gestión interna</Highlight>: te ayuda a saber si el negocio va bien o mal, mes a mes, sin esperar el balance de tu contador. Los números que muestra son para toma de decisiones operativas — <Highlight>no reemplazan estados contables oficiales ni declaraciones impositivas</Highlight>.
                             </p>
                         </div>
                     </div>
@@ -297,8 +297,27 @@ const GuideView = () => {
                             <li>Filtrá por el mes que necesitás</li>
                             <li>Hacé clic en <em>Exportar → CSV</em></li>
                         </ol>
-                        <p style={{ marginTop: 10 }}><Highlight>¿Para qué sirve?</Highlight> Cada factura que cargás es un egreso (gasto) del negocio. La app los clasifica automáticamente según el nombre del proveedor y los resta a las ventas para calcular la ganancia.</p>
-                        <Warning>Si un proveedor tiene un nombre raro o genérico (ej: "Distribuidora del Sur SA"), puede que no se clasifique correctamente. Usá la pantalla <strong>ARCA → Gestionar Alias</strong> para asignarle una categoría.</Warning>
+                        <p style={{ marginTop: 10 }}><Highlight>¿Para qué sirve?</Highlight> Cada factura que cargás es un egreso (gasto) del negocio. La app los resta a las ventas para calcular la ganancia, y usa el IVA de esas facturas para calcular tu posición fiscal.</p>
+                        <p style={{ marginTop: 14 }}><Highlight>¿Qué pestañas veo cuando abro la sección ARCA?</Highlight></p>
+                        <div style={{ margin: '10px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}>
+                                <p style={{ margin: 0, fontWeight: 800, color: '#e2e8f0' }}>📄 Facturas con IVA</p>
+                                <p style={{ margin: '4px 0 0', color: '#94a3b8' }}>Son las <strong>Facturas A</strong>: te las emite un proveedor que está inscripto en IVA. El IVA de estas facturas se descuenta de lo que le debés a AFIP (es tu crédito fiscal).</p>
+                            </div>
+                            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}>
+                                <p style={{ margin: 0, fontWeight: 800, color: '#e2e8f0' }}>📋 Otros gastos</p>
+                                <p style={{ margin: '4px 0 0', color: '#94a3b8' }}>Facturas B, C y otros tipos. Son compras válidas que suman al gasto total, pero el IVA ya está incluido en el precio y no se puede desglosar para descontar de AFIP.</p>
+                            </div>
+                            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}>
+                                <p style={{ margin: 0, fontWeight: 800, color: '#fda4af' }}>↩️ Devoluciones (en rojo)</p>
+                                <p style={{ margin: '4px 0 0', color: '#94a3b8' }}>Son <strong>Notas de Crédito</strong>: el proveedor te devolvió dinero o corrigió una factura anterior. Aparecen en rojo porque reducen el total que gastaste con ese proveedor ese mes.</p>
+                            </div>
+                            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}>
+                                <p style={{ margin: 0, fontWeight: 800, color: '#e2e8f0' }}>🏢 Proveedores</p>
+                                <p style={{ margin: '4px 0 0', color: '#94a3b8' }}>Un resumen de cuánto le compraste a cada proveedor en el mes. Acá también podés asignarle un alias (nombre fácil) a cada uno para que aparezca mejor en los reportes.</p>
+                            </div>
+                        </div>
+                        <Warning>Si un proveedor tiene un nombre raro o genérico (ej: "Distribuidora del Sur SA"), puede que no se clasifique correctamente. Desde la pestaña <strong>Proveedores</strong> podés asignarle un alias y una categoría.</Warning>
                     </Accordion>
 
                     <Accordion icon="👥" title="Planilla de Sueldos CSV — Nómina del mes">
@@ -361,7 +380,7 @@ const GuideView = () => {
                             label="Posición IVA"
                             color="#64748b"
                             value="Lo que debés (o te deben) de IVA"
-                            desc="Cuando cobrás, cobrás IVA (débito fiscal). Cuando comprás, pagás IVA (crédito fiscal). La diferencia es lo que tenés que pagar a AFIP. Si da negativo, tenés saldo a favor."
+                            desc="IVA cobrado a tus clientes menos IVA pagado en tus compras con factura. Si el número es positivo (rojo) → le debés ese monto a AFIP. Si es negativo (verde) → AFIP te debe a vos y tenés saldo a favor para el mes siguiente."
                         />
                         <KpiPill
                             label="Ventas Netas"
@@ -426,9 +445,12 @@ const GuideView = () => {
                     {[
                         { term: 'EGRESO', color: '#f43f5e', def: 'Cualquier dinero que sale del negocio. Compras, sueldos, alquiler, impuestos. Todo lo que pagás.' },
                         { term: 'INGRESO', color: '#10b981', def: 'Dinero que entra al negocio por ventas. No confundir con "ganancia" — el ingreso es bruto, todavía no descontaste los gastos.' },
-                        { term: 'IVA (Impuesto al Valor Agregado)', color: '#64748b', def: 'Un impuesto del 21% que está incluido en el precio de venta. Ese IVA no es tuyo: lo cobrás por cuenta del Estado y luego lo rendís. Tampoco te cuesta el IVA de lo que comprás, porque se lo descuntás al que cobraste.' },
-                        { term: 'Débito Fiscal', color: '#f43f5e', def: 'El IVA que cobraste a tus clientes. Lo debés a AFIP.' },
-                        { term: 'Crédito Fiscal', color: '#10b981', def: 'El IVA que pagaste en tus compras. Te lo descontás del débito fiscal.' },
+                        { term: 'IVA (Impuesto al Valor Agregado)', color: '#64748b', def: 'Impuesto que está incluido en el precio de cada venta y de cada compra. Existen varias tasas: 21% para la mayoría de servicios, 10.5% para alimentos básicos y algunos insumos gastronómicos, 27% para servicios como electricidad, y 0% para artículos exentos. El IVA que cobrás no es tuyo: lo recaudás por cuenta del Estado y luego lo liquidás.' },
+                        { term: 'Débito Fiscal', color: '#f43f5e', def: 'El IVA que le cobraste a tus clientes en tus ventas del mes. Este monto se lo debés a AFIP.' },
+                        { term: 'Crédito Fiscal', color: '#10b981', def: 'El IVA que vos pagaste al comprar a tus proveedores. Se descuenta del débito fiscal: si compraste mucho ese mes, pagás menos IVA a AFIP.' },
+                        { term: 'Factura A', color: '#3b82f6', def: 'La emite un proveedor inscripto en IVA hacia otro responsable inscripto. Muestra el precio sin IVA y el IVA por separado. El IVA de una Factura A es crédito fiscal: lo podés descontar de lo que le debés a AFIP.' },
+                        { term: 'Factura B / C', color: '#64748b', def: 'La emite un proveedor hacia un consumidor final o monotributista. El IVA está incluido en el precio y no se puede desglosar. Sirve como gasto del negocio, pero no genera crédito fiscal descontable.' },
+                        { term: 'Nota de Crédito', color: '#f43f5e', def: 'Documento que emite un proveedor para anular o corregir una factura anterior. En la app aparece en rojo en la pestaña "Devoluciones": reduce el total gastado con ese proveedor ese mes.' },
                         { term: 'CMV (Costo de Mercadería Vendida)', color: '#f59e0b', def: 'Lo que te costó producir o comprar aquello que vendiste. En una cafetería: el café, la leche, el pan, los insumos de cocina.' },
                         { term: 'Margen Bruto', color: '#3b82f6', def: 'Lo que te queda de las ventas después de pagar la mercadería. Antes de pagar sueldos, alquiler o impuestos.' },
                         { term: 'Margen Neto (Resultado)', color: '#3b82f6', def: 'Lo que realmente te queda después de pagar absolutamente todo. Es el número final.' },
@@ -534,6 +556,7 @@ const GuideView = () => {
                                 { text: 'Verificar que el Resultado sea razonable (no exageradamente alto ni bajo)' },
                                 { text: 'Revisar la Composición de Egresos: ¿está todo bien clasificado?' },
                                 { text: 'Anotar si superaste el Punto de Equilibrio' },
+                                { text: 'Revisar la Posición IVA: si es positiva (roja), ese monto hay que pagarlo a AFIP' },
                                 { text: 'Actualizar el coeficiente IPC si querés comparar en términos reales' },
                             ].map((item, i) => (
                                 <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
@@ -556,7 +579,7 @@ const GuideView = () => {
                                 { signal: 'Resultado negativo 2 meses seguidos', action: 'Señal crítica. Llamá a tu contador.' },
                                 { signal: 'No alcanzás el break-even', action: 'Las ventas no alcanzan para cubrir los costos fijos.' },
                                 { signal: 'Costo laboral > 35% de ventas', action: 'Exceso de personal o sueldos altos para el nivel de ventas.' },
-                                { signal: 'Posición IVA muy alta', action: 'Revisá las facturas de compras: puede que no estén bien registradas.' },
+                                { signal: 'Posición IVA positiva muy alta', action: 'Significa que cobraste mucho IVA pero tenés pocas facturas de compras. Revisá que hayas subido el CSV de ARCA con todas las facturas del mes.' },
                             ].map((item, i) => (
                                 <div key={i} style={{
                                     background: 'rgba(244,63,94,0.04)', borderRadius: 10, padding: '12px 14px',
