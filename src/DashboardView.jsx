@@ -368,6 +368,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
     const [infoModalKey, setInfoModalKey] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [ivaDetalleExpanded, setIvaDetalleExpanded] = useState(false);
 
     const { kpis, egresos, historial, mixPagos } = useMemo(() => ({
         kpis: data?.kpis || {},
@@ -579,8 +580,10 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
         },
         'iva': {
             title: 'Tu IVA del mes',
-            explanation: 'Cada vez que vendés, cobrás IVA (21%) que le pertenece al Estado. Cada vez que comprás con factura, pagás IVA que podés descontar. La diferencia es lo que le debés (o te debe) AFIP.\n\nSi el número es positivo → tenés que pagar ese monto a AFIP.\nSi es negativo → tenés saldo a favor (AFIP te "debe" a vos).',
+            explanation: 'Cada vez que vendés, cobrás IVA (21%) que le pertenece al Estado. Cada vez que comprás con factura, pagás IVA que podés descontar. La diferencia es lo que le debés (o te debe) AFIP.\n\nSi el número es positivo → tenés que pagar ese monto a AFIP.\nSi es negativo → tenés saldo a favor (AFIP te "debe" a vos).\n\nImportante: los sueldos y cargas sociales NO generan crédito fiscal de IVA.',
             breakdown: [
+                { label: 'IVA Débito Fiscal (ventas)', val: Utils.num(kpis.iva_debito), color: 'text-emerald-400' },
+                { label: 'IVA Crédito Fiscal (compras con factura)', val: -Utils.num(kpis.iva_credito || 0), color: 'text-rose-400' },
                 { label: 'Posición neta del mes', val: Utils.num(kpis.iva_posicion), total: true }
             ]
         },
@@ -732,16 +735,36 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                                     IVA cobrado a clientes − IVA pagado en compras con factura
                                 </p>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 200 }}>
-                                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: '14px 18px', border: '1px solid rgba(59,130,246,0.12)' }}>
-                                    <p className="section-label !mb-1.5">Tus ventas del mes</p>
-                                    <p className="text-xl font-black font-mono" style={{ color: '#10b981', margin: 0 }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(ventasNetas)}</p>
-                                    <p className="text-[10px] text-slate-500 mt-1">Sin IVA, sin comisiones bancarias</p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 210 }}>
+                                <div style={{ background: 'rgba(16,185,129,0.05)', borderRadius: 12, padding: '14px 18px', border: '1px solid rgba(16,185,129,0.14)' }}>
+                                    <p className="section-label !mb-1.5">IVA cobrado (débito fiscal)</p>
+                                    <p className="text-xl font-black font-mono" style={{ color: '#10b981', margin: 0 }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(kpis.iva_debito))}</p>
+                                    <p className="text-[10px] text-slate-500 mt-1">IVA que cobrás a tus clientes en ventas</p>
                                 </div>
                                 <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: '14px 18px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                                    <p className="section-label !mb-1.5">Tus gastos del mes</p>
-                                    <p className="text-xl font-black font-mono" style={{ color: '#f43f5e', margin: 0 }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(egresoTotal)}</p>
-                                    <p className="text-[10px] text-slate-500 mt-1">Empleados, alquiler, impuestos, etc.</p>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                        <p className="section-label !mb-0">IVA pagado (crédito fiscal)</p>
+                                        {Utils.arr(arcaData).some(r => Utils.num(r.iva) !== 0) && (
+                                            <button onClick={() => setIvaDetalleExpanded(v => !v)} style={{ fontSize: 9, color: '#475569', cursor: 'pointer', background: 'none', border: 'none', padding: 0, flexShrink: 0 }}>
+                                                {ivaDetalleExpanded ? '▲ ocultar' : '▼ detalle'}
+                                            </button>
+                                        )}
+                                    </div>
+                                    <p className="text-xl font-black font-mono" style={{ color: '#f43f5e', margin: 0 }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(kpis.iva_credito || 0))}</p>
+                                    <p className="text-[10px] text-slate-500 mt-1">IVA en compras con factura (ARCA) — no incluye sueldos</p>
+                                    {ivaDetalleExpanded && (
+                                        <div style={{ marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                            {Utils.arr(arcaData).filter(r => Utils.num(r.iva) !== 0).slice(0, 12).map((item, i) => (
+                                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                                                    <span style={{ fontSize: 9, color: '#64748b', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.entidad || 'Proveedor'}</span>
+                                                    <span style={{ fontSize: 9, fontWeight: 700, color: '#f43f5e', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{Utils.fmt(Math.abs(Utils.num(item.iva)))}</span>
+                                                </div>
+                                            ))}
+                                            {Utils.arr(arcaData).filter(r => Utils.num(r.iva) !== 0).length > 12 && (
+                                                <p style={{ fontSize: 9, color: '#475569', margin: '2px 0 0' }}>...y {Utils.arr(arcaData).filter(r => Utils.num(r.iva) !== 0).length - 12} más</p>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

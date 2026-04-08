@@ -745,8 +745,8 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
           historyMap[k].ventas += neto;
           historyMap[k].ventas_real += (neto * ipc);
         } else {
-          historyMap[k].gastos += Math.abs(neto);
-          historyMap[k].gastos_real += (Math.abs(neto) * ipc);
+          historyMap[k].gastos += (-neto);
+          historyMap[k].gastos_real += ((-neto) * ipc);
         }
       }
 
@@ -756,15 +756,18 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
       if (aliasMap[entidad]) entidad = aliasMap[entidad];
 
       if (tipo === 'EGRESO') {
-        const absNeto = Math.abs(neto);
-        creditoFiscal += Math.abs(iva);
-        
+        // Facturas se guardan con signo negativo, NC con signo positivo.
+        // Usar -neto y -iva convierte ambos al mismo espacio positivo = egreso/crédito.
+        const efectivoNeto = -neto;
+        const efectivoIva  = -iva;
+        creditoFiscal += efectivoIva;
+
         // Categorización: prioridad rubro explícito > keywords de nombre
         const rubroRow = String(row[5] || '').trim();
         const entLow = entidad.toLowerCase();
 
-        if (KEYWORDS_ESTRUCTURAL.some(kw => entLow.includes(kw)) || rubroRow === 'Costos Estructurales')  egresoEstructural += absNeto;
-        else egresoOtros += absNeto;
+        if (KEYWORDS_ESTRUCTURAL.some(kw => entLow.includes(kw)) || rubroRow === 'Costos Estructurales')  egresoEstructural += efectivoNeto;
+        else egresoOtros += efectivoNeto;
 
         if (!proveedoresMap[entidad]) proveedoresMap[entidad] = 0;
         proveedoresMap[entidad] += Math.abs(total);
@@ -850,6 +853,7 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
       ventas_netas_reales: _round(totalVentasNeto - totalComisiones),
       venta_bruta: _round(totalVentasBruto),
       iva_debito: _round(debitoFiscal),
+      iva_credito: _round(creditoFiscal),
       cant_operaciones: cantidadVentas,
       iva_posicion: _round(debitoFiscal - creditoFiscal),
       margen_contribuccion: _round(totalVentasNeto - totalComisiones),
