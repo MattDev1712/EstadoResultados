@@ -2,8 +2,18 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 
 const FinanceContext = createContext();
 
+const getInitialApiUrl = () => {
+    const stored = localStorage.getItem('gas_api_url');
+    if (stored) return stored;
+    const param = new URLSearchParams(window.location.search).get('apiUrl');
+    if (param) { localStorage.setItem('gas_api_url', param); return param; }
+    const env = import.meta.env.VITE_API_URL;
+    if (env) { localStorage.setItem('gas_api_url', env); return env; }
+    return '';
+};
+
 export const FinanceProvider = ({ children }) => {
-    const [apiUrl, setApiUrl] = useState(localStorage.getItem('gas_api_url') || '');
+    const [apiUrl, setApiUrl] = useState(getInitialApiUrl);
     
     const finalApiUrl = useMemo(() => {
         if (!apiUrl) return '';
@@ -144,9 +154,14 @@ export const FinanceProvider = ({ children }) => {
         fetchData();
     }, [fetchData]);
 
+    const invalidateCache = useCallback((year, month) => {
+        const urlHash = btoa(apiUrl).substring(0, 8);
+        localStorage.removeItem(`cache_${urlHash}_${year}_${month}`);
+    }, [apiUrl]);
+
     const value = useMemo(() => ({
         apiUrl, setApiUrl, finalApiUrl,
-        dashData, empData, arcaData, ventasData,
+        dashData, setDashData, empData, arcaData, ventasData,
         loading, setLoading, error,
         selectedYear, setSelectedYear,
         selectedMonth, setSelectedMonth,
@@ -156,8 +171,9 @@ export const FinanceProvider = ({ children }) => {
         localAjustes, setLocalAjustes,
         updateConfig,
         fetchData,
-        fetchMetadata
-    }), [apiUrl, dashData, empData, arcaData, ventasData, loading, error, selectedYear, selectedMonth, cargasPct, viewMode, availablePeriods, localAjustes, fetchData, fetchMetadata]);
+        fetchMetadata,
+        invalidateCache,
+    }), [apiUrl, dashData, empData, arcaData, ventasData, loading, error, selectedYear, selectedMonth, cargasPct, viewMode, availablePeriods, localAjustes, fetchData, fetchMetadata, invalidateCache]);
 
     return (
         <FinanceContext.Provider value={value}>

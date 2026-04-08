@@ -97,43 +97,60 @@ const Row = ({ label, bold, value, valueColor, right }) => (
 
 export default function MarginExpectationView() {
   const {
-    dashData, empData, loading, error,
+    dashData, setDashData, empData, loading, error,
     selectedYear, selectedMonth,
     apiUrl, finalApiUrl,
-    fetchData,
+    fetchData, invalidateCache,
   } = useFinance();
 
   const [manual, setManual] = useState({ mix_cafe: '', mix_producto: '', mgn_cafe: '', mgn_producto: '', excepcionales: '' });
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null); // 'ok' | 'error'
 
-  // Cargar campos manuales cuando llegan del backend
+  const draftKey = `er_draft_${selectedYear}_${selectedMonth}`;
+
+  // Cargar campos manuales: BD gana si tiene datos, sino usa borrador local
   useEffect(() => {
     if (dashData?.estado_result_manual) {
       const m = dashData.estado_result_manual;
-      setManual({
+      const vals = {
         mix_cafe: m.mix_cafe ?? '',
         mix_producto: m.mix_producto ?? '',
         mgn_cafe: m.mgn_cafe ?? '',
         mgn_producto: m.mgn_producto ?? '',
         excepcionales: m.excepcionales ?? '',
-      });
+      };
+      setManual(vals);
+      localStorage.setItem(draftKey, JSON.stringify(vals));
     } else {
-      setManual({ mix_cafe: '', mix_producto: '', mgn_cafe: '', mgn_producto: '', excepcionales: '' });
+      const draft = localStorage.getItem(draftKey);
+      if (draft) {
+        try { setManual(JSON.parse(draft)); } catch { setManual({ mix_cafe: '', mix_producto: '', mgn_cafe: '', mgn_producto: '', excepcionales: '' }); }
+      } else {
+        setManual({ mix_cafe: '', mix_producto: '', mgn_cafe: '', mgn_producto: '', excepcionales: '' });
+      }
     }
   }, [dashData?.estado_result_manual, selectedYear, selectedMonth]);
 
   const setField = useCallback((field) => (val) => {
-    setManual(prev => ({ ...prev, [field]: val }));
+    setManual(prev => {
+      const next = { ...prev, [field]: val };
+      localStorage.setItem(draftKey, JSON.stringify(next));
+      return next;
+    });
     setSaveStatus(null);
-  }, []);
+  }, [draftKey]);
 
   const setMixCafe = useCallback((val) => {
     const num = parseFloat(val);
     const producto = isNaN(num) ? '' : (100 - Math.min(100, Math.max(0, num))).toFixed(1);
-    setManual(prev => ({ ...prev, mix_cafe: val, mix_producto: producto }));
+    setManual(prev => {
+      const next = { ...prev, mix_cafe: val, mix_producto: producto };
+      localStorage.setItem(draftKey, JSON.stringify(next));
+      return next;
+    });
     setSaveStatus(null);
-  }, []);
+  }, [draftKey]);
 
   const handleSave = async () => {
     if (!finalApiUrl) return;
@@ -159,7 +176,16 @@ export default function MarginExpectationView() {
       const data = await res.json();
       if (data.status === 'OK') {
         setSaveStatus('ok');
-        fetchData(true);
+        const saved = {
+          mix_cafe: parseFloat(manual.mix_cafe) || 0,
+          mix_producto: parseFloat(manual.mix_producto) || 0,
+          mgn_cafe: parseFloat(manual.mgn_cafe) || 0,
+          mgn_producto: parseFloat(manual.mgn_producto) || 0,
+          excepcionales: parseFloat(manual.excepcionales) || 0,
+        };
+        setDashData(prev => ({ ...prev, estado_result_manual: saved }));
+        invalidateCache(selectedYear, selectedMonth);
+        localStorage.setItem(draftKey, JSON.stringify(manual));
       } else {
         setSaveStatus('error');
       }

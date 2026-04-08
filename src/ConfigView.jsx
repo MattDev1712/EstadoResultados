@@ -28,6 +28,13 @@ const ConfigView = () => {
         fetchConfig();
     }, [apiUrl]);
 
+    const handleCopyShareLink = () => {
+        if (!apiUrl) return alert("Primero vinculá la URL del backend.");
+        const base = window.location.origin + window.location.pathname;
+        const link = `${base}?apiUrl=${encodeURIComponent(apiUrl)}`;
+        navigator.clipboard.writeText(link).then(() => alert("✅ Link copiado. Compartilo y el backend se configura automáticamente."));
+    };
+
     const handleSave = async (e) => {
         e.preventDefault();
         if (!finalApiUrl) return alert("API no configurada");
@@ -140,6 +147,15 @@ const ConfigView = () => {
                                     >
                                         Vincular
                                     </button>
+                                    {apiUrl && (
+                                        <button
+                                            type="button"
+                                            onClick={handleCopyShareLink}
+                                            className="bg-blue-900/40 hover:bg-blue-800/50 text-blue-300 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition border border-blue-700/40"
+                                        >
+                                            Copiar link
+                                        </button>
+                                    )}
                                 </div>
                                 {(() => {
                                     const match = apiUrl?.match(/\/macros\/s\/([^/]+)\/exec/);
@@ -156,7 +172,7 @@ const ConfigView = () => {
                                         </div>
                                     );
                                 })()}
-                                <p className="text-[9px] text-slate-500 leading-relaxed italic px-1 mt-1">Pegá la URL completa que termina en <span className="text-slate-400 font-mono">/exec</span>. No compartas esta URL con externos.</p>
+                                <p className="text-[9px] text-slate-500 leading-relaxed italic px-1 mt-1">Pegá la URL completa que termina en <span className="text-slate-400 font-mono">/exec</span>. Usá <span className="text-blue-400">Copiar link</span> para compartir la app — el receptor se conecta automáticamente sin configuración.</p>
                             </div>
                         </div>
                     </div>
