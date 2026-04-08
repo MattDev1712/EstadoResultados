@@ -109,28 +109,29 @@ export default function MarginExpectationView() {
 
   const draftKey = `er_draft_${selectedYear}_${selectedMonth}`;
 
-  // Cargar campos manuales: BD gana si tiene datos, sino usa borrador local
+  // Al cambiar período: cargar borrador local (no mirar dashData, puede ser del mes anterior)
   useEffect(() => {
-    if (dashData?.estado_result_manual) {
-      const m = dashData.estado_result_manual;
-      const vals = {
-        mix_cafe: m.mix_cafe ?? '',
-        mix_producto: m.mix_producto ?? '',
-        mgn_cafe: m.mgn_cafe ?? '',
-        mgn_producto: m.mgn_producto ?? '',
-        excepcionales: m.excepcionales ?? '',
-      };
-      setManual(vals);
-      localStorage.setItem(draftKey, JSON.stringify(vals));
-    } else {
-      const draft = localStorage.getItem(draftKey);
-      if (draft) {
-        try { setManual(JSON.parse(draft)); } catch { setManual({ mix_cafe: '', mix_producto: '', mgn_cafe: '', mgn_producto: '', excepcionales: '' }); }
-      } else {
-        setManual({ mix_cafe: '', mix_producto: '', mgn_cafe: '', mgn_producto: '', excepcionales: '' });
-      }
+    const draft = localStorage.getItem(draftKey);
+    if (draft) {
+      try { setManual(JSON.parse(draft)); return; } catch {}
     }
-  }, [dashData?.estado_result_manual, selectedYear, selectedMonth]);
+    setManual({ mix_cafe: '', mix_producto: '', mgn_cafe: '', mgn_producto: '', excepcionales: '' });
+  }, [selectedYear, selectedMonth]);
+
+  // Cuando llegan datos de la BD para el período actual: la BD gana
+  useEffect(() => {
+    if (!dashData?.estado_result_manual) return;
+    const m = dashData.estado_result_manual;
+    const vals = {
+      mix_cafe: m.mix_cafe ?? '',
+      mix_producto: m.mix_producto ?? '',
+      mgn_cafe: m.mgn_cafe ?? '',
+      mgn_producto: m.mgn_producto ?? '',
+      excepcionales: m.excepcionales ?? '',
+    };
+    setManual(vals);
+    localStorage.setItem(draftKey, JSON.stringify(vals));
+  }, [dashData?.estado_result_manual]);
 
   const setField = useCallback((field) => (val) => {
     setManual(prev => {
