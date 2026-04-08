@@ -99,7 +99,8 @@ export default function MarginExpectationView() {
   const {
     dashData, empData, loading, error,
     selectedYear, selectedMonth,
-    apiUrl,
+    apiUrl, finalApiUrl,
+    fetchData,
   } = useFinance();
 
   const [manual, setManual] = useState({ mix_cafe: '', mix_producto: '', mgn_cafe: '', mgn_producto: '', excepcionales: '' });
@@ -135,14 +136,11 @@ export default function MarginExpectationView() {
   }, []);
 
   const handleSave = async () => {
-    if (!apiUrl) return;
+    if (!finalApiUrl) return;
     setSaving(true);
     setSaveStatus(null);
     try {
-      const finalUrl = apiUrl.startsWith('AKfy')
-        ? `https://script.google.com/macros/s/${apiUrl}/exec`
-        : apiUrl.startsWith('http') ? apiUrl : `https://${apiUrl}`;
-      const res = await fetch(finalUrl, {
+      const res = await fetch(finalApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
@@ -159,7 +157,12 @@ export default function MarginExpectationView() {
         })
       });
       const data = await res.json();
-      setSaveStatus(data.status === 'OK' ? 'ok' : 'error');
+      if (data.status === 'OK') {
+        setSaveStatus('ok');
+        fetchData(true);
+      } else {
+        setSaveStatus('error');
+      }
     } catch {
       setSaveStatus('error');
     } finally {
@@ -262,7 +265,7 @@ export default function MarginExpectationView() {
             <div style={{ padding: '16px 18px' }}>
               <p style={{ fontSize: 10, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.8px', margin: 0 }}>{label}</p>
               <p style={{ fontSize: 20, fontWeight: 700, color: '#f8fafc', marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{value}</p>
-              <p style={{ fontSize: 11, color: '#334155', marginTop: 2 }}>{sub}</p>
+              <p style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{sub}</p>
             </div>
           </div>
         ))}

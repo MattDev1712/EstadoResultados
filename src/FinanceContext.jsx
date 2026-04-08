@@ -145,7 +145,7 @@ export const FinanceProvider = ({ children }) => {
     }, [fetchData]);
 
     const value = useMemo(() => ({
-        apiUrl, setApiUrl,
+        apiUrl, setApiUrl, finalApiUrl,
         dashData, empData, arcaData, ventasData,
         loading, setLoading, error,
         selectedYear, setSelectedYear,

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useFinance } from './FinanceContext';
 
 const ConfigView = () => {
-    const { apiUrl, setApiUrl } = useFinance();
+    const { apiUrl, setApiUrl, finalApiUrl } = useFinance();
     const [urlInput, setUrlInput] = useState(apiUrl);
     const [config, setConfig] = useState({
         LOCAL_NOMBRE: '',
@@ -14,9 +14,9 @@ const ConfigView = () => {
 
     useEffect(() => {
         const fetchConfig = async () => {
-            if (!apiUrl) return;
+            if (!finalApiUrl) return;
             try {
-                const res = await fetch(`${apiUrl}?action=GET_BUSINESS_CONFIG`);
+                const res = await fetch(`${finalApiUrl}?action=GET_BUSINESS_CONFIG`);
                 const data = await res.json();
                 if (data && typeof data === 'object') {
                     setConfig(prev => ({ ...prev, ...data }));
@@ -30,10 +30,10 @@ const ConfigView = () => {
 
     const handleSave = async (e) => {
         e.preventDefault();
-        if (!apiUrl) return alert("API no configurada");
+        if (!finalApiUrl) return alert("API no configurada");
         setSaving(true);
         try {
-            const res = await fetch(apiUrl, {
+            const res = await fetch(finalApiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({ action: 'SAVE_BUSINESS_CONFIG', payload: config })

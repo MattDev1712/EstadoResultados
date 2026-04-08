@@ -10,8 +10,6 @@ import FileCard from './FileCard';
 
 Chart.register(...registerables, ChartDataLabels);
 
-const STRUCTURAL_KEYWORDS = ['alquiler', 'luz', 'gas', 'expensas', 'servicios', 'internet', 'abl', 'tasa'];
-const HONORARIOS_KEYWORDS = ['honorarios', 'profesional', 'contador', 'abogado', 'asesor', 'estudio'];
 const MIX_COLORS = ['#3b82f6', '#10b981', '#64748b', '#f59e0b'];
 
 const fmtM = v => {
@@ -91,7 +89,7 @@ const EvolutionChart = ({ historial, mode = 'NOMINAL' }) => {
         return () => { if (chartRef.current) chartRef.current.destroy(); };
     }, [chartData, resultData, mode]);
 
-    if (!chartData) return <div style={{ height: 210, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: '#334155', fontSize: 11 }}>Sin datos históricos</p></div>;
+    if (!chartData) return <div style={{ height: 210, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: '#64748b', fontSize: 11 }}>Sin datos históricos</p></div>;
     return <div style={{ height: 210 }}><canvas ref={canvasRef}></canvas></div>;
 };
 
@@ -321,7 +319,7 @@ const YoYComparison = ({ historial, currentPeriod, mode }) => {
     if (!yoyData) return (
         <div style={{ marginTop: 24, padding: 16, background: 'rgba(30,41,59,0.2)', borderRadius: 12, border: '1px dashed rgba(71,85,105,0.4)', textAlign: 'center' }}>
             <p style={{ fontSize: 10, color: '#475569', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.1em', margin: '0 0 4px' }}>Comparativa vs. año anterior</p>
-            <p style={{ fontSize: 11, color: '#334155', margin: 0 }}>Necesitás al menos 12 meses de datos para ver la comparativa</p>
+            <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>Necesitás al menos 12 meses de datos para ver la comparativa</p>
         </div>
     );
 
@@ -811,7 +809,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                         <p className="text-lg font-black font-mono tracking-tight" style={{ color: k.color, fontVariantNumeric: 'tabular-nums', marginTop: -8 }}>
                             {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{k.val}
                         </p>
-                        <p style={{ fontSize: 10, color: '#334155', marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{k.sub}</p>
+                        <p style={{ fontSize: 10, color: '#64748b', marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{k.sub}</p>
                     </Card>
                 ))}
             </div>
@@ -871,7 +869,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                                     </div>
                                 </div>
                             )) : (
-                                <p style={{ fontSize: 11, color: '#334155' }}>Sin datos de medios de pago.</p>
+                                <p style={{ fontSize: 11, color: '#64748b' }}>Sin datos de medios de pago.</p>
                             )}
                         </div>
 
@@ -907,7 +905,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                                             <span style={{ fontSize: 10, color: '#64748b' }}>{item.label}</span>
                                             <div style={{ textAlign: 'right' }}>
                                                 <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>{Utils.fmt(item.val)}</span>
-                                                <span style={{ fontSize: 9, color: '#334155', marginLeft: 5 }}>{egresoTotal > 0 ? ((item.val / egresoTotal) * 100).toFixed(1) : '0'}%</span>
+                                                <span style={{ fontSize: 9, color: '#64748b', marginLeft: 5 }}>{egresoTotal > 0 ? ((item.val / egresoTotal) * 100).toFixed(1) : '0'}%</span>
                                             </div>
                                         </div>
                                         <div style={{ height: 2, background: 'rgba(255,255,255,0.04)', borderRadius: 99, overflow: 'hidden', marginTop: 4 }}>
