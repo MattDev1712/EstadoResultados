@@ -145,7 +145,6 @@ const AlertsPanel = ({ kpis, egresos, periodo, empData = [], arcaData = [], vent
     });
     const [showModal, setShowModal] = useState(false);
 
-    // Reset dismissed when period changes
     useEffect(() => {
         try {
             setDismissed(JSON.parse(localStorage.getItem(`alerts_dismissed_${periodo}`) || '[]'));
@@ -156,41 +155,29 @@ const AlertsPanel = ({ kpis, egresos, periodo, empData = [], arcaData = [], vent
         const list = [];
         const ventasNetas = Utils.num(kpis.ventas_netas_reales);
 
-        // 🟡 Faltas de Carga (Prioridad 1)
         if (ventasNetas === 0 && ventasData.length === 0) {
             list.push({ id: 'sales_missing', type: 'warning', msg: 'Falta cargar Mis Ventas (resumen mensual de sistema de facturación).' });
         }
-
         if (Utils.num(egresos.laboral) === 0 && empData.length === 0) {
             list.push({ id: 'labor_missing', type: 'warning', msg: 'Falta cargar Salarios en "Mi equipo".' });
         }
-
         if (Utils.num(egresos.otros) === 0 && arcaData.length === 0) {
             list.push({ id: 'arca_missing', type: 'warning', msg: 'Falta cargar Mis compras (ARCA).' });
         }
-
         if (Utils.num(egresos.estructural) === 0) {
             list.push({ id: 'struct_missing', type: 'warning', msg: 'Falta cargar Gastos Fijos (alquiler, luz, gas, etc).' });
         }
 
-        // --- ALERTAS ANALÍTICAS (Solo si hay ventas cargadas) ---
         if (ventasNetas > 0) {
-            // 🔴 Crítica: utilidad_neta < 0
             if (Utils.num(kpis.utilidad_neta) < 0) {
                 list.push({ id: 'loss', type: 'critical', msg: 'Este mes los gastos superaron a las ventas. El negocio está en pérdida operativa.' });
             }
-
-            // 🔴 Crítica: margen_contribuccion / ventas_netas_reales < 0.50
             if (Utils.num(kpis.margen_contribuccion) / ventasNetas < 0.50) {
                 list.push({ id: 'low_margin', type: 'critical', msg: 'Menos del 50% de tus ventas quedan disponibles después de las comisiones. Revisá los medios de pago.' });
             }
-
-            // 🟡 Advertencia: ventas_netas_reales < break_even_mensual
             if (ventasNetas < Utils.num(kpis.break_even_mensual)) {
                 list.push({ id: 'breakeven', type: 'warning', msg: 'Las ventas de este mes no alcanzan para cubrir todos los gastos fijos.' });
             }
-
-            // 🟡 Advertencia: egresos.laboral / ventas_netas_reales > 0.35
             if (Utils.num(egresos.laboral) / ventasNetas > 0.35) {
                 list.push({ id: 'labor_cost', type: 'warning', msg: 'El pago a empleados supera el 35% de las ventas. Es una proporción alta para el nivel de ingresos.' });
             }
@@ -228,7 +215,7 @@ const AlertsPanel = ({ kpis, egresos, periodo, empData = [], arcaData = [], vent
                         </div>
                         <div className="p-8 overflow-y-auto flex flex-col gap-4 scrollbar-hide">
                             {alerts.map((alert, idx) => (
-                                <div 
+                                <div
                                     key={alert.id}
                                     style={{ animationDelay: `${idx * 100}ms` }}
                                     className={`flex items-start justify-between p-5 rounded-3xl border animate-slide-up-fade shadow-lg transition-transform hover:scale-[1.02] ${
@@ -258,7 +245,7 @@ const AlertsPanel = ({ kpis, egresos, periodo, empData = [], arcaData = [], vent
                                             </span>
                                         </div>
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={() => handleDismiss(alert.id)}
                                         className="text-slate-500 hover:text-white transition-colors p-1.5 hover:bg-white/5 rounded-lg ml-2"
                                         title="Ocultar esta alerta"
@@ -275,87 +262,6 @@ const AlertsPanel = ({ kpis, egresos, periodo, empData = [], arcaData = [], vent
     );
 };
 
-const YoYComparison = ({ historial, currentPeriod, mode }) => {
-    const yoyData = useMemo(() => {
-        if (!historial || !currentPeriod) return null;
-        
-        const [year, month] = currentPeriod.split('-');
-        const lastYearPeriod = `${parseInt(year) - 1}-${month}`;
-        
-        const current = historial[currentPeriod];
-        const lastYear = historial[lastYearPeriod];
-        
-        if (!current || !lastYear) return null;
-        
-        const getVentas = (v) => {
-            if (mode === 'REAL_IPC') return Utils.num(v.vr);
-            if (mode === 'DOLAR_MEP') return Utils.num(v.v) / Utils.num(v.mep);
-            return Utils.num(v.v);
-        };
-
-        const getGastos = (v) => {
-            if (!v) return 0;
-            if (mode === 'REAL_IPC') return Utils.num(v.gr);
-            if (mode === 'DOLAR_MEP') return Utils.num(v.g) / Utils.num(v.mep);
-            return Utils.num(v.g);
-        };
-
-        const v1 = getVentas(current);
-        const v0 = getVentas(lastYear);
-        const r1 = v1 - getGastos(current);
-        const r0 = v0 - getGastos(lastYear);
-        const cmv1 = v1 > 0 ? (getGastos(current) / v1) * 100 : 0;
-        const cmv0 = v0 > 0 ? (getGastos(lastYear) / v0) * 100 : 0;
-
-        return {
-            ventas: { val: v1, prev: v0, pct: v0 > 0 ? ((v1 / v0) - 1) * 100 : 0 },
-            resultado: { val: r1, prev: r0, pct: Math.abs(r0) > 0 ? ((r1 - r0) / Math.abs(r0)) * 100 : 0 },
-            cmv: { val: cmv1, prev: cmv0, diff: cmv1 - cmv0 }
-        };
-    }, [historial, currentPeriod, mode]);
-
-    if (!yoyData) return (
-        <div style={{ marginTop: 24, padding: 16, background: 'rgba(30,41,59,0.2)', borderRadius: 12, border: '1px dashed rgba(71,85,105,0.4)', textAlign: 'center' }}>
-            <p style={{ fontSize: 10, color: '#475569', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.1em', margin: '0 0 4px' }}>Comparativa vs. año anterior</p>
-            <p style={{ fontSize: 11, color: '#64748b', margin: 0 }}>Necesitás al menos 12 meses de datos para ver la comparativa</p>
-        </div>
-    );
-
-    const Badge = ({ val, isInverse = false }) => {
-        const isPositive = val > 0;
-        const color = isInverse ? (isPositive ? '#f43f5e' : '#10b981') : (isPositive ? '#10b981' : '#f43f5e');
-        const sign = isPositive ? '+' : '';
-        return (
-            <span style={{ fontSize: 10, fontWeight: 900, color, marginLeft: 8 }}>
-                {sign}{val.toFixed(1)}%
-            </span>
-        );
-    };
-
-    return (
-        <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-            <p style={{ fontSize: 10, color: '#475569', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.1em', marginBottom: 16 }}>Cómo me fue vs. el mismo mes del año pasado</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                {[
-                    { label: 'Ventas', val: yoyData.ventas.val, pct: yoyData.ventas.pct },
-                    { label: 'Resultado', val: yoyData.resultado.val, pct: yoyData.resultado.pct },
-                    { label: 'CMV%', val: yoyData.cmv.val, pct: yoyData.cmv.diff, isCmv: true }
-                ].map((item, i) => (
-                    <div key={i} style={{ background: 'rgba(15,23,42,0.4)', padding: 12, borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
-                        <p style={{ fontSize: 9, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>{item.label}</p>
-                        <div style={{ display: 'flex', alignItems: 'baseline' }}>
-                            <span style={{ fontSize: 13, fontWeight: 800, color: '#e2e8f0' }}>
-                                {item.isCmv ? `${item.val.toFixed(1)}%` : (mode === 'DOLAR_MEP' ? 'u$s ' : '') + Utils.fmt(item.val)}
-                            </span>
-                            <Badge val={item.pct} isInverse={item.isCmv} />
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
 const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaultDate }) => {
     const {
         dashData: data, empData, arcaData, ventasData,
@@ -366,7 +272,9 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
     const [infoModalKey, setInfoModalKey] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
-    const [ivaDetalleExpanded, setIvaDetalleExpanded] = useState(false);
+    const [ivaShowAll, setIvaShowAll] = useState(false);
+    const [ventasExpanded, setVentasExpanded] = useState(false);
+    const [comprasExpanded, setComprasExpanded] = useState(false);
 
     const ivaGrouped = useMemo(() => {
         const map = {};
@@ -402,48 +310,30 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
     const handleExportPDF = async () => {
         const element = document.getElementById('pnl-export-area');
         if (!element) return;
-        
         setIsExporting(true);
         try {
             const canvas = await html2canvas(element, {
-                scale: 2,
-                backgroundColor: '#070c18',
-                logging: false,
-                useCORS: true
+                scale: 2, backgroundColor: '#070c18', logging: false, useCORS: true
             });
-            
             const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4'
-            });
-            
+            const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const imgProps = pdf.getImageProperties(imgData);
             const pdfImgHeight = (imgProps.height * (pdfWidth - 20)) / imgProps.width;
-
-            // Simple styling for PDF header
-            pdf.setFillColor(15, 23, 42); // slate-900
+            pdf.setFillColor(15, 23, 42);
             pdf.rect(0, 0, pdfWidth, 40, 'F');
-            
             pdf.setTextColor(255, 255, 255);
             pdf.setFontSize(22);
             pdf.text("Estado Result", 15, 20);
-            
             pdf.setFontSize(10);
-            pdf.setTextColor(148, 163, 184); // slate-400
+            pdf.setTextColor(148, 163, 184);
             pdf.text(`Reporte de P&L · ${selectedMonth}/${selectedYear}`, 15, 28);
             pdf.text(`Modo: ${viewMode}`, pdfWidth - 40, 28);
-
             pdf.addImage(imgData, 'PNG', 10, 45, pdfWidth - 20, pdfImgHeight);
-            
-            // Footer
             const pageHeight = pdf.internal.pageSize.getHeight();
             pdf.setFontSize(8);
-            pdf.setTextColor(100, 116, 139); // slate-500
+            pdf.setTextColor(100, 116, 139);
             pdf.text("Generado con Estado Result — Solo para uso de gestión interna. No reemplaza estados contables oficiales.", 15, pageHeight - 10);
-            
             pdf.save(`EstadoResultado_${selectedYear}_${selectedMonth}.pdf`);
         } catch (err) {
             console.error("Error al exportar PDF:", err);
@@ -478,15 +368,6 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
         getAdj(egresos.estructural || 0) +
         getAdj(egresos.comisiones || 0) +
         getAdj(egresos.otros || 0);
-
-    const egresoComposicion = [
-        { label: 'Nómina', val: getAdj(laboralEfectivo), color: '#8b5cf6', key: 'laboral' },
-        { label: 'Prov. SAC', val: getAdj(sacEfectivo), color: '#7c3aed', key: 'sac' },
-        { label: 'Cargas Soc. Est.', val: getAdj(cargasEfectivo), color: '#a78bfa', key: 'cargas' },
-        { label: 'Estructurales', val: getAdj(egresos.estructural || 0), color: '#06b6d4', key: 'estructural' },
-        { label: 'Comisiones', val: getAdj(egresos.comisiones || 0), color: '#f43f5e', key: 'comisiones' },
-        { label: 'Otros', val: getAdj(egresos.otros || 0), color: '#64748b', key: 'otros' },
-    ];
 
     if (loading) return (
         <div className="animate-fade-in space-y-6" style={{ marginTop: 32 }}>
@@ -556,8 +437,6 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
         </div>
     );
 
-    const mixPagosEntries = Object.entries(mixPagos);
-
     const infoData = {
         'resultado': {
             title: 'Resultado del Período',
@@ -566,24 +445,6 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                 { label: 'Ventas Netas (sin IVA)', val: ventasNetas, color: 'text-emerald-400' },
                 { label: 'Total Gastos', val: -egresoTotal, color: 'text-rose-400' },
                 { label: 'Resultado Final', val: utilidad, total: true, color: utilidad >= 0 ? 'text-emerald-400' : 'text-rose-400' }
-            ]
-        },
-        'margen': {
-            title: '¿Cuánto me queda de cada venta?',
-            explanation: 'De cada $100 que vendés, este porcentaje queda disponible después de descontar las comisiones bancarias y de apps. Cuanto más alto, mejor.',
-            breakdown: [
-                { label: 'Ventas Netas', val: ventasNetas },
-                { label: 'Comisiones Bancos/Apps', val: -Utils.num(egresos.comisiones), color: 'text-rose-400' },
-                { label: 'Disponible', val: Utils.num(kpis.margen_contribuccion), total: true, color: 'text-emerald-400' }
-            ]
-        },
-        'breakeven': {
-            title: '¿Cuánto necesito vender para no perder?',
-            explanation: 'Es el monto exacto de ventas que necesitás en el mes para que los ingresos igualen a los gastos. Si vendés más que esto, empezás a tener excedente.',
-            breakdown: [
-                { label: 'Costo de empleados', val: laboralEfectivo + sacEfectivo + cargasEfectivo },
-                { label: 'Gastos fijos (alquiler, luz, etc.)', val: Utils.num(egresos.estructural) },
-                { label: 'Ventas necesarias para equilibrar', val: Utils.num(kpis.break_even_mensual), total: true, color: 'text-blue-400' }
             ]
         },
         'iva': {
@@ -599,29 +460,21 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
             title: 'Cómo evolucionó el negocio',
             explanation: 'Muestra mes a mes cómo fueron tus ventas y gastos. En modo "Ajustado por inflación", los meses pasados se actualizan a pesos de hoy para que la comparación sea justa.'
         },
-        'mix': {
-            title: 'Cómo te pagaron tus clientes',
-            explanation: 'Muestra qué porcentaje de tus ventas fueron en efectivo, tarjeta o apps. Importante: las tarjetas y apps cobran una comisión, así que no todo ese dinero llega a tu bolsillo.'
-        },
-        'composicion': {
-            title: 'En qué se va el dinero',
-            explanation: 'Desglose de todos tus gastos del mes. Te ayuda a ver rápidamente cuál es el rubro que más pesa en tu estructura de costos.'
-        }
     };
+
+    const ivaProveedoresVisible = ivaShowAll ? ivaGrouped : ivaGrouped.slice(0, 10);
 
     return (
         <div className="animate-fade-in" style={{ paddingBottom: 40 }}>
 
-            {/* Modal Compartido */}
             <InfoModal
                 isOpen={!!infoModalKey}
                 onClose={() => setInfoModalKey(null)}
                 {...(infoData[infoModalKey] || {})}
             />
 
-            {/* Selector de Vista y Ajustes Dinámicos */}
+            {/* Selector de Vista y MEP */}
             <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                {/* Selector de modo + input MEP integrado */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', padding: 4, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
                         {['NOMINAL', 'DOLAR_MEP'].map(m => (
@@ -629,20 +482,18 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                                 key={m}
                                 onClick={() => setViewMode(m)}
                                 style={{
-                                    padding: '8px 16px', borderRadius: 8, fontSize: 10, fontWeight: 900, border: 'none', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    padding: '8px 16px', borderRadius: 8, fontSize: 10, fontWeight: 900, border: 'none',
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                     background: viewMode === m ? '#3b82f6' : 'transparent',
                                     color: viewMode === m ? 'white' : '#64748b',
                                     boxShadow: viewMode === m ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
-                                    cursor: 'pointer',
-                                    letterSpacing: '0.05em'
+                                    cursor: 'pointer', letterSpacing: '0.05em'
                                 }}
                             >
                                 {m === 'NOMINAL' ? 'Pesos actuales' : 'En dólares'}
                             </button>
                         ))}
                     </div>
-
-                    {/* MEP input — siempre visible al lado del selector */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(15,23,42,0.3)', padding: '6px 12px', borderRadius: 12, border: '1px solid rgba(139,92,246,0.2)' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -672,8 +523,6 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                         )}
                     </div>
                 </div>
-
-                {/* Avisos + Exportar */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <AlertsPanel
                         kpis={kpis}
@@ -686,68 +535,64 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                     <button
                         onClick={handleExportPDF}
                         disabled={isExporting}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
-                            isExporting
-                            ? 'bg-slate-800 border-slate-700 text-slate-500'
-                            : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'
-                        }`}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${isExporting ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'}`}
                     >
-                        {isExporting ? (
-                            <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                            <span>📄</span>
-                        )}
+                        {isExporting ? <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div> : <span>📄</span>}
                         {isExporting ? 'Exportando...' : 'Exportar P&L'}
                     </button>
                 </div>
             </div>
 
             <div id="pnl-export-area" className="p-4" style={{ margin: '-16px' }}>
-                {/* IVA HERO — Primera card, ancho completo */}
+
+                {/* ── IVA DEL MES ─────────────────────────────────── */}
                 <div style={{ marginBottom: 16 }}>
                     <Card style={{ padding: 28, borderLeft: '4px solid #3b82f6', background: 'linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(15,23,42,0.6) 100%)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-                            <div style={{ flex: 1 }}>
-                                <CardTitle title="Tu IVA del mes" onInfo={() => setInfoModalKey('iva')} />
-                                <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 4 }}>
-                                    <p className="text-4xl font-black tracking-tighter leading-none font-mono" style={{ color: getAdj(kpis.iva_posicion) > 0 ? '#f43f5e' : '#10b981', fontVariantNumeric: 'tabular-nums', margin: 0 }}>
-                                        {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(kpis.iva_posicion))}
-                                    </p>
-                                </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 24 }}>
+
+                            {/* Posición neta */}
+                            <div style={{ flex: 1, minWidth: 200 }}>
+                                <CardTitle title="IVA del mes" onInfo={() => setInfoModalKey('iva')} />
+                                <p className="text-4xl font-black tracking-tighter leading-none font-mono" style={{ color: getAdj(kpis.iva_posicion) > 0 ? '#f43f5e' : '#10b981', fontVariantNumeric: 'tabular-nums', margin: 0 }}>
+                                    {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(kpis.iva_posicion))}
+                                </p>
                                 <p style={{ fontSize: 14, fontWeight: 700, marginTop: 10, color: getAdj(kpis.iva_posicion) > 0 ? '#fda4af' : '#6ee7b7' }}>
-                                    {getAdj(kpis.iva_posicion) > 0
-                                        ? '⚠️ Tenés que pagar este monto a AFIP'
-                                        : '✅ Tenés saldo a favor en AFIP'}
+                                    {getAdj(kpis.iva_posicion) > 0 ? '⚠️ Tenés que pagar este monto a AFIP' : '✅ Tenés saldo a favor en AFIP'}
                                 </p>
-                                <p style={{ fontSize: 11, color: '#475569', marginTop: 4 }}>
-                                    IVA cobrado a clientes − IVA pagado en compras con factura
-                                </p>
+                                <p style={{ fontSize: 11, color: '#475569', marginTop: 4 }}>IVA cobrado a clientes − IVA pagado en compras con factura</p>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 210 }}>
+
+                            {/* Columna derecha: cobrado + pagado */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 260, flex: 1 }}>
+
+                                {/* IVA Cobrado */}
                                 <div style={{ background: 'rgba(16,185,129,0.05)', borderRadius: 12, padding: '14px 18px', border: '1px solid rgba(16,185,129,0.14)' }}>
-                                    <p className="section-label !mb-1.5">IVA cobrado (débito fiscal)</p>
+                                    <p className="section-label !mb-1">IVA Cobrado — total ventas × 21%</p>
                                     <p className="text-xl font-black font-mono" style={{ color: '#10b981', margin: 0 }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(kpis.iva_debito))}</p>
-                                    <p className="text-[10px] text-slate-500 mt-1">IVA que cobrás a tus clientes en ventas</p>
+                                    <p className="text-[10px] text-slate-500 mt-1">Débito fiscal — IVA que cobrás a tus clientes</p>
                                 </div>
+
+                                {/* IVA Pagado con lista de proveedores */}
                                 <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: '14px 18px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                        <p className="section-label !mb-0">IVA pagado (crédito fiscal)</p>
-                                        {Utils.arr(arcaData).some(r => Utils.num(r.iva) !== 0) && (
-                                            <button onClick={() => setIvaDetalleExpanded(v => !v)} style={{ fontSize: 9, color: '#475569', cursor: 'pointer', background: 'none', border: 'none', padding: 0, flexShrink: 0 }}>
-                                                {ivaDetalleExpanded ? '▲ ocultar' : '▼ detalle'}
-                                            </button>
-                                        )}
-                                    </div>
+                                    <p className="section-label !mb-1">IVA Pagado — proveedores con factura</p>
                                     <p className="text-xl font-black font-mono" style={{ color: '#f43f5e', margin: 0 }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(kpis.iva_credito || 0))}</p>
-                                    <p className="text-[10px] text-slate-500 mt-1">IVA en compras con factura (ARCA) — no incluye sueldos</p>
-                                    {ivaDetalleExpanded && (
-                                        <div style={{ marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                                            {ivaGrouped.map(([entidad, total], i) => (
+                                    <p className="text-[10px] text-slate-500 mt-1">Crédito fiscal (ARCA) — no incluye sueldos</p>
+                                    {ivaGrouped.length > 0 && (
+                                        <div style={{ marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                            {ivaProveedoresVisible.map(([entidad, total], i) => (
                                                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                                                    <span style={{ fontSize: 9, color: '#64748b', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entidad}</span>
-                                                    <span style={{ fontSize: 9, fontWeight: 700, color: '#f43f5e', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{Utils.fmt(total)}</span>
+                                                    <span style={{ fontSize: 10, color: '#64748b', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entidad}</span>
+                                                    <span style={{ fontSize: 10, fontWeight: 700, color: '#f43f5e', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{Utils.fmt(total)}</span>
                                                 </div>
                                             ))}
+                                            {ivaGrouped.length > 10 && (
+                                                <button
+                                                    onClick={() => setIvaShowAll(v => !v)}
+                                                    style={{ marginTop: 4, fontSize: 10, fontWeight: 700, color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+                                                >
+                                                    {ivaShowAll ? '▲ Mostrar menos' : `▼ Ver todos (${ivaGrouped.length})`}
+                                                </button>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -756,76 +601,96 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                     </Card>
                 </div>
 
-                {/* ROW 2: 3 CARDS DE CONTEXTO */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+                {/* ── RESULTADO DEL MES ───────────────────────────── */}
+                <div style={{ marginBottom: 16 }}>
+                    <Card style={{ padding: 28, borderLeft: '4px solid #10b981', background: 'linear-gradient(135deg, rgba(16,185,129,0.04) 0%, rgba(15,23,42,0.6) 100%)' }}>
+                        <CardTitle title="Resultado del mes" onInfo={() => setInfoModalKey('resultado')} />
 
-                {/* Margen */}
-                <Card style={{ padding: 24, background: 'rgba(59,130,246,0.02)' }}>
-                    <CardTitle title="¿Cuánto queda de cada venta?" onInfo={() => setInfoModalKey('margen')} />
-                    <p className="text-3xl font-black tracking-tighter leading-none" style={{ color: '#3b82f6' }}>
-                        {ventasNetas > 0 ? ((Utils.num(kpis.margen_contribuccion) / ventasNetas) * 100).toFixed(1) : 0}%
-                    </p>
-                    <p style={{ fontSize: 11, color: '#475569', marginTop: 6 }}>Después de descontar comisiones de bancos y apps</p>
-                    <div style={{ marginTop: 16 }}>
-                        <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 99 }}>
-                            <div style={{ height: '100%', width: `${ventasNetas > 0 ? (Utils.num(kpis.margen_contribuccion) / ventasNetas) * 100 : 0}%`, background: '#3b82f6', borderRadius: 99 }}></div>
-                        </div>
-                    </div>
-                </Card>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
 
-                {/* Resultado del Periodo */}
-                <Card style={{ padding: 24, background: 'rgba(16,185,129,0.03)', borderColor: 'rgba(16,185,129,0.1)' }}>
-                    <CardTitle title="Resultado del mes" onInfo={() => setInfoModalKey('resultado')} />
-                    <p className="text-2xl font-black font-mono tracking-tight leading-none" style={{ color: utilidad >= 0 ? '#10b981' : '#f43f5e', fontVariantNumeric: 'tabular-nums' }}>
-                        {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(utilidad)}
-                    </p>
-                    <p style={{ fontSize: 11, color: '#475569', marginTop: 6 }}>Ventas menos todos los gastos del mes</p>
-                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: 16, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: 11, color: '#64748b' }}>Margen operativo</span>
-                            <span style={{ fontSize: 12, fontWeight: 800, color: +margen > 15 ? '#10b981' : +margen > 5 ? '#f59e0b' : '#f43f5e' }}>{margen}%</span>
-                        </div>
-                    </div>
-                </Card>
+                            {/* Columna Ventas */}
+                            <div style={{ background: 'rgba(16,185,129,0.04)', borderRadius: 14, border: '1px solid rgba(16,185,129,0.12)', overflow: 'hidden' }}>
+                                <button
+                                    onClick={() => setVentasExpanded(v => !v)}
+                                    style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer' }}
+                                >
+                                    <div style={{ textAlign: 'left' }}>
+                                        <p style={{ fontSize: 9, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>Ventas</p>
+                                        <p className="text-2xl font-black font-mono" style={{ color: '#10b981', fontVariantNumeric: 'tabular-nums', margin: '4px 0 0' }}>
+                                            {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(ventasNetas)}
+                                        </p>
+                                    </div>
+                                    <span style={{ fontSize: 12, color: '#475569' }}>{ventasExpanded ? '▲' : '▼'}</span>
+                                </button>
+                                {ventasExpanded && (
+                                    <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                        {[
+                                            { l: 'Venta bruta (sistema)', v: getAdj(kpis.venta_bruta) },
+                                            { l: 'IVA cobrado (−)', v: -getAdj(kpis.iva_debito), neg: true },
+                                            { l: 'Venta neta s/IVA', v: ventasNetas, bold: true },
+                                        ].map((row, i) => (
+                                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: i === 0 ? 12 : 0 }}>
+                                                <span style={{ fontSize: 11, color: row.bold ? '#94a3b8' : '#64748b', fontWeight: row.bold ? 700 : 400 }}>{row.l}</span>
+                                                <span style={{ fontSize: 12, fontWeight: row.bold ? 800 : 600, color: row.neg ? '#f43f5e' : '#10b981', fontVariantNumeric: 'tabular-nums' }}>
+                                                    {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(row.v)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
-                {/* Punto de Equilibrio */}
-                <Card style={{ padding: 24 }}>
-                    <CardTitle title="¿Alcancé el mínimo para no perder?" onInfo={() => setInfoModalKey('breakeven')} />
-                    <p className="text-xl font-black text-white leading-tight" style={{ color: ventasNetas >= getAdj(kpis.break_even_mensual) ? '#10b981' : '#f59e0b' }}>
-                        {ventasNetas >= getAdj(kpis.break_even_mensual) ? '✅ Sí, superé el mínimo' : '⚠️ Aún no alcancé'}
-                    </p>
-                    <p style={{ fontSize: 11, color: '#475569', marginTop: 6 }}>Necesitás vender al menos {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(kpis.break_even_mensual))}</p>
-                    <div style={{ marginTop: 14 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                            <span style={{ fontSize: 10, color: '#64748b' }}>Progreso: {getAdj(kpis.break_even_mensual) > 0 ? Math.min(100, (ventasNetas / getAdj(kpis.break_even_mensual)) * 100).toFixed(0) : 0}%</span>
+                            {/* Columna Compras */}
+                            <div style={{ background: 'rgba(244,63,94,0.03)', borderRadius: 14, border: '1px solid rgba(244,63,94,0.1)', overflow: 'hidden' }}>
+                                <button
+                                    onClick={() => setComprasExpanded(v => !v)}
+                                    style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer' }}
+                                >
+                                    <div style={{ textAlign: 'left' }}>
+                                        <p style={{ fontSize: 9, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>Compras y gastos</p>
+                                        <p className="text-2xl font-black font-mono" style={{ color: '#f43f5e', fontVariantNumeric: 'tabular-nums', margin: '4px 0 0' }}>
+                                            {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(egresoTotal)}
+                                        </p>
+                                    </div>
+                                    <span style={{ fontSize: 12, color: '#475569' }}>{comprasExpanded ? '▲' : '▼'}</span>
+                                </button>
+                                {comprasExpanded && (
+                                    <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                        {[
+                                            { l: 'Sueldos y cargas', v: getAdj(laboralEfectivo) + getAdj(sacEfectivo) + getAdj(cargasEfectivo) },
+                                            { l: 'Gastos fijos operativos', v: getAdj(egresos.estructural || 0) },
+                                            { l: 'Proveedores (compras)', v: getAdj(egresos.otros || 0) },
+                                            { l: 'Comisiones bancos/apps', v: getAdj(egresos.comisiones || 0) },
+                                        ].filter(r => r.v > 0).map((row, i) => (
+                                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: i === 0 ? 12 : 0 }}>
+                                                <span style={{ fontSize: 11, color: '#64748b' }}>{row.l}</span>
+                                                <span style={{ fontSize: 12, fontWeight: 600, color: '#f43f5e', fontVariantNumeric: 'tabular-nums' }}>
+                                                    {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(row.v)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${getAdj(kpis.break_even_mensual) > 0 ? Math.min(100, (ventasNetas / getAdj(kpis.break_even_mensual)) * 100) : 0}%`, background: ventasNetas >= getAdj(kpis.break_even_mensual) ? '#10b981' : '#3b82f6' }}></div>
-                        </div>
-                    </div>
-                </Card>
-            </div>
 
-            {/* ROW 3: 3 KPI CARDS */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 16 }}>
-                {[
-                    { label: 'Mis ventas del mes (sin IVA)', key: 'netos', val: Utils.fmt(ventasNetas), sub: 'Lo que facturé después de quitarle el IVA y las comisiones', color: '#10b981' },
-                    { label: 'Pagué a empleados', key: 'laboral', val: Utils.fmt(getAdj(laboralEfectivo)), sub: `Representa el ${ventasNetas !== 0 ? ((getAdj(laboralEfectivo) / ventasNetas) * 100).toFixed(1) : 0}% de mis ventas`, color: '#8b5cf6' },
-                ].map((k, i) => (
-                    <Card key={i} style={{ padding: '14px 18px' }}>
-                        <CardTitle title={k.label} onInfo={() => setInfoModalKey(k.key)} />
-                        <p className="text-lg font-black font-mono tracking-tight" style={{ color: k.color, fontVariantNumeric: 'tabular-nums', marginTop: -8 }}>
-                            {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{k.val}
-                        </p>
-                        <p style={{ fontSize: 10, color: '#64748b', marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{k.sub}</p>
+                        {/* Resultado neto */}
+                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                            <div>
+                                <p style={{ fontSize: 9, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.15em', margin: '0 0 4px' }}>Resultado neto</p>
+                                <p className="text-4xl font-black font-mono tracking-tighter" style={{ color: utilidad >= 0 ? '#10b981' : '#f43f5e', fontVariantNumeric: 'tabular-nums', margin: 0 }}>
+                                    {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(utilidad)}
+                                </p>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <p style={{ fontSize: 9, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.15em', margin: '0 0 4px' }}>Margen operativo</p>
+                                <p className="text-3xl font-black" style={{ color: +margen > 15 ? '#10b981' : +margen > 5 ? '#f59e0b' : '#f43f5e', margin: 0 }}>{margen}%</p>
+                            </div>
+                        </div>
                     </Card>
-                ))}
-            </div>
+                </div>
 
-            {/* ROW 3: CHART + PANELS */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 16 }}>
-
-                {/* Evolución */}
+                {/* ── GRÁFICO EVOLUCIÓN ───────────────────────────── */}
                 <Card style={{ padding: 22 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -849,92 +714,16 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                         </div>
                     </div>
                     <EvolutionChart historial={historial} mode={viewMode} />
-                    
-                    {/* Año a Año (YoY) */}
-                    <YoYComparison historial={historial} currentPeriod={`${selectedYear}-${selectedMonth}`} mode={viewMode} />
                 </Card>
 
-                {/* Right column */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-                    {/* Mix pagos */}
-                    <Card style={{ padding: 20, flex: 1 }}>
-                        <CardTitle title="Cómo te pagaron los clientes" onInfo={() => setInfoModalKey('mix')} />
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-                            {mixPagosEntries.length > 0 ? mixPagosEntries.map(([metodo, monto], i) => (
-                                <div key={metodo}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-                                        <span style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8' }}>{metodo}</span>
-                                        <div style={{ textAlign: 'right' }}>
-                                            <span style={{ fontSize: 12, fontWeight: 800, color: '#e2e8f0', fontVariantNumeric: 'tabular-nums' }}>
-                                                {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(monto))}
-                                            </span>
-                                            <span style={{ fontSize: 10, color: '#475569', marginLeft: 6 }}>{ventasNetas !== 0 ? ((getAdj(monto) / ventasNetas) * 100).toFixed(1) : '0'}%</span>
-                                        </div>
-                                    </div>
-                                    <div style={{ height: 3, background: 'rgba(255,255,255,0.05)', borderRadius: 99, overflow: 'hidden' }}>
-                                        <div style={{ height: '100%', width: `${ventasNetas > 0 ? Math.min(100, (Utils.num(monto) / ventasNetas) * 100) : 0}%`, background: MIX_COLORS[i % MIX_COLORS.length], borderRadius: 99, opacity: 0.85, transition: 'width 0.7s ease' }}></div>
-                                    </div>
-                                </div>
-                            )) : (
-                                <p style={{ fontSize: 11, color: '#64748b' }}>Sin datos de medios de pago.</p>
-                            )}
-                        </div>
-
-                        {/* Margen por canal */}
-                        {ventasNetas > 0 && (
-                            <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                                <p style={{ fontSize: 9, color: '#475569', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.1em', marginBottom: 12 }}>Margen estimado por canal</p>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    {[
-                                        { l: 'Mostrador (Efectivo)', m: (getAdj(kpis.margen_contribuccion) + getAdj(egresos.comisiones)) / (ventasNetas + getAdj(egresos.comisiones)), c: '#10b981' },
-                                        { l: 'Tarjetas (Salón)', m: ((getAdj(kpis.margen_contribuccion) + getAdj(egresos.comisiones)) / (ventasNetas + getAdj(egresos.comisiones))) - 0.018, c: '#3b82f6' },
-                                        { l: 'Apps (Delivery)', m: ((getAdj(kpis.margen_contribuccion) + getAdj(egresos.comisiones)) / (ventasNetas + getAdj(egresos.comisiones))) - 0.25, c: '#f43f5e' }
-                                    ].map(canal => (
-                                        <div key={canal.l} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontSize: 10, color: '#64748b' }}>{canal.l}</span>
-                                            <span style={{ fontSize: 11, fontWeight: 800, color: canal.m > 0.1 ? canal.c : '#f43f5e' }}>{(canal.m * 100).toFixed(1)}%</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </Card>
-
-                    {/* Composición egresos */}
-                    <Card style={{ padding: 20, flex: 1 }}>
-                        <CardTitle title="En qué se va el dinero" onInfo={() => setInfoModalKey('composicion')} />
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {egresoComposicion.map(item => (
-                                <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                    <div style={{ width: 3, height: 28, background: item.color, borderRadius: 99, flexShrink: 0 }}></div>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontSize: 10, color: '#64748b' }}>{item.label}</span>
-                                            <div style={{ textAlign: 'right' }}>
-                                                <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>{Utils.fmt(item.val)}</span>
-                                                <span style={{ fontSize: 9, color: '#64748b', marginLeft: 5 }}>{egresoTotal > 0 ? ((item.val / egresoTotal) * 100).toFixed(1) : '0'}%</span>
-                                            </div>
-                                        </div>
-                                        <div style={{ height: 2, background: 'rgba(255,255,255,0.04)', borderRadius: 99, overflow: 'hidden', marginTop: 4 }}>
-                                            <div style={{ height: '100%', width: `${egresoTotal > 0 ? Math.min(100, (item.val / egresoTotal) * 100) : 0}%`, background: item.color, borderRadius: 99, opacity: 0.6, transition: 'width 0.7s ease' }}></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </Card>
-
-                </div>
-            </div>
             </div> {/* Closes pnl-export-area */}
-            
-            {/* ACTION HUB (Cargas Integradas al Mes) movido a abajo de todo */}
+
+            {/* ACTION HUB */}
             <div className="mt-8">
                 {renderActionHub()}
             </div>
 
-        </div> /* Closes animate-fade-in */
+        </div>
     );
 };
 
