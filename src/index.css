@@ -2,99 +2,237 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-    background-color: #070c18;
-    color: #f8fafc;
+/* ─── CSS VARIABLES ──────────────────────────────── */
+:root {
+  --bg-card:       #0b1121;
+  --bg-page:       #070c18;
+  --bg-surface:    rgba(255,255,255,0.03);
+  --border-card:   rgba(255,255,255,0.06);
+  --border-subtle: rgba(255,255,255,0.05);
+  --border-mid:    #334155;
+  --text-primary:  #f8fafc;
+  --text-secondary:#e2e8f0;
+  --text-muted:    #94a3b8;
+  --text-dim:      #64748b;
+  --text-faint:    #475569;
 }
 
-/* Estilos Personalizados Migrados del Monolito */
+[data-theme="light"] {
+  --bg-card:       #FFFFFF;
+  --bg-page:       #F2F4F7;
+  --bg-surface:    rgba(28,37,55,0.02);
+  --border-card:   #E4E8EE;
+  --border-subtle: rgba(228,232,238,0.8);
+  --border-mid:    #D8DDE6;
+  --text-primary:  #1C2537;
+  --text-secondary:#2D3748;
+  --text-muted:    #374151;
+  --text-dim:      #6B7A90;
+  --text-faint:    #475569;
+}
+
+body {
+  background: var(--bg-page);
+  color: var(--text-primary);
+}
+
+/* ─── LIGHT THEME — OVERRIDES TAILWIND ───────────── */
+
+/* Backgrounds sólidos */
+[data-theme="light"] .bg-slate-950   { background-color: #EAECF0 !important; }
+[data-theme="light"] .bg-slate-900   { background-color: #F8F9FB !important; }
+[data-theme="light"] .bg-slate-800   { background-color: #FFFFFF !important; }
+[data-theme="light"] .bg-slate-700   { background-color: #F0F2F5 !important; }
+
+/* Backgrounds con opacidad */
+[data-theme="light"] .bg-slate-950\/40  { background-color: rgba(28,37,55,0.4) !important; }
+[data-theme="light"] .bg-slate-900\/20  { background-color: rgba(248,249,251,0.5) !important; }
+[data-theme="light"] .bg-slate-900\/50  { background-color: rgba(248,249,251,0.9) !important; }
+[data-theme="light"] .bg-slate-900\/60  { background-color: rgba(248,249,251,0.95) !important; }
+[data-theme="light"] .bg-slate-900\/80  { background-color: rgba(255,255,255,0.98) !important; }
+[data-theme="light"] .bg-slate-800\/20  { background-color: rgba(255,255,255,0.5) !important; }
+[data-theme="light"] .bg-slate-800\/30  { background-color: rgba(255,255,255,0.7) !important; }
+[data-theme="light"] .bg-slate-800\/40  { background-color: rgba(255,255,255,0.8) !important; }
+[data-theme="light"] .bg-slate-800\/50  { background-color: rgba(255,255,255,0.9) !important; }
+[data-theme="light"] .bg-slate-800\/60  { background-color: rgba(255,255,255,0.92) !important; }
+[data-theme="light"] .bg-slate-800\/80  { background-color: rgba(255,255,255,0.98) !important; }
+[data-theme="light"] .bg-slate-700\/30  { background-color: rgba(240,242,245,0.6) !important; }
+[data-theme="light"] .bg-slate-700\/50  { background-color: rgba(240,242,245,0.8) !important; }
+[data-theme="light"] .bg-slate-700\/60  { background-color: rgba(240,242,245,0.95) !important; }
+[data-theme="light"] .bg-white\/5       { background-color: rgba(28,37,55,0.02) !important; }
+
+/* Modal bg (#0b1121) */
+[data-theme="light"] .bg-\[#0b1121\]\/90 { background-color: rgba(255,255,255,0.97) !important; }
+
+/* Textos */
+[data-theme="light"] .text-white     { color: #1C2537 !important; }
+[data-theme="light"] .text-slate-200 { color: #2D3748 !important; }
+[data-theme="light"] .text-slate-300 { color: #374151 !important; }
+[data-theme="light"] .text-slate-400 { color: #475569 !important; }
+[data-theme="light"] .text-slate-500 { color: #64748B !important; }
+[data-theme="light"] .text-slate-600 { color: #6B7A90 !important; }
+[data-theme="light"] .text-slate-700 { color: #8A96A8 !important; }
+
+/* Excepción: botones y links con texto blanco lo mantienen */
+[data-theme="light"] button.text-white,
+[data-theme="light"] a.text-white    { color: #FFFFFF !important; }
+
+/* Borders */
+[data-theme="light"] .border-slate-600   { border-color: #D8DDE6 !important; }
+[data-theme="light"] .border-slate-700   { border-color: #E4E8EE !important; }
+[data-theme="light"] .border-slate-800   { border-color: #EEF0F4 !important; }
+[data-theme="light"] .border-white\/5    { border-color: rgba(28,37,55,0.06) !important; }
+[data-theme="light"] .border-white\/10   { border-color: rgba(28,37,55,0.09) !important; }
+[data-theme="light"] .border-white\/20   { border-color: rgba(28,37,55,0.13) !important; }
+[data-theme="light"] .border-slate-600\/30 { border-color: rgba(216,221,230,0.8) !important; }
+[data-theme="light"] .border-slate-700\/30 { border-color: rgba(228,232,238,0.8) !important; }
+[data-theme="light"] .border-slate-700\/40 { border-color: rgba(228,232,238,0.85) !important; }
+[data-theme="light"] .border-slate-700\/50 { border-color: rgba(228,232,238,0.9) !important; }
+[data-theme="light"] .border-slate-800\/40 { border-color: rgba(238,240,244,0.9) !important; }
+
+/* Hover */
+[data-theme="light"] .hover\:bg-slate-700:hover     { background-color: #F0F2F5 !important; }
+[data-theme="light"] .hover\:bg-slate-800:hover     { background-color: #F8F9FB !important; }
+[data-theme="light"] .hover\:bg-slate-700\/30:hover { background-color: rgba(240,242,245,0.6) !important; }
+[data-theme="light"] .hover\:bg-slate-700\/50:hover { background-color: rgba(240,242,245,0.8) !important; }
+[data-theme="light"] .hover\:border-slate-700\/70:hover { border-color: rgba(228,232,238,0.95) !important; }
+[data-theme="light"] .hover\:border-slate-600:hover     { border-color: #C8D0DA !important; }
+
+/* Divide */
+[data-theme="light"] .divide-slate-700 > * + * { border-color: #E4E8EE !important; }
+[data-theme="light"] .divide-slate-800 > * + * { border-color: #EEF0F4 !important; }
+
+/* Gradients */
+[data-theme="light"] .from-slate-800 { --tw-gradient-from: #FFFFFF !important; }
+[data-theme="light"] .from-slate-900 { --tw-gradient-from: #F8F9FB !important; }
+[data-theme="light"] .to-slate-900   { --tw-gradient-to:   #F8F9FB !important; }
+[data-theme="light"] .to-slate-800   { --tw-gradient-to:   #FFFFFF !important; }
+
+/* ─── LIGHT THEME — CUSTOM CLASSES ──────────────── */
+
+[data-theme="light"] .amount-input {
+  border-bottom-color: #D8DDE6;
+  color: #1C2537;
+}
+[data-theme="light"] .amount-input:focus { border-bottom-color: #3B6FD4; }
+
+[data-theme="light"] .qty-input {
+  background: #F0F2F5;
+  border-color: #D8DDE6;
+  color: #475569;
+}
+[data-theme="light"] .qty-input:focus { border-color: #3B6FD4; color: #1C2537; }
+
+[data-theme="light"] .stat-card {
+  background: rgba(255,255,255,0.9);
+  border-color: #E4E8EE;
+}
+[data-theme="light"] .stat-card:hover { border-color: #C8D0DA; }
+
+[data-theme="light"] .section-label { color: #6B7A90; }
+
+[data-theme="light"] .highlight-val,
+[data-theme="light"] .sub-val { color: #1C2537; }
+
+[data-theme="light"] .badge-calc {
+  background: #F0F2F5;
+  border-color: #E4E8EE;
+  color: #6B7A90;
+}
+
+[data-theme="light"] .tooltip-box {
+  background: #FFFFFF;
+  border-color: #E4E8EE;
+  color: #475569;
+  box-shadow: 0 4px 12px rgba(28,37,55,0.08);
+}
+
+[data-theme="light"] .skeleton { background: #EEF0F4; }
+[data-theme="light"] .skeleton::after {
+  background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.7) 50%, transparent 100%);
+}
+
+/* ─── ESTILOS BASE (AMBOS TEMAS) ─────────────────── */
 
 /* Eliminar spinners de inputs numéricos */
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
-/* Input de monto: tipografía y baseline limpios */
 .amount-input {
-    @apply bg-transparent border-none border-b border-slate-700/40 outline-none text-right text-slate-100 font-semibold w-full py-1 transition-colors tracking-tight;
-    font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
-    font-size: 1rem;
+  @apply bg-transparent border-none border-b border-slate-700/40 outline-none text-right text-slate-100 font-semibold w-full py-1 transition-colors tracking-tight;
+  font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
+  font-size: 1rem;
 }
 .amount-input:focus { @apply border-b-blue-400; }
 
 .qty-input {
-    @apply bg-slate-800/60 border border-slate-700/30 rounded outline-none text-center text-slate-400 font-medium w-16 py-1 transition-all;
-    font-family: 'SF Mono', 'Fira Code', monospace;
-    font-size: 0.7rem;
+  @apply bg-slate-800/60 border border-slate-700/30 rounded outline-none text-center text-slate-400 font-medium w-16 py-1 transition-all;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.7rem;
 }
 .qty-input:focus { @apply border-blue-400 text-slate-200; }
 
 .stat-card {
-    @apply bg-slate-900/50 border border-slate-800/40 rounded-xl p-4 transition-all;
+  @apply bg-slate-900/50 border border-slate-800/40 rounded-xl p-4 transition-all;
 }
 .stat-card:hover { @apply border-slate-700/70; }
 
 .section-label {
-    @apply text-[11px] font-bold uppercase tracking-[0.15em] mb-2 text-slate-500/80;
+  @apply text-[11px] font-bold uppercase tracking-[0.15em] mb-2 text-slate-500/80;
 }
 
 .highlight-val {
-    @apply text-3xl font-black font-mono tracking-tighter leading-none;
+  @apply text-3xl font-black font-mono tracking-tighter leading-none;
 }
 
 .sub-val {
-    @apply text-lg font-bold font-mono tracking-tight;
+  @apply text-lg font-bold font-mono tracking-tight;
 }
 
 .badge-calc {
-    @apply px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest bg-slate-800 text-slate-500 border border-slate-700/50 ml-2;
+  @apply px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest bg-slate-800 text-slate-500 border border-slate-700/50 ml-2;
 }
 
-/* Tooltip */
 .tooltip-trigger { @apply relative inline-flex; }
 .tooltip-box {
-    @apply absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-72 bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-[0.7rem] leading-relaxed text-slate-400 opacity-0 pointer-events-none transition-opacity z-50 shadow-2xl backdrop-blur-md;
+  @apply absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-72 bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-[0.7rem] leading-relaxed text-slate-400 opacity-0 pointer-events-none transition-opacity z-50 shadow-2xl backdrop-blur-md;
 }
 .tooltip-trigger:hover .tooltip-box { @apply opacity-100; }
 .tooltip-trigger:hover .tooltip-box::after {
-    content: '';
-    @apply absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-slate-700;
+  content: '';
+  @apply absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-slate-700;
 }
 
 @keyframes popIn {
-    from { opacity: 0; transform: scale(0.95) translateY(10px); }
-    to   { opacity: 1; transform: scale(1) translateY(0); }
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 @keyframes slideUpFade {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in { animation: fadeIn 0.3s ease both; }
 .animate-pop-in { animation: popIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .animate-slide-up-fade { animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
-/* Shimmer Animation for Skeletons */
 @keyframes shimmer {
-    0% { background-position: -468px 0; }
-    100% { background-position: 468px 0; }
+  0%   { background-position: -468px 0; }
+  100% { background-position: 468px 0; }
 }
 
 .skeleton {
-    @apply rounded-xl relative overflow-hidden bg-slate-800/40;
-    min-height: 20px;
+  @apply rounded-xl relative overflow-hidden bg-slate-800/40;
+  min-height: 20px;
 }
-
 .skeleton::after {
-    content: "";
-    @apply absolute inset-0;
-    background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%);
-    background-size: 468px 100%;
-    animation: shimmer 1.5s infinite linear;
+  content: "";
+  @apply absolute inset-0;
+  background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%);
+  background-size: 468px 100%;
+  animation: shimmer 1.5s infinite linear;
 }
 
-/* Scrollbar personalizado para la consola de logs */
-.scrollbar-hide::-webkit-scrollbar {
-    display: none;
-}
+.scrollbar-hide::-webkit-scrollbar { display: none; }

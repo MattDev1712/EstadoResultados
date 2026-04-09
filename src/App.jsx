@@ -16,67 +16,7 @@ import MarginExpectationView from './MarginExpectationView';
 // Componentes Comunes
 import FileCard from './FileCard';
 import StructuralCostsModal from './StructuralCostsModal';
-
-// --- COMPONENTES AUXILIARES ---
-
-// Componente de Menú Desplegable Centrado
-const NavDropdown = ({ title, icon, items, activeTab, setActiveTab }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const containerRef = useRef(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (containerRef.current && !containerRef.current.contains(event.target)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const activeItem = items.find(item => item.id === activeTab);
-
-    return (
-        <div className="relative" ref={containerRef}>
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold transition-all border ${
-                    activeItem || isOpen
-                    ? 'bg-white/10 text-white border-white/20 shadow-lg'
-                    : 'text-slate-400 border-transparent hover:bg-white/5 hover:text-slate-200'
-                }`}
-            >
-                <span className="text-sm opacity-80">{icon}</span>
-                <span>{title}</span>
-                <span className={`text-[10px] opacity-40 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
-            </button>
-
-            {isOpen && (
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-[100] overflow-hidden animate-pop-in">
-                    <div className="p-1 px-1.5 flex flex-col gap-1">
-                        {items.map(item => (
-                            <button
-                                key={item.id}
-                                onClick={() => {
-                                    setActiveTab(item.id);
-                                    setIsOpen(false);
-                                }}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[11px] font-bold transition-all text-left ${
-                                    activeTab === item.id
-                                    ? 'bg-blue-600 text-white shadow-md'
-                                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                                }`}
-                            >
-                                <span className="text-sm">{item.icon}</span>
-                                {item.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
+import NavDropdown from './components/NavDropdown';
 
 const App = () => {
     const {
@@ -109,6 +49,13 @@ const App = () => {
         }
         return periods;
     }, [availablePeriods]);
+
+    const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') !== 'light');
+
+    useEffect(() => {
+        document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    }, [isDark]);
 
     const [activeTab, setActiveTab] = useState('iva_dashboard');
     const [showStructModal, setShowStructModal] = useState(false);
@@ -600,6 +547,22 @@ const App = () => {
                 />
 
                 <div className="w-px h-6 bg-white/10 mx-2 hidden sm:block"></div>
+
+                <button
+                    onClick={() => setIsDark(v => !v)}
+                    title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+                    className="flex items-center justify-center w-9 h-9 rounded-xl transition-all border border-slate-700/30 text-slate-400 hover:bg-slate-700 hover:text-white"
+                >
+                    {isDark ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                        </svg>
+                    ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                        </svg>
+                    )}
+                </button>
 
                 <button
                     onClick={() => fetchData(true)}
