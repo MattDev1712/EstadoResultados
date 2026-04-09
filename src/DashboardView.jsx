@@ -209,15 +209,13 @@ const AlertsPanel = ({ kpis, egresos, periodo, empData = [], arcaData = [], vent
 
     return (
         <>
-            <div className="mb-6 flex justify-end">
-                <button
-                    onClick={() => setShowModal(true)}
-                    className="flex justify-center items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-lg"
-                >
-                    <span className="text-sm border border-amber-500/50 rounded-full w-5 h-5 flex justify-center items-center bg-amber-500 text-slate-900 leading-none pb-[1px]">{alerts.length}</span>
-                    <span>{alerts.length === 1 ? '1 aviso importante' : `${alerts.length} avisos importantes`} — tocá para ver</span>
-                </button>
-            </div>
+            <button
+                onClick={() => setShowModal(true)}
+                className="flex items-center gap-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 px-3 py-2 rounded-xl text-[10px] font-bold transition-all"
+            >
+                <span className="border border-amber-500/50 rounded-full w-4 h-4 flex items-center justify-center bg-amber-500 text-slate-900 text-[9px] font-black leading-none">{alerts.length}</span>
+                <span>{alerts.length === 1 ? '1 aviso' : `${alerts.length} avisos`}</span>
+            </button>
 
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 backdrop-blur-md animate-fade-in p-4" onClick={() => setShowModal(false)}>
@@ -369,6 +367,16 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
     const [isSaving, setIsSaving] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [ivaDetalleExpanded, setIvaDetalleExpanded] = useState(false);
+
+    const ivaGrouped = useMemo(() => {
+        const map = {};
+        Utils.arr(arcaData).filter(r => Utils.num(r.iva) !== 0).forEach(item => {
+            const key = item.entidad || 'Proveedor';
+            if (!map[key]) map[key] = 0;
+            map[key] += Math.abs(Utils.num(item.iva));
+        });
+        return Object.entries(map).sort((a, b) => b[1] - a[1]);
+    }, [arcaData]);
 
     const { kpis, egresos, historial, mixPagos } = useMemo(() => ({
         kpis: data?.kpis || {},
@@ -613,82 +621,74 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
 
             {/* Selector de Vista y Ajustes Dinámicos */}
             <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', padding: 4, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
-                    {['NOMINAL', 'REAL_IPC', 'DOLAR_MEP'].map(m => (
-                        <button
-                            key={m}
-                            onClick={() => setViewMode(m)}
-                            style={{
-                                padding: '8px 16px', borderRadius: 8, fontSize: 10, fontWeight: 900, border: 'none', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                background: viewMode === m ? '#3b82f6' : 'transparent',
-                                color: viewMode === m ? 'white' : '#64748b',
-                                boxShadow: viewMode === m ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
-                                cursor: 'pointer',
-                                letterSpacing: '0.05em'
-                            }}
-                        >
-                            {m === 'NOMINAL' ? 'Pesos actuales' : m === 'REAL_IPC' ? 'Ajustado por inflación' : 'En dólares'}
-                        </button>
-                    ))}
-                </div>
+                {/* Selector de modo + input MEP integrado */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', padding: 4, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
+                        {['NOMINAL', 'DOLAR_MEP'].map(m => (
+                            <button
+                                key={m}
+                                onClick={() => setViewMode(m)}
+                                style={{
+                                    padding: '8px 16px', borderRadius: 8, fontSize: 10, fontWeight: 900, border: 'none', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    background: viewMode === m ? '#3b82f6' : 'transparent',
+                                    color: viewMode === m ? 'white' : '#64748b',
+                                    boxShadow: viewMode === m ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
+                                    cursor: 'pointer',
+                                    letterSpacing: '0.05em'
+                                }}
+                            >
+                                {m === 'NOMINAL' ? 'Pesos actuales' : 'En dólares'}
+                            </button>
+                        ))}
+                    </div>
 
-                {/* Panel de Ajustes del Periodo */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(15, 23, 42, 0.3)', padding: '6px 12px', borderRadius: 14, border: '1px solid rgba(255,255,255,0.05)' }}>
-                        <div style={{ display: 'flex', gap: 12 }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <div style={{ fontSize: 8, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                                        Coef. inflación (INDEC)
-                                    </div>
-                                    <span title="Actualizá con el dato real publicado por INDEC (indec.gob.ar)" style={{ fontSize: 7, color: '#92400e', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.25)', padding: '1px 4px', borderRadius: 3, cursor: 'help', fontWeight: 800 }}>INDEC</span>
-                                </div>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    value={localAjustes.ipc}
-                                    onChange={(e) => setLocalAjustes(prev => ({ ...prev, ipc: e.target.value }))}
-                                    style={{ width: 50, background: 'transparent', border: 'none', borderBottom: '1px solid #334155', color: '#f59e0b', fontSize: 12, fontWeight: 800, outline: 'none', padding: '0 2px' }}
-                                />
+                    {/* MEP input — siempre visible al lado del selector */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(15,23,42,0.3)', padding: '6px 12px', borderRadius: 12, border: '1px solid rgba(139,92,246,0.2)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <span style={{ fontSize: 8, fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Dólar MEP</span>
+                                <span title="Cotización real del mercado (dolarito.ar o similar)" style={{ fontSize: 7, color: '#4c1d95', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)', padding: '1px 4px', borderRadius: 3, cursor: 'help', fontWeight: 800 }}>COTI</span>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <span style={{ fontSize: 8, fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Dólar MEP</span>
-                                    <span title="Cotización real del mercado (dolarito.ar o similar)" style={{ fontSize: 7, color: '#4c1d95', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)', padding: '1px 4px', borderRadius: 3, cursor: 'help', fontWeight: 800 }}>COTI</span>
-                                </div>
-                                <input
-                                    type="number"
-                                    value={localAjustes.mep}
-                                    onChange={(e) => setLocalAjustes(prev => ({ ...prev, mep: e.target.value }))}
-                                    style={{ width: 60, background: 'transparent', border: 'none', borderBottom: '1px solid #334155', color: '#8b5cf6', fontSize: 12, fontWeight: 800, outline: 'none', padding: '0 2px' }}
-                                />
-                            </div>
+                            <input
+                                type="number"
+                                value={localAjustes.mep}
+                                onChange={(e) => setLocalAjustes(prev => ({ ...prev, mep: e.target.value }))}
+                                style={{ width: 68, background: 'transparent', border: 'none', borderBottom: '1px solid #334155', color: '#8b5cf6', fontSize: 12, fontWeight: 800, outline: 'none', padding: '0 2px' }}
+                            />
                         </div>
-
-                        {/* Botón Guardar (Solo aparece si hay cambios vs backend) */}
-                        {(parseFloat(data?.ajustes?.ipc) !== parseFloat(localAjustes.ipc) || parseFloat(data?.ajustes?.mep) !== parseFloat(localAjustes.mep)) && (
+                        {parseFloat(data?.ajustes?.mep) !== parseFloat(localAjustes.mep) && (
                             <button
                                 onClick={handleSaveConfig}
                                 disabled={isSaving}
                                 style={{
-                                    padding: '8px 14px', borderRadius: 10, fontSize: 10, fontWeight: 800,
+                                    padding: '6px 12px', borderRadius: 8, fontSize: 10, fontWeight: 800,
                                     background: '#10b981', color: 'white', border: 'none', cursor: 'pointer',
                                     transition: 'all 0.2s', boxShadow: '0 4px 10px rgba(16, 185, 129, 0.2)',
                                     opacity: isSaving ? 0.6 : 1
                                 }}
                             >
-                                {isSaving ? '...' : 'Guardar Coef.'}
+                                {isSaving ? '...' : 'Guardar'}
                             </button>
                         )}
                     </div>
+                </div>
 
-                    {/* Botón Exportar PDF */}
+                {/* Avisos + Exportar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <AlertsPanel
+                        kpis={kpis}
+                        egresos={{ ...egresos, laboral: laboralEfectivo }}
+                        periodo={`${selectedYear}-${selectedMonth}`}
+                        empData={empData}
+                        arcaData={arcaData}
+                        ventasData={ventasData}
+                    />
                     <button
                         onClick={handleExportPDF}
                         disabled={isExporting}
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
-                            isExporting 
-                            ? 'bg-slate-800 border-slate-700 text-slate-500' 
+                            isExporting
+                            ? 'bg-slate-800 border-slate-700 text-slate-500'
                             : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'
                         }`}
                     >
@@ -701,18 +701,6 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                     </button>
                 </div>
             </div>
-
-
-
-            {/* Panel de Inteligencia Financiera */}
-            <AlertsPanel
-                kpis={kpis}
-                egresos={{ ...egresos, laboral: laboralEfectivo }}
-                periodo={`${selectedYear}-${selectedMonth}`}
-                empData={empData}
-                arcaData={arcaData}
-                ventasData={ventasData}
-            />
 
             <div id="pnl-export-area" className="p-4" style={{ margin: '-16px' }}>
                 {/* IVA HERO — Primera card, ancho completo */}
@@ -754,15 +742,12 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                                     <p className="text-[10px] text-slate-500 mt-1">IVA en compras con factura (ARCA) — no incluye sueldos</p>
                                     {ivaDetalleExpanded && (
                                         <div style={{ marginTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                                            {Utils.arr(arcaData).filter(r => Utils.num(r.iva) !== 0).slice(0, 12).map((item, i) => (
+                                            {ivaGrouped.map(([entidad, total], i) => (
                                                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                                                    <span style={{ fontSize: 9, color: '#64748b', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.entidad || 'Proveedor'}</span>
-                                                    <span style={{ fontSize: 9, fontWeight: 700, color: '#f43f5e', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{Utils.fmt(Math.abs(Utils.num(item.iva)))}</span>
+                                                    <span style={{ fontSize: 9, color: '#64748b', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entidad}</span>
+                                                    <span style={{ fontSize: 9, fontWeight: 700, color: '#f43f5e', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{Utils.fmt(total)}</span>
                                                 </div>
                                             ))}
-                                            {Utils.arr(arcaData).filter(r => Utils.num(r.iva) !== 0).length > 12 && (
-                                                <p style={{ fontSize: 9, color: '#475569', margin: '2px 0 0' }}>...y {Utils.arr(arcaData).filter(r => Utils.num(r.iva) !== 0).length - 12} más</p>
-                                            )}
                                         </div>
                                     )}
                                 </div>

@@ -527,7 +527,7 @@ const App = () => {
                 </div>
 
                 {/* Selector de Meses Centrado */}
-                <div className="flex items-center gap-1.5 p-1.5 bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl no-scrollbar overflow-x-auto max-w-full">
+                <div className="flex items-center gap-2 p-2 bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl no-scrollbar overflow-x-auto max-w-full">
                     {periodButtons.map(p => {
                         const isSelected = selectedMonth === p.m && String(selectedYear) === p.y;
                         const score = p.score;
@@ -545,18 +545,18 @@ const App = () => {
                                 key={`${p.y}-${p.m}`}
                                 onClick={() => { setSelectedYear(p.y); setSelectedMonth(p.m); }}
                                 className={`
-                                    flex flex-col items-center justify-center min-w-[56px] h-11 rounded-xl transition-all duration-300 relative group border text-[10px]
-                                    ${isSelected 
-                                        ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-900/40 z-10 scale-105' 
+                                    flex flex-col items-center justify-center min-w-[68px] h-14 rounded-xl transition-all duration-300 relative group border
+                                    ${isSelected
+                                        ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-900/40 z-10 scale-105'
                                         : scoreColors[score]
                                     }
                                 `}
                             >
-                                <span className="font-black uppercase tracking-tighter">{p.label}</span>
-                                <span className={`text-[8px] font-bold opacity-50 ${isSelected ? 'text-white' : ''}`}>{p.yearShort}</span>
-                                
+                                <span className="text-xs font-black uppercase tracking-tight">{p.label}</span>
+                                <span className={`text-[9px] font-bold opacity-50 ${isSelected ? 'text-white' : ''}`}>{p.yearShort}</span>
+
                                 {score > 0 && !isSelected && (
-                                    <span className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-slate-950 ${score === 4 ? 'bg-emerald-500' : score === 3 ? 'bg-lime-500' : 'bg-orange-500'}`} />
+                                    <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-slate-950 ${score === 4 ? 'bg-emerald-500' : score === 3 ? 'bg-lime-500' : 'bg-orange-500'}`} />
                                 )}
                             </button>
                         );
