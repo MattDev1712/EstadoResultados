@@ -282,6 +282,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
         localAjustes, setLocalAjustes, updateConfig,
         selectedYear, selectedMonth, cargasPct
     } = useFinance();
+    const isLight = useTheme();
     const [infoModalKey, setInfoModalKey] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
@@ -489,7 +490,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
             {/* Selector de Vista y MEP */}
             <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', padding: 4, borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div style={{ display: 'flex', background: 'var(--bg-surface)', padding: 4, borderRadius: 12, border: '1px solid var(--border-subtle)' }}>
                         {['NOMINAL', 'DOLAR_MEP'].map(m => (
                             <button
                                 key={m}
@@ -498,7 +499,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                                     padding: '8px 16px', borderRadius: 8, fontSize: 10, fontWeight: 900, border: 'none',
                                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                     background: viewMode === m ? '#3b82f6' : 'transparent',
-                                    color: viewMode === m ? 'white' : '#64748b',
+                                    color: viewMode === m ? 'white' : 'var(--text-dim)',
                                     boxShadow: viewMode === m ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
                                     cursor: 'pointer', letterSpacing: '0.05em'
                                 }}
@@ -507,17 +508,17 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                             </button>
                         ))}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(15,23,42,0.3)', padding: '6px 12px', borderRadius: 12, border: '1px solid rgba(139,92,246,0.2)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-surface)', padding: '6px 12px', borderRadius: 12, border: '1px solid rgba(139,92,246,0.2)' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <span style={{ fontSize: 8, fontWeight: 800, color: '#475569', textTransform: 'uppercase' }}>Dólar MEP</span>
+                                <span style={{ fontSize: 8, fontWeight: 800, color: 'var(--text-faint)', textTransform: 'uppercase' }}>Dólar MEP</span>
                                 <span title="Cotización real del mercado (dolarito.ar o similar)" style={{ fontSize: 7, color: '#4c1d95', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)', padding: '1px 4px', borderRadius: 3, cursor: 'help', fontWeight: 800 }}>COTI</span>
                             </div>
                             <input
                                 type="number"
                                 value={localAjustes.mep}
                                 onChange={(e) => setLocalAjustes(prev => ({ ...prev, mep: e.target.value }))}
-                                style={{ width: 68, background: 'transparent', border: 'none', borderBottom: '1px solid #334155', color: '#8b5cf6', fontSize: 12, fontWeight: 800, outline: 'none', padding: '0 2px' }}
+                                style={{ width: 68, background: 'transparent', border: 'none', borderBottom: '1px solid var(--border-mid)', color: '#8b5cf6', fontSize: 12, fontWeight: 800, outline: 'none', padding: '0 2px' }}
                             />
                         </div>
                         {parseFloat(data?.ajustes?.mep) !== parseFloat(localAjustes.mep) && (
@@ -560,7 +561,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
 
                 {/* ── IVA DEL MES ─────────────────────────────────── */}
                 <div style={{ marginBottom: 16 }}>
-                    <Card style={{ padding: 28, borderLeft: '4px solid #3b82f6', background: 'linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(15,23,42,0.6) 100%)' }}>
+                    <Card style={{ padding: 28, borderLeft: '4px solid #3b82f6', background: isLight ? 'linear-gradient(135deg, rgba(59,130,246,0.06) 0%, #F8F9FB 100%)' : 'linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(15,23,42,0.6) 100%)' }}>
 
                         {/* Full row: título + número grande */}
                         <CardTitle title="IVA del mes" onInfo={() => setInfoModalKey('iva')} />
@@ -570,7 +571,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                         <p style={{ fontSize: 14, fontWeight: 700, marginTop: 10, color: getAdj(kpis.iva_posicion) > 0 ? '#fda4af' : '#6ee7b7' }}>
                             {getAdj(kpis.iva_posicion) > 0 ? '⚠️ Tenés que pagar este monto a AFIP' : '✅ Tenés saldo a favor en AFIP'}
                         </p>
-                        <p style={{ fontSize: 11, color: '#475569', marginTop: 4, marginBottom: 20 }}>IVA cobrado a clientes − IVA pagado en compras con factura</p>
+                        <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4, marginBottom: 20 }}>IVA cobrado a clientes − IVA pagado en compras con factura</p>
 
                         {/* Dos columnas: IVA cobrado | IVA pagado */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -583,7 +584,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                             </div>
 
                             {/* IVA Pagado con dropdown de proveedores */}
-                            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
+                            <div style={{ background: 'rgba(244,63,94,0.04)', borderRadius: 12, border: '1px solid rgba(244,63,94,0.14)', overflow: 'hidden' }}>
                                 <div style={{ padding: '14px 18px' }}>
                                     <p className="section-label !mb-1">IVA Pagado — proveedores con factura</p>
                                     <p className="text-xl font-black font-mono" style={{ color: '#f43f5e', margin: 0 }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(kpis.iva_credito || 0))}</p>
@@ -598,10 +599,10 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                                     )}
                                 </div>
                                 {ivaProveedoresExpanded && ivaGrouped.length > 0 && (
-                                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', padding: '10px 18px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <div style={{ borderTop: '1px solid var(--border-subtle)', padding: '10px 18px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                                         {ivaProveedoresVisible.map(([entidad, total], i) => (
                                             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                                                <span style={{ fontSize: 10, color: '#64748b', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entidad}</span>
+                                                <span style={{ fontSize: 10, color: 'var(--text-dim)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entidad}</span>
                                                 <span style={{ fontSize: 10, fontWeight: 700, color: '#f43f5e', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{Utils.fmt(total)}</span>
                                             </div>
                                         ))}
@@ -622,7 +623,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
 
                 {/* ── RESULTADO DEL MES ───────────────────────────── */}
                 <div style={{ marginBottom: 16 }}>
-                    <Card style={{ padding: 28, borderLeft: '4px solid #10b981', background: 'linear-gradient(135deg, rgba(16,185,129,0.04) 0%, rgba(15,23,42,0.6) 100%)' }}>
+                    <Card style={{ padding: 28, borderLeft: '4px solid #10b981', background: isLight ? 'linear-gradient(135deg, rgba(16,185,129,0.06) 0%, #F8F9FB 100%)' : 'linear-gradient(135deg, rgba(16,185,129,0.04) 0%, rgba(15,23,42,0.6) 100%)' }}>
                         <CardTitle title="Resultado del mes" onInfo={() => setInfoModalKey('resultado')} />
 
                         {/* Full row: resultado neto + margen */}
@@ -633,7 +634,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                                 </p>
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                                <p style={{ fontSize: 9, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.15em', margin: '0 0 4px' }}>Margen operativo</p>
+                                <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.15em', margin: '0 0 4px' }}>Margen operativo</p>
                                 <p className="text-3xl font-black" style={{ color: +margen > 15 ? '#10b981' : +margen > 5 ? '#f59e0b' : '#f43f5e', margin: 0 }}>{margen}%</p>
                             </div>
                         </div>
@@ -648,22 +649,22 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                                     style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer' }}
                                 >
                                     <div style={{ textAlign: 'left' }}>
-                                        <p style={{ fontSize: 9, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>Ventas</p>
+                                        <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>Ventas</p>
                                         <p className="text-2xl font-black font-mono" style={{ color: '#10b981', fontVariantNumeric: 'tabular-nums', margin: '4px 0 0' }}>
                                             {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(ventasNetas)}
                                         </p>
                                     </div>
-                                    <span style={{ fontSize: 12, color: '#475569' }}>{detalleExpanded ? '▲' : '▼'}</span>
+                                    <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{detalleExpanded ? '▲' : '▼'}</span>
                                 </button>
                                 {detalleExpanded && (
-                                    <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--border-subtle)' }}>
                                         {[
                                             { l: 'Venta bruta (sistema)', v: getAdj(kpis.venta_bruta) },
                                             { l: 'IVA cobrado (−)', v: -getAdj(kpis.iva_debito), neg: true },
                                             { l: 'Venta neta s/IVA', v: ventasNetas, bold: true },
                                         ].map((row, i) => (
                                             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: i === 0 ? 12 : 0 }}>
-                                                <span style={{ fontSize: 11, color: row.bold ? '#94a3b8' : '#64748b', fontWeight: row.bold ? 700 : 400 }}>{row.l}</span>
+                                                <span style={{ fontSize: 11, color: row.bold ? 'var(--text-muted)' : 'var(--text-dim)', fontWeight: row.bold ? 700 : 400 }}>{row.l}</span>
                                                 <span style={{ fontSize: 12, fontWeight: row.bold ? 800 : 600, color: row.neg ? '#f43f5e' : '#10b981', fontVariantNumeric: 'tabular-nums' }}>
                                                     {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(row.v)}
                                                 </span>
@@ -680,15 +681,15 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                                     style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer' }}
                                 >
                                     <div style={{ textAlign: 'left' }}>
-                                        <p style={{ fontSize: 9, fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>Compras y gastos</p>
+                                        <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>Compras y gastos</p>
                                         <p className="text-2xl font-black font-mono" style={{ color: '#f43f5e', fontVariantNumeric: 'tabular-nums', margin: '4px 0 0' }}>
                                             {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(egresoTotal)}
                                         </p>
                                     </div>
-                                    <span style={{ fontSize: 12, color: '#475569' }}>{detalleExpanded ? '▲' : '▼'}</span>
+                                    <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{detalleExpanded ? '▲' : '▼'}</span>
                                 </button>
                                 {detalleExpanded && (
-                                    <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--border-subtle)' }}>
                                         {[
                                             { l: 'Sueldos y cargas', v: getAdj(laboralEfectivo) + getAdj(sacEfectivo) + getAdj(cargasEfectivo) },
                                             { l: 'Gastos fijos operativos', v: getAdj(egresos.estructural || 0) },
@@ -696,7 +697,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                                             { l: 'Comisiones bancos/apps', v: getAdj(egresos.comisiones || 0) },
                                         ].filter(r => r.v > 0).map((row, i) => (
                                             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: i === 0 ? 12 : 0 }}>
-                                                <span style={{ fontSize: 11, color: '#64748b' }}>{row.l}</span>
+                                                <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{row.l}</span>
                                                 <span style={{ fontSize: 12, fontWeight: 600, color: '#f43f5e', fontVariantNumeric: 'tabular-nums' }}>
                                                     {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(row.v)}
                                                 </span>
@@ -713,7 +714,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                 <Card style={{ padding: 22 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', color: '#475569', textTransform: 'uppercase', margin: 0 }}>Cómo evolucionó el negocio</p>
+                            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', color: 'var(--text-dim)', textTransform: 'uppercase', margin: 0 }}>Cómo evolucionó el negocio</p>
                             <button onClick={() => setInfoModalKey('evolucion')} className="w-5 h-5 rounded-full border border-slate-700/50 text-slate-500 hover:text-blue-400 hover:border-blue-500/50 hover:bg-slate-800/50 flex items-center justify-center text-[10px] font-bold transition-all">?</button>
                         </div>
                         <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
@@ -727,7 +728,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                                         ? <div style={{ width: 18, height: 2, background: l.c, borderRadius: 2 }}></div>
                                         : <div style={{ width: 10, height: 10, background: l.c, borderRadius: 3 }}></div>
                                     }
-                                    <span style={{ fontSize: 10, color: '#64748b' }}>{l.label}</span>
+                                    <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>{l.label}</span>
                                 </div>
                             ))}
                         </div>

@@ -465,10 +465,10 @@ const App = () => {
             {/* Cabecera Centrada y Refinada */}
             <header className="flex flex-col items-center mb-8 animate-fade-in text-center">
                 <div className="mb-6">
-                    <p className="text-[10px] font-black text-blue-500/50 tracking-[0.3em] uppercase mb-1">
+                    <p className="text-[10px] font-black tracking-[0.3em] uppercase mb-1" style={{ color: 'var(--text-dim)' }}>
                         Sistema de Gestión Administrativa
                     </p>
-                    <h1 className="text-2xl font-black text-white tracking-tight">
+                    <h1 className="text-2xl font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
                         {TAB_TITLES[activeTab] || 'Panel de Control'}
                     </h1>
                 </div>
