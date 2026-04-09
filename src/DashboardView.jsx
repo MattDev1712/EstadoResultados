@@ -7,8 +7,19 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { CardSkeleton, ChartSkeleton } from './Skeleton';
 import FileCard from './FileCard';
+import Card from './components/Card';
 
 Chart.register(...registerables, ChartDataLabels);
+
+function useTheme() {
+  const [isLight, setIsLight] = useState(() => document.documentElement.dataset.theme === 'light');
+  useEffect(() => {
+    const obs = new MutationObserver(() => setIsLight(document.documentElement.dataset.theme === 'light'));
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
+  return isLight;
+}
 
 const MIX_COLORS = ['#3b82f6', '#10b981', '#64748b', '#f59e0b'];
 
@@ -17,15 +28,10 @@ const fmtM = v => {
     return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1000 ? (n / 1000).toFixed(0) + 'K' : n.toFixed(0);
 };
 
-const Card = ({ children, style = {} }) => (
-    <div style={{ borderRadius: 16, border: '1px solid rgba(255,255,255,0.06)', background: '#0b1121', ...style }}>
-        {children}
-    </div>
-);
-
 const EvolutionChart = ({ historial, mode = 'NOMINAL' }) => {
     const canvasRef = useRef(null);
     const chartRef = useRef(null);
+    const isLight = useTheme();
 
     const chartData = useMemo(() => {
         if (!historial) return null;
@@ -59,13 +65,20 @@ const EvolutionChart = ({ historial, mode = 'NOMINAL' }) => {
         if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
         if (!canvasRef.current || !chartData) return;
         const prefix = mode === 'DOLAR_MEP' ? 'u$s ' : '$';
+        const gridColor = isLight ? 'rgba(28,37,55,0.07)' : 'rgba(255,255,255,0.035)';
+        const tickColor = isLight ? '#6B7A90' : '#475569';
+        const pointBorder = isLight ? '#F2F4F7' : '#070c18';
+        const tooltipBg = isLight ? 'rgba(255,255,255,0.97)' : 'rgba(7,12,24,0.97)';
+        const tooltipTitle = isLight ? '#1C2537' : '#f1f5f9';
+        const tooltipBody = isLight ? '#374151' : '#94a3b8';
+        const tooltipBorder = isLight ? 'rgba(228,232,238,0.9)' : 'rgba(255,255,255,0.07)';
         chartRef.current = new Chart(canvasRef.current.getContext('2d'), {
             data: {
                 labels: chartData.labels,
                 datasets: [
                     { type: 'bar', label: 'Ingresos', data: chartData.ingresos, backgroundColor: 'rgba(16,185,129,0.18)', borderColor: 'rgba(16,185,129,0.6)', borderWidth: 1.5, borderRadius: 7, borderSkipped: false, order: 2 },
                     { type: 'bar', label: 'Egresos', data: chartData.egresos, backgroundColor: 'rgba(244,63,94,0.15)', borderColor: 'rgba(244,63,94,0.55)', borderWidth: 1.5, borderRadius: 7, borderSkipped: false, order: 3 },
-                    { type: 'line', label: 'Resultado', data: resultData, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.07)', borderWidth: 2.5, pointRadius: 5, pointBackgroundColor: '#3b82f6', pointBorderColor: '#070c18', pointBorderWidth: 2.5, fill: true, tension: 0.35, order: 1 },
+                    { type: 'line', label: 'Resultado', data: resultData, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.07)', borderWidth: 2.5, pointRadius: 5, pointBackgroundColor: '#3b82f6', pointBorderColor: pointBorder, pointBorderWidth: 2.5, fill: true, tension: 0.35, order: 1 },
                 ]
             },
             options: {
@@ -75,19 +88,19 @@ const EvolutionChart = ({ historial, mode = 'NOMINAL' }) => {
                     legend: { display: false },
                     datalabels: { display: false },
                     tooltip: {
-                        backgroundColor: 'rgba(7,12,24,0.97)', titleColor: '#f1f5f9', bodyColor: '#94a3b8',
-                        borderColor: 'rgba(255,255,255,0.07)', borderWidth: 1, padding: 14, cornerRadius: 10,
+                        backgroundColor: tooltipBg, titleColor: tooltipTitle, bodyColor: tooltipBody,
+                        borderColor: tooltipBorder, borderWidth: 1, padding: 14, cornerRadius: 10,
                         callbacks: { label: ctx => `  ${ctx.dataset.label}:  ${prefix}${fmtM(ctx.raw)}` }
                     }
                 },
                 scales: {
-                    x: { grid: { display: false }, border: { display: false }, ticks: { color: '#475569', font: { size: 10, weight: '600' } } },
-                    y: { grid: { color: 'rgba(255,255,255,0.035)' }, border: { display: false }, ticks: { color: '#475569', font: { size: 10 }, callback: v => prefix + fmtM(v) } }
+                    x: { grid: { display: false }, border: { display: false }, ticks: { color: tickColor, font: { size: 10, weight: '600' } } },
+                    y: { grid: { color: gridColor }, border: { display: false }, ticks: { color: tickColor, font: { size: 10 }, callback: v => prefix + fmtM(v) } }
                 }
             }
         });
         return () => { if (chartRef.current) chartRef.current.destroy(); };
-    }, [chartData, resultData, mode]);
+    }, [chartData, resultData, mode, isLight]);
 
     if (!chartData) return <div style={{ height: 210, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: '#64748b', fontSize: 11 }}>Sin datos históricos</p></div>;
     return <div style={{ height: 210 }}><canvas ref={canvasRef}></canvas></div>;
@@ -132,7 +145,7 @@ const InfoModal = ({ isOpen, onClose, title, explanation, breakdown }) => {
 
 const CardTitle = ({ title, onInfo }) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', color: '#475569', textTransform: 'uppercase', margin: 0 }}>{title}</p>
+        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', color: 'var(--text-dim)', textTransform: 'uppercase', margin: 0 }}>{title}</p>
         <button onClick={onInfo} className="w-6 h-6 rounded-full border border-slate-700/50 text-slate-500 hover:text-blue-400 hover:border-blue-500/50 hover:bg-slate-800/50 flex items-center justify-center text-[10px] font-bold transition-all">?</button>
     </div>
 );

@@ -152,6 +152,10 @@ body {
   background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.7) 50%, transparent 100%);
 }
 
+/* ─── ROW HIGHLIGHT ────────────────────────────────── */
+.row-highlight { background: rgba(255,255,255,0.025); }
+[data-theme="light"] .row-highlight { background: rgba(28,37,55,0.04); }
+
 /* ─── ESTILOS BASE (AMBOS TEMAS) ─────────────────── */
 
 /* Eliminar spinners de inputs numéricos */

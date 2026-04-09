@@ -2,81 +2,52 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Chart, registerables } from 'chart.js';
 import { useFinance } from './FinanceContext';
 import { formatters as Utils } from './formatters';
+import Card from './components/Card';
+import { PctInput, CurrencyInput } from './components/Inputs';
+import { colors } from './theme';
 
 Chart.register(...registerables);
+
+function useTheme() {
+  const [isLight, setIsLight] = useState(() => document.documentElement.dataset.theme === 'light');
+  useEffect(() => {
+    const obs = new MutationObserver(() => setIsLight(document.documentElement.dataset.theme === 'light'));
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
+  return isLight;
+}
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 const S = {
-  card: {
-    background: '#0b1121',
-    border: '1px solid rgba(255,255,255,0.06)',
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
   cardHeader: {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
     padding: '14px 20px',
-    borderBottom: '1px solid rgba(255,255,255,0.05)',
+    borderBottom: `1px solid ${colors.borderSubtle}`,
   },
   sectionDivider: {
     padding: '5px 20px',
-    background: 'rgba(255,255,255,0.03)',
+    background: colors.bgSurface,
     fontSize: 10,
     fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: '1.2px',
-    color: '#475569',
+    color: colors.textFaint,
   },
   row: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '10px 20px',
-    borderBottom: '1px solid rgba(255,255,255,0.03)',
+    borderBottom: '1px solid var(--border-subtle)',
   },
-  rowLabel: { fontSize: 13, color: '#94a3b8' },
-  rowLabelBold: { fontSize: 13, color: '#e2e8f0', fontWeight: 600 },
-  rowValue: { fontSize: 14, fontWeight: 600, color: '#e2e8f0', fontVariantNumeric: 'tabular-nums' },
+  rowLabel:     { fontSize: 13, color: colors.textMuted },
+  rowLabelBold: { fontSize: 13, color: colors.textSecondary, fontWeight: 600 },
+  rowValue:     { fontSize: 14, fontWeight: 600, color: colors.textSecondary, fontVariantNumeric: 'tabular-nums' },
 };
-
-const PctInput = ({ value, onChange }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-    <input
-      type="number"
-      value={value}
-      min={0} max={100} step={0.1}
-      onChange={e => onChange(e.target.value)}
-      style={{
-        width: 64, background: '#070c18', border: '1px solid #334155',
-        borderRadius: 7, color: '#fbbf24', fontSize: 14, fontWeight: 700,
-        padding: '4px 8px', textAlign: 'right', outline: 'none',
-        MozAppearance: 'textfield',
-      }}
-    />
-    <span style={{ fontSize: 12, color: '#64748b' }}>%</span>
-  </div>
-);
-
-const CurrencyInput = ({ value, onChange, placeholder = '$0' }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-    <input
-      type="number"
-      value={value}
-      min={0} step={1000}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      style={{
-        width: 130, background: '#070c18', border: '1px solid #334155',
-        borderRadius: 7, color: '#e2e8f0', fontSize: 13, fontWeight: 600,
-        padding: '4px 10px', textAlign: 'right', outline: 'none',
-        MozAppearance: 'textfield',
-      }}
-    />
-  </div>
-);
 
 const CardHeader = ({ icon, label, iconBg, iconColor }) => (
   <div style={S.cardHeader}>
@@ -85,16 +56,16 @@ const CardHeader = ({ icon, label, iconBg, iconColor }) => (
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: 13, color: iconColor, fontWeight: 700,
     }}>{icon}</div>
-    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#64748b' }}>
+    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: colors.textDim }}>
       {label}
     </span>
   </div>
 );
 
 const Row = ({ label, bold, value, valueColor, right }) => (
-  <div style={{ ...S.row, ...(bold ? { background: 'rgba(255,255,255,0.02)' } : {}) }}>
+  <div style={S.row} className={bold ? 'row-highlight' : ''}>
     <span style={bold ? S.rowLabelBold : S.rowLabel}>{label}</span>
-    {right || <span style={{ ...S.rowValue, color: valueColor || '#e2e8f0' }}>{value}</span>}
+    {right || <span style={{ ...S.rowValue, color: valueColor || colors.textSecondary }}>{value}</span>}
   </div>
 );
 
@@ -115,6 +86,7 @@ function HistorialLineChart({ metrics, historial, title, isPesos, defaultActive 
   const canvasRef = useRef(null);
   const [active, setActive] = useState(defaultActive);
   const [open, setOpen] = useState(false);
+  const isLight = useTheme();
 
   const last6 = Object.keys(historial || {}).sort().slice(-6);
   const labels = last6.map(k => {
@@ -140,6 +112,13 @@ function HistorialLineChart({ metrics, historial, title, isPesos, defaultActive 
         fill: false,
       }));
 
+    const gridColor = isLight ? 'rgba(28,37,55,0.07)' : 'rgba(255,255,255,0.05)';
+    const tickColor = isLight ? '#6B7A90' : '#64748b';
+    const tooltipBg = isLight ? 'rgba(255,255,255,0.97)' : 'rgba(15,23,42,0.95)';
+    const tooltipTitle = isLight ? '#1C2537' : '#f8fafc';
+    const tooltipBody = isLight ? '#374151' : '#cbd5e1';
+    const tooltipBorder = isLight ? 'rgba(228,232,238,0.9)' : 'rgba(51,65,85,0.5)';
+
     chartRef.current = new Chart(canvasRef.current.getContext('2d'), {
       type: 'line',
       data: { labels, datasets },
@@ -150,10 +129,10 @@ function HistorialLineChart({ metrics, historial, title, isPesos, defaultActive 
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: 'rgba(15,23,42,0.95)',
-            titleColor: '#f8fafc',
-            bodyColor: '#cbd5e1',
-            borderColor: 'rgba(51,65,85,0.5)',
+            backgroundColor: tooltipBg,
+            titleColor: tooltipTitle,
+            bodyColor: tooltipBody,
+            borderColor: tooltipBorder,
             borderWidth: 1,
             padding: 10,
             callbacks: {
@@ -170,13 +149,13 @@ function HistorialLineChart({ metrics, historial, title, isPesos, defaultActive 
         },
         scales: {
           x: {
-            grid: { color: 'rgba(255,255,255,0.04)' },
-            ticks: { color: '#64748b', font: { size: 11 } },
+            grid: { color: gridColor },
+            ticks: { color: tickColor, font: { size: 11 } },
           },
           y: {
-            grid: { color: 'rgba(255,255,255,0.05)' },
+            grid: { color: gridColor },
             ticks: {
-              color: '#64748b',
+              color: tickColor,
               font: { size: 10 },
               callback: v => isPesos ? `$${(v / 1000).toFixed(0)}k` : Math.round(v).toLocaleString('es-AR'),
             },
@@ -186,18 +165,17 @@ function HistorialLineChart({ metrics, historial, title, isPesos, defaultActive 
     });
 
     return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
-  }, [active, historial]);
+  }, [active, historial, isLight]);
 
   const toggle = key => setActive(prev => ({ ...prev, [key]: !prev[key] }));
 
   return (
-    <div style={{ ...S.card, padding: '20px 20px 16px' }}>
+    <Card style={{ padding: '20px 20px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#64748b' }}>
+        <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: colors.textDim }}>
           {title}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* Leyenda inline */}
           {metrics.map(m => (
             <div
               key={m.key}
@@ -209,18 +187,18 @@ function HistorialLineChart({ metrics, historial, title, isPesos, defaultActive 
               }}
             >
               <span style={{ width: 20, height: 2, background: m.color, borderRadius: 2, display: 'inline-block' }} />
-              <span style={{ fontSize: 11, color: '#94a3b8' }}>{m.label}</span>
+              <span style={{ fontSize: 11, color: colors.textMuted }}>{m.label}</span>
             </div>
           ))}
         </div>
       </div>
       <div style={{ height: 220, position: 'relative' }}>
         {last6.length === 0
-          ? <p style={{ color: '#475569', textAlign: 'center', paddingTop: 90, fontSize: 13 }}>Sin historial disponible.</p>
+          ? <p style={{ color: colors.textFaint, textAlign: 'center', paddingTop: 90, fontSize: 13 }}>Sin historial disponible.</p>
           : <canvas ref={canvasRef} />
         }
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -329,7 +307,7 @@ export default function MarginExpectationView() {
   if (loading) return (
     <div className="animate-fade-in mt-6" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
       {[1,2,3,4].map(i => (
-        <div key={i} style={{ ...S.card, height: 280, opacity: 0.4 }} className="animate-pulse" />
+        <Card key={i} style={{ height: 280, opacity: 0.4 }} className="animate-pulse" />
       ))}
     </div>
   );
@@ -377,6 +355,7 @@ export default function MarginExpectationView() {
   const mesNombre = MESES[parseInt(selectedMonth) - 1];
   const periodoLabel = `${mesNombre} ${selectedYear}`;
 
+  const isLight = useTheme();
   const [debugOpen, setDebugOpen] = useState(false);
   const debugInfo = {
     periodo: `${selectedYear}-${selectedMonth}`,
@@ -416,17 +395,17 @@ export default function MarginExpectationView() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 800, color: '#f8fafc', letterSpacing: '-0.3px', margin: 0 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: colors.textPrimary, letterSpacing: '-0.3px', margin: 0 }}>
             Estado de Resultado
           </h2>
-          <p style={{ fontSize: 12, color: '#475569', marginTop: 3, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+          <p style={{ fontSize: 12, color: colors.textDim, marginTop: 3, textTransform: 'uppercase', letterSpacing: '0.8px' }}>
             {periodoLabel}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <button onClick={() => setDebugOpen(true)} style={{
-          background: 'rgba(255,255,255,0.05)', border: '1px solid #334155',
-          borderRadius: 8, color: '#475569', fontSize: 11, padding: '5px 10px', cursor: 'pointer',
+          background: 'var(--bg-surface)', border: '1px solid var(--border-mid)',
+          borderRadius: 8, color: colors.textDim, fontSize: 11, padding: '5px 10px', cursor: 'pointer',
         }}>debug</button>
         {saveStatus === 'ok' && (
           <span style={{
@@ -456,13 +435,13 @@ export default function MarginExpectationView() {
           { label: 'Cant. Operaciones', value: cantOps.toLocaleString('es-AR'), sub: 'Tickets del período' },
           { label: 'Ticket Promedio', value: Utils.fmt(ticketProm), sub: 'Por operación' },
         ].map(({ label, value, sub }) => (
-          <div key={label} style={S.card}>
+          <Card key={label}>
             <div style={{ padding: '16px 18px' }}>
-              <p style={{ fontSize: 10, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.8px', margin: 0 }}>{label}</p>
-              <p style={{ fontSize: 20, fontWeight: 700, color: '#f8fafc', marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{value}</p>
-              <p style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{sub}</p>
+              <p style={{ fontSize: 10, color: colors.textFaint, textTransform: 'uppercase', letterSpacing: '0.8px', margin: 0 }}>{label}</p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: colors.textPrimary, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{value}</p>
+              <p style={{ fontSize: 11, color: colors.textDim, marginTop: 2 }}>{sub}</p>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
 
@@ -470,7 +449,7 @@ export default function MarginExpectationView() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
 
         {/* ── VENTAS ── */}
-        <div style={S.card}>
+        <Card>
           <CardHeader icon="↑" label="Ventas" iconBg="rgba(16,185,129,0.1)" iconColor="#10b981" />
 
           <Row label="IVA cobrado" value={Utils.fmt(ivaDébito)} />
@@ -521,10 +500,10 @@ export default function MarginExpectationView() {
               </div>
             }
           />
-        </div>
+        </Card>
 
         {/* ── GASTOS ── */}
-        <div style={S.card}>
+        <Card>
           <CardHeader icon="↓" label="Gastos" iconBg="rgba(244,63,94,0.1)" iconColor="#f43f5e" />
 
           <div style={S.sectionDivider}>Laboral</div>
@@ -560,16 +539,18 @@ export default function MarginExpectationView() {
           <div style={S.sectionDivider}>Total</div>
 
           <Row label="Total Gastos" bold value={Utils.fmt(totalGastos)} valueColor="#f43f5e" />
-        </div>
+        </Card>
       </div>
 
       {/* Resultado */}
       <div style={{
         borderRadius: 16,
         background: resultadoPositivo
-          ? 'linear-gradient(135deg, rgba(5,46,22,0.8) 0%, rgba(7,12,24,0.95) 100%)'
-          : 'linear-gradient(135deg, rgba(45,10,10,0.8) 0%, rgba(7,12,24,0.95) 100%)',
-        border: `1px solid ${resultadoPositivo ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)'}`,
+          ? (isLight ? 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)' : 'linear-gradient(135deg, rgba(5,46,22,0.8) 0%, rgba(7,12,24,0.95) 100%)')
+          : (isLight ? 'linear-gradient(135deg, #fff1f2 0%, #fff5f5 100%)' : 'linear-gradient(135deg, rgba(45,10,10,0.8) 0%, rgba(7,12,24,0.95) 100%)'),
+        border: `1px solid ${resultadoPositivo
+          ? (isLight ? 'rgba(16,185,129,0.35)' : 'rgba(74,222,128,0.2)')
+          : (isLight ? 'rgba(244,63,94,0.35)' : 'rgba(248,113,113,0.2)')}`,
         padding: '24px 28px',
         display: 'flex',
         alignItems: 'center',
@@ -578,19 +559,29 @@ export default function MarginExpectationView() {
         <div>
           <p style={{
             fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px',
-            color: resultadoPositivo ? '#6ee7b7' : '#fca5a5', margin: 0,
+            color: resultadoPositivo
+              ? (isLight ? '#059669' : '#6ee7b7')
+              : (isLight ? '#dc2626' : '#fca5a5'),
+            margin: 0,
           }}>Resultado según márgenes esperados</p>
           <p style={{
             fontSize: 32, fontWeight: 800, margin: '4px 0 0',
-            color: resultadoPositivo ? '#4ade80' : '#f87171',
+            color: resultadoPositivo
+              ? (isLight ? '#059669' : '#4ade80')
+              : (isLight ? '#dc2626' : '#f87171'),
             fontVariantNumeric: 'tabular-nums', letterSpacing: '-1px',
           }}>{Utils.fmt(resultadoMargenes)}</p>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <p style={{ fontSize: 24, fontWeight: 700, color: resultadoPositivo ? '#4ade80' : '#f87171', margin: 0 }}>
+          <p style={{
+            fontSize: 24, fontWeight: 700, margin: 0,
+            color: resultadoPositivo
+              ? (isLight ? '#059669' : '#4ade80')
+              : (isLight ? '#dc2626' : '#f87171'),
+          }}>
             {margenPct}%
           </p>
-          <p style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>sobre venta neta</p>
+          <p style={{ fontSize: 11, color: colors.textFaint, marginTop: 2 }}>sobre venta neta</p>
         </div>
       </div>
 
