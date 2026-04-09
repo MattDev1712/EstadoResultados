@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+// Importamos el objeto colors para usar las variables del tema
+import { colors } from './theme';
 
 // ─────────────────────────────────────────
 // Sub-componentes internos
@@ -9,7 +11,7 @@ const StepBadge = ({ n }) => (
         width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 14, fontWeight: 900, color: 'white', flexShrink: 0,
-        boxShadow: '0 4px 12px rgba(99,102,241,0.35)'
+        boxShadow: `0 4px 12px rgba(${parseInt(colors.blue.slice(1,3), 16)},${parseInt(colors.blue.slice(3,5), 16)},${parseInt(colors.blue.slice(5,7), 16)},0.25)`
     }}>
         {n}
     </div>
@@ -27,26 +29,26 @@ const SectionTitle = ({ icon, title, subtitle }) => (
     <div style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <span style={{ fontSize: 22 }}>{icon}</span>
-            <h2 style={{ fontSize: 20, fontWeight: 900, color: '#f1f5f9', margin: 0, letterSpacing: '-0.03em' }}>{title}</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 900, color: colors.textPrimary, margin: 0, letterSpacing: '-0.03em' }}>{title}</h2>
         </div>
-        {subtitle && <p style={{ fontSize: 12, color: '#64748b', margin: 0, paddingLeft: 32 }}>{subtitle}</p>}
+        {subtitle && <p style={{ fontSize: 12, color: colors.textMuted, margin: 0, paddingLeft: 32 }}>{subtitle}</p>}
     </div>
 );
 
 const InfoCard = ({ icon, title, color = '#3b82f6', children, tag }) => (
     <div style={{
-        background: '#0b1121', border: `1px solid rgba(255,255,255,0.06)`,
-        borderLeft: `3px solid ${color}`, borderRadius: 14,
+        background: colors.bgCard, border: `1px solid ${colors.borderCard}`, // Usar variables del tema
+        borderLeft: `4px solid ${color}`, borderRadius: 14, // Mantener color semántico
         padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 10
     }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 20 }}>{icon}</span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: '#e2e8f0' }}>{title}</span>
-            </div>
+                <span style={{ fontSize: 13, fontWeight: 800, color: colors.textSecondary }}>{title}</span>
+            </div> {/* Este color #e2e8f0 se mapea a textSecondary en dark mode, pero en light mode debería ser textPrimary o textSecondary */}
             {tag && <Tag color={color}>{tag}</Tag>}
         </div>
-        <div style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.75, paddingLeft: 2 }}>
+        <div style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 1.75, paddingLeft: 2 }}>
             {children}
         </div>
     </div>
@@ -55,8 +57,8 @@ const InfoCard = ({ icon, title, color = '#3b82f6', children, tag }) => (
 const Accordion = ({ title, icon, children, defaultOpen = false }) => {
     const [open, setOpen] = useState(defaultOpen);
     return (
-        <div style={{
-            background: '#0b1121', border: '1px solid rgba(255,255,255,0.06)',
+        <div style={{ // Usar variables del tema
+            background: colors.bgCard, border: `1px solid ${colors.borderCard}`, 
             borderRadius: 14, overflow: 'hidden',
             transition: 'box-shadow 0.2s',
             boxShadow: open ? '0 0 0 1px rgba(59,130,246,0.2)' : 'none'
@@ -71,17 +73,17 @@ const Accordion = ({ title, icon, children, defaultOpen = false }) => {
             >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontSize: 18 }}>{icon}</span>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: '#e2e8f0' }}>{title}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: colors.textPrimary }}>{title}</span> {/* Usar variable del tema */}
                 </div>
-                <span style={{
-                    fontSize: 14, color: '#475569', transition: 'transform 0.25s',
-                    transform: open ? 'rotate(180deg)' : 'rotate(0deg)', display: 'block'
+                <span style={{ // Usar variable del tema
+                    fontSize: 14, color: colors.textMuted, transition: 'transform 0.25s', 
+                    transform: open ? 'rotate(180deg)' : 'rotate(0deg)', display: 'block', fontWeight: 'bold' 
                 }}>▾</span>
             </button>
             {open && (
                 <div style={{
-                    padding: '0 20px 20px', borderTop: '1px solid rgba(255,255,255,0.05)',
-                    paddingTop: 16, fontSize: 12, color: '#94a3b8', lineHeight: 1.85
+                    padding: '0 20px 20px', borderTop: `1px solid ${colors.borderSubtle}`,
+                    paddingTop: 16, fontSize: 12, color: colors.textMuted, lineHeight: 1.85
                 }}>
                     {children}
                 </div>
@@ -92,40 +94,40 @@ const Accordion = ({ title, icon, children, defaultOpen = false }) => {
 
 const KpiPill = ({ label, color, value, desc }) => (
     <div style={{
-        background: '#0b1121', border: '1px solid rgba(255,255,255,0.06)',
-        borderRadius: 14, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 8
+        background: colors.bgCard, border: `1px solid ${colors.borderCard}`, // Usar variables del tema
+        borderRadius: 14, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 8 
     }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#475569' }}>{label}</span>
+            <span style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.18em', textTransform: 'uppercase', color: colors.textMuted }}>{label}</span>
             <span style={{
                 fontSize: 10, fontWeight: 900, color, background: `${color}15`,
                 padding: '3px 8px', borderRadius: 6, border: `1px solid ${color}25`
             }}>{value}</span>
         </div>
-        <p style={{ fontSize: 11.5, color: '#94a3b8', margin: 0, lineHeight: 1.7 }}>{desc}</p>
+        <p style={{ fontSize: 11.5, color: colors.textSecondary, margin: 0, lineHeight: 1.7 }}>{desc}</p>
     </div>
 );
 
 const Highlight = ({ children }) => (
-    <span style={{ color: '#f1f5f9', fontWeight: 700 }}>{children}</span>
+    <span style={{ color: colors.textPrimary, fontWeight: 700 }}>{children}</span>
 );
 
 const Tip = ({ children }) => (
     <div style={{
-        marginTop: 10, padding: '10px 14px', background: 'rgba(16,185,129,0.06)',
-        border: '1px solid rgba(16,185,129,0.2)', borderRadius: 10,
-        fontSize: 11.5, color: '#6ee7b7', display: 'flex', gap: 8, alignItems: 'flex-start'
+        marginTop: 10, padding: '10px 14px', background: `${colors.green}10`,
+        border: `1px solid ${colors.green}25`, borderRadius: 10,
+        fontSize: 11.5, color: colors.green, display: 'flex', gap: 8, alignItems: 'flex-start'
     }}>
         <span style={{ flexShrink: 0 }}>💡</span>
         <span style={{ lineHeight: 1.7 }}>{children}</span>
     </div>
 );
 
-const Warning = ({ children }) => (
+const Warning = ({ children }) => ( // Refactorizado para usar variables del tema
     <div style={{
-        marginTop: 10, padding: '10px 14px', background: 'rgba(245,158,11,0.06)',
-        border: '1px solid rgba(245,158,11,0.2)', borderRadius: 10,
-        fontSize: 11.5, color: '#fcd34d', display: 'flex', gap: 8, alignItems: 'flex-start'
+        marginTop: 10, padding: '10px 14px', background: `${colors.yellow}10`,
+        border: `1px solid ${colors.yellow}25`, borderRadius: 10,
+        fontSize: 11.5, color: colors.yellow, display: 'flex', gap: 8, alignItems: 'flex-start'
     }}>
         <span style={{ flexShrink: 0 }}>⚠️</span>
         <span style={{ lineHeight: 1.7 }}>{children}</span>
@@ -153,16 +155,16 @@ const GuideView = () => {
             {/* Hero */}
             <div style={{
                 borderRadius: 24, padding: '36px 40px', marginBottom: 28,
-                background: 'linear-gradient(135deg, rgba(59,130,246,0.08) 0%, rgba(99,102,241,0.05) 50%, rgba(11,17,33,0) 100%)',
-                border: '1px solid rgba(59,130,246,0.12)',
+                background: `linear-gradient(135deg, rgba(${parseInt(colors.blue.slice(1,3), 16)},${parseInt(colors.blue.slice(3,5), 16)},${parseInt(colors.blue.slice(5,7), 16)},0.08) 0%, rgba(99,102,241,0.05) 50%, transparent 100%)`, // Mantener gradiente con color semántico
+                border: `1px solid ${colors.borderCard}`, // Usar variable del tema
             }}>
-                <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.25em', color: '#3b82f6', textTransform: 'uppercase', marginBottom: 8 }}>
+                <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.25em', color: colors.blue, textTransform: 'uppercase', marginBottom: 8 }}>
                     Centro de Ayuda
                 </p>
-                <h1 style={{ fontSize: 26, fontWeight: 900, color: '#f1f5f9', letterSpacing: '-0.03em', marginBottom: 10 }}>
+                <h1 style={{ fontSize: 26, fontWeight: 900, color: colors.textPrimary, letterSpacing: '-0.03em', marginBottom: 10 }}> {/* Usar variable del tema */}
                     Todo lo que necesitás saber para usar la app
                 </h1>
-                <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.8, maxWidth: 600, margin: 0 }}>
+                <p style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 1.8, maxWidth: 600, margin: 0 }}> {/* Usar variable del tema */}
                     Esta guía está pensada para cualquier persona, sin importar si nunca antes administraste un local.
                     Explicamos cada término, cada botón y cada número en lenguaje simple.
                 </p>
@@ -171,8 +173,8 @@ const GuideView = () => {
             {/* Nav interna */}
             <div style={{
                 display: 'flex', gap: 6, marginBottom: 28, flexWrap: 'wrap',
-                background: 'rgba(255,255,255,0.02)', padding: 6, borderRadius: 16,
-                border: '1px solid rgba(255,255,255,0.05)'
+                background: colors.bgSurface, padding: 6, borderRadius: 16,
+                border: `1px solid ${colors.borderCard}`
             }}>
                 {sections.map(s => (
                     <button
@@ -182,9 +184,9 @@ const GuideView = () => {
                             padding: '9px 16px', borderRadius: 10, fontSize: 11, fontWeight: 800,
                             border: 'none', cursor: 'pointer', transition: 'all 0.25s',
                             display: 'flex', alignItems: 'center', gap: 6, letterSpacing: '0.02em',
-                            background: activeSection === s.id ? '#3b82f6' : 'transparent',
-                            color: activeSection === s.id ? 'white' : '#64748b',
-                            boxShadow: activeSection === s.id ? '0 4px 12px rgba(59,130,246,0.3)' : 'none'
+                            background: activeSection === s.id ? colors.blue : 'transparent', // Mantener color semántico
+                            color: activeSection === s.id ? '#ffffff' : colors.textMuted, // Usar variable del tema
+                            boxShadow: activeSection === s.id ? '0 4px 12px rgba(59,130,246,0.2)' : 'none'
                         }}
                     >
                         <span>{s.icon}</span> {s.label}
@@ -202,21 +204,21 @@ const GuideView = () => {
                         {[
                             { n: '1', icon: '🖨️', label: 'Tus sistemas emiten información', desc: 'Maxirest registra cada venta. AFIP/ARCA guarda cada factura de compra. Tu planilla tiene los sueldos.' },
                             { n: '2', icon: '📤', label: 'Vos subís esos archivos aquí', desc: 'Una vez por mes, desde la pantalla de Carga, arrastrás los PDFs y CSVs a la app.' },
-                            { n: '3', icon: '🔍', label: 'La app lee y organiza', desc: 'El sistema interpreta los números automáticamente y los clasifica (ventas, compras, sueldos).' },
+                            { n: '3', icon: '🔍', label: 'La app lee y organiza', desc: 'El sistema interpreta los números automáticamente y los clasifica (ventas, compras, sueldos).' }, 
                             { n: '4', icon: '☁️', label: 'Se guarda en Google Sheets', desc: 'Todo queda en una planilla privada tuya en Google Drive, con historial acumulado de meses.' },
                             { n: '5', icon: '📊', label: 'El Dashboard te muestra el resultado', desc: 'En segundos ves si ganaste o perdiste, cuánto, y por qué.' },
                         ].map(step => (
-                            <div key={step.n} style={{
-                                background: '#0b1121', border: '1px solid rgba(255,255,255,0.06)',
+                            <div key={step.n} style={{ // Usar variables del tema
+                                background: colors.bgCard, border: `1px solid ${colors.borderCard}`, 
                                 borderRadius: 16, padding: '20px 18px',
-                                display: 'flex', flexDirection: 'column', gap: 12
+                                display: 'flex', flexDirection: 'column', gap: 12 
                             }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                     <StepBadge n={step.n} />
                                     <span style={{ fontSize: 20 }}>{step.icon}</span>
                                 </div>
-                                <span style={{ fontSize: 12, fontWeight: 800, color: '#e2e8f0' }}>{step.label}</span>
-                                <p style={{ fontSize: 11.5, color: '#64748b', lineHeight: 1.7, margin: 0 }}>{step.desc}</p>
+                                <span style={{ fontSize: 12, fontWeight: 800, color: colors.textPrimary }}>{step.label}</span> {/* Usar variable del tema */}
+                                <p style={{ fontSize: 11.5, color: colors.textMuted, lineHeight: 1.7, margin: 0 }}>{step.desc}</p>
                             </div>
                         ))}
                     </div>
@@ -224,22 +226,22 @@ const GuideView = () => {
                     {/* Qué NO hace la app */}
                     <div style={{
                         borderRadius: 16, padding: '20px 24px',
-                        background: 'rgba(244,63,94,0.04)', border: '1px solid rgba(244,63,94,0.12)'
+                        background: `${colors.red}08`, border: `1px solid ${colors.red}18`
                     }}>
                         <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', color: '#f43f5e', textTransform: 'uppercase', marginBottom: 12 }}>
                             Qué NO hace esta app
                         </p>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                             {[
-                                '❌ No reemplaza a tu contador',
+                                '❌ No reemplaza a tu contador', 
                                 '❌ No presenta balances oficiales',
                                 '❌ No hace declaraciones de impuestos',
                                 '❌ No controla stock físico',
                             ].map((item, i) => (
                                 <p key={i} style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>{item}</p>
-                            ))}
+                            ))} {/* Este color #94a3b8 se mapea a textMuted */}
                         </div>
-                        <div style={{ marginTop: 12 }}>
+                        <div style={{ marginTop: 12 }}> 
                             <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>
                                 Esta es una <Highlight>herramienta de gestión interna</Highlight>: te ayuda a saber si el negocio va bien o mal, mes a mes, sin esperar el balance de tu contador. Los números que muestra son para toma de decisiones operativas — <Highlight>no reemplazan estados contables oficiales ni declaraciones impositivas</Highlight>.
                             </p>
@@ -247,21 +249,21 @@ const GuideView = () => {
                     </div>
 
                     {/* La arquitectura */}
-                    <div style={{ background: '#0b1121', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: '20px 24px' }}>
-                        <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', color: '#475569', textTransform: 'uppercase', marginBottom: 16 }}>
+                    <div style={{ background: colors.bgCard, border: `1px solid ${colors.borderCard}`, borderRadius: 16, padding: '20px 24px' }}> {/* Usar variables del tema */}
+                        <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', color: colors.textFaint, textTransform: 'uppercase', marginBottom: 16 }}>
                             Dónde viven tus datos
                         </p>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 16, alignItems: 'center' }}>
                             <div style={{ textAlign: 'center', padding: 16, background: 'rgba(16,185,129,0.05)', borderRadius: 12, border: '1px solid rgba(16,185,129,0.15)' }}>
                                 <div style={{ fontSize: 24, marginBottom: 8 }}>🖥️</div>
                                 <p style={{ fontSize: 11, fontWeight: 800, color: '#10b981', margin: '0 0 4px' }}>Esta app (Frontend)</p>
-                                <p style={{ fontSize: 10, color: '#475569', margin: 0 }}>Lee archivos, muestra gráficos, envía datos</p>
+                                <p style={{ fontSize: 10, color: colors.textFaint, margin: 0 }}>Lee archivos, muestra gráficos, envía datos</p>
                             </div>
                             <div style={{ textAlign: 'center', color: '#334155', fontSize: 20 }}>⇄</div>
                             <div style={{ textAlign: 'center', padding: 16, background: 'rgba(59,130,246,0.05)', borderRadius: 12, border: '1px solid rgba(59,130,246,0.15)' }}>
                                 <div style={{ fontSize: 24, marginBottom: 8 }}>📊</div>
                                 <p style={{ fontSize: 11, fontWeight: 800, color: '#3b82f6', margin: '0 0 4px' }}>Google Sheets (Backend)</p>
-                                <p style={{ fontSize: 10, color: '#475569', margin: 0 }}>Almacena y procesa tus datos de forma segura</p>
+                                <p style={{ fontSize: 10, color: colors.textFaint, margin: 0 }}>Almacena y procesa tus datos de forma segura</p>
                             </div>
                         </div>
                         <Tip>Tus datos quedan en una planilla de tu cuenta de Google, no en ningún servidor externo. Solo vos (y quien vos invites) puede verlos.</Tip>
@@ -301,20 +303,20 @@ const GuideView = () => {
                         <p style={{ marginTop: 14 }}><Highlight>¿Qué pestañas veo cuando abro la sección ARCA?</Highlight></p>
                         <div style={{ margin: '10px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
                             <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}>
-                                <p style={{ margin: 0, fontWeight: 800, color: '#e2e8f0' }}>📄 Facturas con IVA</p>
-                                <p style={{ margin: '4px 0 0', color: '#94a3b8' }}>Son las <strong>Facturas A</strong>: te las emite un proveedor que está inscripto en IVA. El IVA de estas facturas se descuenta de lo que le debés a AFIP (es tu crédito fiscal).</p>
+                                <p style={{ margin: 0, fontWeight: 800, color: colors.textSecondary }}>📄 Facturas con IVA</p>
+                                <p style={{ margin: '4px 0 0', color: colors.textMuted }}>Son las <strong>Facturas A</strong>: te las emite un proveedor que está inscripto en IVA. El IVA de estas facturas se descuenta de lo que le debés a AFIP (es tu crédito fiscal).</p>
                             </div>
                             <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}>
-                                <p style={{ margin: 0, fontWeight: 800, color: '#e2e8f0' }}>📋 Otros gastos</p>
-                                <p style={{ margin: '4px 0 0', color: '#94a3b8' }}>Facturas B, C y otros tipos. Son compras válidas que suman al gasto total, pero el IVA ya está incluido en el precio y no se puede desglosar para descontar de AFIP.</p>
+                                <p style={{ margin: 0, fontWeight: 800, color: colors.textSecondary }}>📋 Otros gastos</p>
+                                <p style={{ margin: '4px 0 0', color: colors.textMuted }}>Facturas B, C y otros tipos. Son compras válidas que suman al gasto total, pero el IVA ya está incluido en el precio y no se puede desglosar para descontar de AFIP.</p>
                             </div>
                             <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}>
                                 <p style={{ margin: 0, fontWeight: 800, color: '#fda4af' }}>↩️ Devoluciones (en rojo)</p>
-                                <p style={{ margin: '4px 0 0', color: '#94a3b8' }}>Son <strong>Notas de Crédito</strong>: el proveedor te devolvió dinero o corrigió una factura anterior. Aparecen en rojo porque reducen el total que gastaste con ese proveedor ese mes.</p>
+                                <p style={{ margin: '4px 0 0', color: colors.textMuted }}>Son <strong>Notas de Crédito</strong>: el proveedor te devolvió dinero o corrigió una factura anterior. Aparecen en rojo porque reducen el total que gastaste con ese proveedor ese mes.</p>
                             </div>
                             <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}>
-                                <p style={{ margin: 0, fontWeight: 800, color: '#e2e8f0' }}>🏢 Proveedores</p>
-                                <p style={{ margin: '4px 0 0', color: '#94a3b8' }}>Un resumen de cuánto le compraste a cada proveedor en el mes. Acá también podés asignarle un alias (nombre fácil) a cada uno para que aparezca mejor en los reportes.</p>
+                                <p style={{ margin: 0, fontWeight: 800, color: colors.textSecondary }}>🏢 Proveedores</p>
+                                <p style={{ margin: '4px 0 0', color: colors.textMuted }}>Un resumen de cuánto le compraste a cada proveedor en el mes. Acá también podés asignarle un alias (nombre fácil) a cada uno para que aparezca mejor en los reportes.</p>
                             </div>
                         </div>
                         <Warning>Si un proveedor tiene un nombre raro o genérico (ej: "Distribuidora del Sur SA"), puede que no se clasifique correctamente. Desde la pestaña <strong>Proveedores</strong> podés asignarle un alias y una categoría.</Warning>
@@ -325,7 +327,7 @@ const GuideView = () => {
                         <p style={{ marginTop: 10 }}><Highlight>¿Qué columnas necesita?</Highlight> La app espera estas columnas en orden:</p>
                         <div style={{ margin: '10px 0', background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px', fontFamily: 'monospace', fontSize: 11, color: '#94a3b8', lineHeight: 2 }}>
                             Legajo | Nombre | Tarea | — | DNI | — | — | — | — | Horas | — | Costo Total | Recibo | — | Negro
-                        </div>
+                        </div> {/* Este color #94a3b8 se mapea a textMuted */}
                         <p style={{ marginTop: 4, fontSize: 11, color: '#475569' }}>Las columnas vacías (—) pueden quedar en cero. El campo <em>Costo Total</em> es el más importante: es lo que salió del local por cada empleado ese mes, incluyendo cargas sociales.</p>
                         <Tip>Si ya tenés tu planilla en otro formato, podés exportar desde Excel a CSV y editar las columnas para que coincidan. El equipo puede ayudarte a adaptar el formato.</Tip>
                     </Accordion>
@@ -409,7 +411,7 @@ const GuideView = () => {
                     </div>
 
                     {/* Modos de vista */}
-                    <div style={{ background: '#0b1121', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: '20px 24px' }}>
+                    <div style={{ background: colors.bgCard, border: `1px solid ${colors.borderCard}`, borderRadius: 16, padding: '20px 24px' }}> {/* Usar variables del tema */}
                         <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', color: '#475569', textTransform: 'uppercase', marginBottom: 16 }}>
                             Los 3 modos de visualización
                         </p>
@@ -427,7 +429,7 @@ const GuideView = () => {
                                 </p>
                             </div>
                             <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                                <Tag color="#8b5cf6">DÓLAR MEP</Tag>
+                                <Tag color="#8b5cf6">DÓLAR MEP</Tag> {/* Mantener color semántico */}
                                 <p style={{ fontSize: 12, color: '#94a3b8', margin: 0, lineHeight: 1.7 }}>
                                     Todos los valores convertidos a dólares MEP. <Highlight>Usá este modo para saber si tu negocio es rentable en términos dolarizados</Highlight> — útil si tus costos (alquiler, insumos) están parcialmente en dólares.
                                 </p>
@@ -467,7 +469,7 @@ const GuideView = () => {
                         <div key={i} style={{
                             display: 'flex', gap: 16, alignItems: 'flex-start',
                             padding: '14px 18px', borderRadius: 12,
-                            background: '#0b1121', border: '1px solid rgba(255,255,255,0.04)'
+                            background: colors.bgCard, border: `1px solid ${colors.borderCard}` // Usar variables del tema
                         }}>
                             <span style={{
                                 fontSize: 10, fontWeight: 900, color: item.color,
@@ -489,7 +491,7 @@ const GuideView = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
 
                         {/* Semana 1 */}
-                        <div style={{ background: '#0b1121', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: '20px 22px' }}>
+                        <div style={{ background: colors.bgCard, border: `1px solid ${colors.borderCard}`, borderRadius: 16, padding: '20px 22px' }}>
                             <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', color: '#10b981', textTransform: 'uppercase', marginBottom: 16 }}>
                                 🟢 Al cierre del mes (1-5 del mes siguiente)
                             </p>
@@ -503,7 +505,7 @@ const GuideView = () => {
                                     <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>
                                         {item.done ? '✅' : '⬜'}
                                     </span>
-                                    <span style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>{item.text}</span>
+                                    <span style={{ fontSize: 12, color: colors.textMuted, lineHeight: 1.6 }}>{item.text}</span>
                                 </div>
                             ))}
                         </div>
@@ -522,13 +524,13 @@ const GuideView = () => {
                             ].map((item, i) => (
                                 <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
                                     <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>⬜</span>
-                                    <span style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>{item.text}</span>
+                                    <span style={{ fontSize: 12, color: colors.textMuted, lineHeight: 1.6 }}>{item.text}</span>
                                 </div>
                             ))}
                         </div>
 
                         {/* Sueldos + Manuales */}
-                        <div style={{ background: '#0b1121', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: '20px 22px' }}>
+                        <div style={{ background: colors.bgCard, border: `1px solid ${colors.borderCard}`, borderRadius: 16, padding: '20px 22px' }}>
                             <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', color: '#8b5cf6', textTransform: 'uppercase', marginBottom: 16 }}>
                                 🟣 Sueldos y gastos manuales
                             </p>
@@ -540,13 +542,13 @@ const GuideView = () => {
                             ].map((item, i) => (
                                 <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
                                     <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>⬜</span>
-                                    <span style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>{item.text}</span>
+                                    <span style={{ fontSize: 12, color: colors.textMuted, lineHeight: 1.6 }}>{item.text}</span>
                                 </div>
                             ))}
                         </div>
 
                         {/* Dashboard */}
-                        <div style={{ background: '#0b1121', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: '20px 22px' }}>
+                        <div style={{ background: colors.bgCard, border: `1px solid ${colors.borderCard}`, borderRadius: 16, padding: '20px 22px' }}>
                             <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', color: '#f59e0b', textTransform: 'uppercase', marginBottom: 16 }}>
                                 🟡 Revisar el Dashboard
                             </p>
@@ -561,14 +563,14 @@ const GuideView = () => {
                             ].map((item, i) => (
                                 <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
                                     <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>⬜</span>
-                                    <span style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6 }}>{item.text}</span>
+                                    <span style={{ fontSize: 12, color: colors.textMuted, lineHeight: 1.6 }}>{item.text}</span>
                                 </div>
                             ))}
                         </div>
                     </div>
 
                     {/* Señales de alerta */}
-                    <div style={{ background: '#0b1121', border: '1px solid rgba(244,63,94,0.15)', borderRadius: 16, padding: '20px 24px' }}>
+                    <div style={{ background: colors.bgCard, border: `1px solid ${colors.red}25`, borderRadius: 16, padding: '20px 24px' }}>
                         <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', color: '#f43f5e', textTransform: 'uppercase', marginBottom: 16 }}>
                             🔴 Señales de alerta — cuándo preocuparse
                         </p>
@@ -581,12 +583,12 @@ const GuideView = () => {
                                 { signal: 'Costo laboral > 35% de ventas', action: 'Exceso de personal o sueldos altos para el nivel de ventas.' },
                                 { signal: 'Posición IVA positiva muy alta', action: 'Significa que cobraste mucho IVA pero tenés pocas facturas de compras. Revisá que hayas subido el CSV de ARCA con todas las facturas del mes.' },
                             ].map((item, i) => (
-                                <div key={i} style={{
-                                    background: 'rgba(244,63,94,0.04)', borderRadius: 10, padding: '12px 14px',
-                                    border: '1px solid rgba(244,63,94,0.08)'
-                                }}>
+                                <div key={i} style={{ // Usar variables del tema
+                                    background: `${colors.red}08`, borderRadius: 10, padding: '12px 14px',
+                                    border: `1px solid ${colors.red}12`
+                                }}> 
                                     <p style={{ fontSize: 11, fontWeight: 800, color: '#fda4af', margin: '0 0 4px' }}>⚠️ {item.signal}</p>
-                                    <p style={{ fontSize: 11, color: '#64748b', margin: 0, lineHeight: 1.6 }}>{item.action}</p>
+                                    <p style={{ fontSize: 11, color: colors.textMuted, margin: 0, lineHeight: 1.6 }}>{item.action}</p> {/* Usar variable del tema */}
                                 </div>
                             ))}
                         </div>

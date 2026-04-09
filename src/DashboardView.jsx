@@ -111,13 +111,13 @@ const InfoModal = ({ isOpen, onClose, title, explanation, breakdown }) => {
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 backdrop-blur-md animate-fade-in p-4" onClick={onClose}>
-            <div className="bg-[#0b1121]/90 backdrop-blur-xl border border-slate-700/50 w-full max-w-lg rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col max-h-[90vh] animate-pop-in pointer-events-auto" onClick={e => e.stopPropagation()}>
+            <div className="bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-card)] w-full max-w-lg rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col max-h-[90vh] animate-pop-in pointer-events-auto" onClick={e => e.stopPropagation()}>
                 <div className="p-7 border-b border-white/5 flex justify-between items-center bg-white/5">
-                    <h3 className="text-xl font-bold text-white tracking-tight flex items-center gap-3">
+                    <h3 className="text-xl font-bold text-[var(--text-primary)] tracking-tight flex items-center gap-3">
                         <span className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-sm font-black ring-1 ring-blue-500/30">?</span>
                         {title}
                     </h3>
-                    <button onClick={onClose} className="text-slate-500 hover:text-white transition-all w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/5 active:scale-90">✕</button>
+                    <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text-primary)] transition-all w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/5 active:scale-90">✕</button>
                 </div>
                 <div className="p-8 overflow-y-auto scrollbar-hide">
                     <div className="mb-8">
@@ -127,11 +127,11 @@ const InfoModal = ({ isOpen, onClose, title, explanation, breakdown }) => {
                     {breakdown && breakdown.length > 0 && (
                         <div>
                             <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4">Desglose de Datos</p>
-                            <div className="bg-slate-900/60 rounded-3xl border border-white/5 overflow-hidden shadow-inner">
+                            <div className="bg-[var(--bg-page)]/50 rounded-3xl border border-white/5 overflow-hidden shadow-inner">
                                 {breakdown.map((row, i) => (
                                     <div key={i} className={`flex justify-between items-center px-6 py-4 ${i < breakdown.length - 1 ? 'border-b border-white/5' : ''} ${row.total ? 'bg-white/5 font-bold' : ''}`}>
-                                        <span className={`text-xs uppercase tracking-wider ${row.total ? 'text-white font-black' : 'text-slate-400'}`}>{row.label}</span>
-                                        <span className={`text-base font-mono tracking-tighter ${row.color || 'text-slate-200'} ${row.total ? 'text-white' : ''}`}>{Utils.fmt(row.val)}</span>
+                                        <span className={`text-xs uppercase tracking-wider ${row.total ? 'text-[var(--text-primary)] font-black' : 'text-[var(--text-muted)]'}`}>{row.label}</span>
+                                        <span className={`text-base font-mono tracking-tighter ${row.color || 'text-[var(--text-secondary)]'} ${row.total ? 'text-[var(--text-primary)]' : ''}`}>{Utils.fmt(row.val)}</span>
                                     </div>
                                 ))}
                             </div>
@@ -219,12 +219,12 @@ const AlertsPanel = ({ kpis, egresos, periodo, empData = [], arcaData = [], vent
 
             {showModal && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 backdrop-blur-md animate-fade-in p-4" onClick={() => setShowModal(false)}>
-                    <div className="bg-[#0b1121]/90 backdrop-blur-xl border border-slate-700/50 w-full max-w-lg rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col max-h-[90vh] animate-pop-in pointer-events-auto" onClick={e => e.stopPropagation()}>
+                    <div className="bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-card)] w-full max-w-lg rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col max-h-[90vh] animate-pop-in pointer-events-auto" onClick={e => e.stopPropagation()}>
                         <div className="p-7 border-b border-white/5 flex justify-between items-center bg-white/5">
-                            <h3 className="text-xl font-extrabold text-white tracking-tight flex items-center gap-3">
+                            <h3 className="text-xl font-extrabold text-[var(--text-primary)] tracking-tight flex items-center gap-3">
                                 <span className="text-2xl animate-pulse">⚠️</span> Avisos del mes
                             </h3>
-                            <button onClick={() => setShowModal(false)} className="text-slate-500 hover:text-white transition-all w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/5 active:scale-90">✕</button>
+                            <button onClick={() => setShowModal(false)} className="text-[var(--text-dim)] hover:text-[var(--text-primary)] transition-all w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/5 active:scale-90">✕</button>
                         </div>
                         <div className="p-8 overflow-y-auto flex flex-col gap-4 scrollbar-hide">
                             {alerts.map((alert, idx) => (
@@ -326,8 +326,8 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
         if (!element) return;
         setIsExporting(true);
         try {
-            const canvas = await html2canvas(element, {
-                scale: 2, backgroundColor: '#070c18', logging: false, useCORS: true
+            const canvas = await html2canvas(element, { // Changed background color for light theme PDF export
+                scale: 2, backgroundColor: '#F2F4F7', logging: false, useCORS: true
             });
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });

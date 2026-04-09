@@ -42,13 +42,13 @@ const StructuralCostsModal = ({ isOpen, onClose, onConfirm, defaultDate }) => {
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-md animate-fade-in" onClick={onClose}>
-            <div className="bg-[#0b1121]/90 backdrop-blur-xl border border-slate-700/50 w-full max-w-md rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.6)] overflow-hidden animate-pop-in pointer-events-auto flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-card)] w-full max-w-md rounded-[2.5rem] shadow-[0_0_50px_rgba(0,0,0,0.6)] overflow-hidden animate-pop-in pointer-events-auto flex flex-col" onClick={e => e.stopPropagation()}>
                 <div className="p-7 border-b border-white/5 flex justify-between items-center bg-white/5">
-                    <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-3">
+                    <h2 className="text-xl font-bold text-[var(--text-primary)] tracking-tight flex items-center gap-3">
                         <span className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-sm font-black ring-1 ring-blue-500/30">🏢</span>
                         Gastos Fijos Local
                     </h2>
-                    <button onClick={onClose} className="text-slate-500 hover:text-white transition-all w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/5 active:scale-90">✕</button>
+                    <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text-primary)] transition-all w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/5 active:scale-90">✕</button>
                 </div>
                 <div className="p-8 max-h-[60vh] overflow-y-auto space-y-4 scrollbar-hide">
                     {fields.map((field, idx) => (

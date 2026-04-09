@@ -18,6 +18,7 @@ export const colors = {
   textMuted:     'var(--text-muted)',
   textDim:       'var(--text-dim)',
   textFaint:     'var(--text-faint)',
+  textOnColor:   '#ffffff', // Siempre blanco para botones o estados con fondo saturado
 
   // Semánticos (no cambian con el tema)
   green:  '#10b981',

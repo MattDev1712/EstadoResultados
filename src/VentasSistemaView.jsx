@@ -17,7 +17,7 @@ const KpiCard = ({ label, value, sub, color = 'slate', bar, barColor }) => {
         violet:  { title: 'text-violet-400',  border: 'border-violet-500/20',  bg: 'from-violet-500/5' },
         rose:    { title: 'text-rose-400',    border: 'border-rose-500/20',    bg: 'from-rose-500/5' },
         amber:   { title: 'text-amber-400',   border: 'border-amber-500/20',   bg: 'from-amber-500/5' },
-        slate:   { title: 'text-slate-300',   border: 'border-slate-600/30',   bg: 'from-slate-700/10' },
+        slate:   { title: 'text-[var(--text-secondary)]', border: 'border-[var(--border-mid)]/30', bg: 'from-[var(--bg-surface)]' },
     };
     const c = colors[color] ?? colors.slate;
     return (
@@ -135,20 +135,20 @@ const VentasSistemaView = ({ data: dataProp }) => {
             </div>
 
             {/* ── Tabla de detalle ──────────────────────────── */}
-            <div className="bg-slate-800 rounded-3xl border border-slate-700/60 shadow-2xl overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-700/50 flex items-center justify-between">
+            <div className="bg-[var(--bg-card)] rounded-3xl border border-[var(--border-card)] shadow-2xl overflow-hidden">
+                <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
                     <div>
-                        <p className="font-bold text-slate-200 text-sm">Detalle por Período</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">Todos los registros Maxirest del período seleccionado</p>
+                        <p className="font-bold text-[var(--text-primary)] text-sm">Detalle por Período</p>
+                        <p className="text-[10px] text-[var(--text-dim)] mt-0.5">Todos los registros Maxirest del período seleccionado</p>
                     </div>
-                    <span className="text-[10px] bg-slate-700/60 text-slate-400 px-3 py-1 rounded-full font-mono">{data.length} reg.</span>
+                    <span className="text-[10px] bg-[var(--bg-surface)] text-[var(--text-muted)] px-3 py-1 rounded-full font-mono">{data.length} reg.</span>
                 </div>
 
-                <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-                    <table className="w-full text-xs text-left min-w-[960px]">
-                        <thead className="bg-slate-900/80 text-slate-500 uppercase text-[10px] font-black tracking-widest">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left min-w-[960px] text-[var(--text-secondary)]">
+                        <thead className="bg-[var(--bg-page)] text-[var(--text-muted)] uppercase text-[10px] font-black tracking-widest">
                             <tr>
-                                <th className="px-5 py-4 sticky left-0 bg-slate-900/80">Fecha</th>
+                                <th className="px-5 py-4 sticky left-0 bg-[var(--bg-page)]">Fecha</th>
                                 <th className="px-5 py-4 text-right text-amber-500/80">Venta con Factura</th>
                                 <th className="px-5 py-4 text-right">Venta Manual (Sin IVA)</th>
                                 <th className="px-5 py-4 text-right text-violet-500/80">Venta sin IVA</th>
@@ -159,12 +159,12 @@ const VentasSistemaView = ({ data: dataProp }) => {
                                 <th className="px-5 py-4 text-right text-white bg-white/5 border-l border-white/10">Total Recaudado</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-700/40">
+                        <tbody className="divide-y divide-[var(--border-subtle)]">
                             {data.map((row, i) => {
                                 const rowTotal = Utils.num(row.efectivo) + Utils.num(row.tarjetas) + Utils.num(row.otros);
                                 return (
                                     <tr key={i} className="hover:bg-white/[0.03] transition-colors">
-                                        <td className="px-5 py-4 font-bold text-slate-200 capitalize sticky left-0 bg-slate-800 group-hover:bg-slate-750">
+                                        <td className="px-5 py-4 font-bold text-[var(--text-primary)] capitalize sticky left-0 bg-[var(--bg-card)]">
                                             {fmtPeriodo(row.fecha)}
                                         </td>
                                         <td className="px-5 py-4 text-right text-amber-400/80 font-mono">{Utils.fmt(Utils.num(row.val_factura_b_elec))}</td>
@@ -173,8 +173,8 @@ const VentasSistemaView = ({ data: dataProp }) => {
                                         <td className="px-5 py-4 text-right text-rose-400/70 font-mono">{Utils.fmt(Utils.num(row.iva))}</td>
                                         <td className="px-5 py-4 text-right text-emerald-400 font-bold font-mono">{Utils.fmt(Utils.num(row.efectivo))}</td>
                                         <td className="px-5 py-4 text-right text-blue-400 font-bold font-mono">{Utils.fmt(Utils.num(row.tarjetas))}</td>
-                                        <td className="px-5 py-4 text-right text-slate-400 font-mono">{Utils.fmt(Utils.num(row.otros))}</td>
-                                        <td className="px-5 py-4 text-right font-black text-white bg-white/[0.03] border-l border-white/10 font-mono">
+                                        <td className="px-5 py-4 text-right text-[var(--text-muted)] font-mono">{Utils.fmt(Utils.num(row.otros))}</td>
+                                        <td className="px-5 py-4 text-right font-black text-[var(--text-primary)] bg-[var(--bg-surface)] border-l border-[var(--border-card)] font-mono">
                                             {Utils.fmt(rowTotal || Utils.num(row.total))}
                                         </td>
                                     </tr>

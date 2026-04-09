@@ -238,11 +238,11 @@ const App = () => {
         if (!previewData) return null;
         return (
             <div className="fixed inset-0 z-[100] flex justify-center items-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-                <div className="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 w-full max-w-6xl max-h-[90vh] flex flex-col animate-fade-in relative z-[101]">
-                    <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 flex-shrink-0">
+            <div className="bg-[var(--bg-card)] rounded-xl shadow-2xl border border-[var(--border-card)] w-full max-w-6xl max-h-[90vh] flex flex-col animate-fade-in relative z-[101]">
+                <div className="p-6 border-b border-[var(--border-card)] flex justify-between items-center bg-[var(--bg-surface)] flex-shrink-0">
                         <div>
-                        <h2 className="text-xl font-bold text-white">Verificar y Editar Datos</h2>
-                        <div className="flex items-center gap-2 text-sm text-slate-400 mt-1">
+                        <h2 className="text-xl font-bold text-[var(--text-primary)]">Verificar y Editar Datos</h2>
+                        <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] mt-1">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-400" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
                             <span>Haz clic en los valores para corregir antes de guardar.</span>
                         </div>
@@ -252,7 +252,7 @@ const App = () => {
 
                 {/* VISTA ESPECIAL PARA MAXIREST */}
                 {previewOrigen === 'MAXIREST' ? (
-                    <div className="p-8 space-y-8 bg-slate-900/20">
+                    <div className="p-8 space-y-8 bg-[var(--bg-page)]/50">
 
                         {/* 1. HEADER: CONTROL TOTAL Y FECHA */}
                         <div className="group-card border-l-4 border-l-emerald-500 flex flex-col md:flex-row justify-between items-center gap-6">
@@ -265,18 +265,18 @@ const App = () => {
                                     </span>
                                     <span className="badge-calc">Calculado</span>
                                 </div>
-                                <p className="text-slate-500 text-[10px] mt-2 italic">Este es el valor final que impactará en tu Dashboard.</p>
+                                <p className="text-[var(--text-dim)] text-[10px] mt-2 italic">Este es el valor final que impactará en tu Dashboard.</p>
                             </div>
 
-                            <div className="w-px h-12 bg-slate-800 hidden md:block"></div>
+                            <div className="w-px h-12 bg-[var(--border-subtle)] hidden md:block"></div>
 
                             <div className="flex flex-col items-end">
-                                <span className="section-label text-slate-500">Fecha del Cierre</span>
+                                <span className="section-label text-[var(--text-dim)]">Fecha del Cierre</span>
                                 <input
                                     type="date"
                                     value={previewData[0]['fecha']}
                                     onChange={(e) => handleCellEdit(0, 'fecha', e.target.value)}
-                                    className="bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 mt-1 text-slate-200 font-mono focus:ring-2 focus:ring-emerald-500 outline-none transition"
+                                    className="bg-[var(--bg-surface)] border border-[var(--border-mid)] rounded-lg px-4 py-2 mt-1 text-[var(--text-primary)] font-mono focus:ring-2 focus:ring-emerald-500 outline-none transition"
                                 />
                             </div>
                         </div>
@@ -287,7 +287,7 @@ const App = () => {
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="text-xs font-black text-orange-400 uppercase tracking-widest">Configuración Fiscal</h3>
                                     <div className="tooltip-trigger">
-                                        <span className="w-5 h-5 rounded-full border border-slate-700 text-slate-500 flex items-center justify-center text-[10px] font-bold cursor-help">?</span>
+                                        <span className="w-5 h-5 rounded-full border border-[var(--border-mid)] text-[var(--text-dim)] flex items-center justify-center text-[10px] font-bold cursor-help">?</span>
                                         <div className="tooltip-box">Solo la Factura B Electrónica genera IVA (21%). La Factura B manual se considera exenta. El Neto se calcula proporcionalmente.</div>
                                     </div>
                                 </div>
@@ -296,12 +296,12 @@ const App = () => {
                                     <StatCard label="Factura B (Exenta)" valueKey="val_factura_b" qtyKey="val_factura_b_cantidad" index={0} accent="#f97316" size="large" />
 
                                     <div className="grid grid-cols-2 gap-3 pt-4 border-t border-white/5">
-                                        <div className="p-3 rounded-lg bg-slate-800/20">
-                                            <span className="text-[9px] font-bold text-slate-600 uppercase block mb-1">Neto Derivado</span>
-                                            <span className="sub-val text-slate-300">{Utils.fmt(previewData[0].neto)}</span>
+                                        <div className="p-3 rounded-lg bg-[var(--bg-surface)]">
+                                            <span className="text-[9px] font-bold text-[var(--text-faint)] uppercase block mb-1">Neto Derivado</span>
+                                            <span className="sub-val text-[var(--text-secondary)]">{Utils.fmt(previewData[0].neto)}</span>
                                         </div>
-                                        <div className="p-3 rounded-lg bg-slate-800/20">
-                                            <span className="text-[9px] font-bold text-slate-600 uppercase block mb-1">IVA Derivado</span>
+                                        <div className="p-3 rounded-lg bg-[var(--bg-surface)]">
+                                            <span className="text-[9px] font-bold text-[var(--text-faint)] uppercase block mb-1">IVA Derivado</span>
                                             <span className="sub-val text-rose-400">{Utils.fmt(previewData[0].iva)}</span>
                                         </div>
                                     </div>
@@ -318,7 +318,7 @@ const App = () => {
                                         <StatCard label="Otros" valueKey="val_otros" qtyKey="val_otros_cantidad" index={0} accent="#e879f9" />
                                     </div>
                                 </div>
-                                <p className="text-[9px] text-slate-600 mt-6 italic text-center">La suma de estos medios debe coincidir con el total bruto del sistema.</p>
+                                <p className="text-[9px] text-[var(--text-faint)] mt-6 italic text-center">La suma de estos medios debe coincidir con el total bruto del sistema.</p>
                             </div>
                         </div>
 
@@ -350,10 +350,10 @@ const App = () => {
                     <div className="overflow-x-auto overflow-y-auto flex-1 p-0">
 
                         {/* Herramienta de Corrección Masiva (Solo visible en tablas genéricas) */}
-                        <div className="px-4 py-3 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between sticky left-0">
-                            <span className="text-xs text-slate-500 uppercase font-bold tracking-wider">Vista Previa de Registros</span>
+                        <div className="px-4 py-3 bg-[var(--bg-card)] border-b border-[var(--border-card)] flex items-center justify-between sticky left-0">
+                            <span className="text-xs text-[var(--text-dim)] uppercase font-bold tracking-wider">Vista Previa de Registros</span>
                             <div className="flex items-center gap-3">
-                                <label className="text-xs text-slate-400">¿Fecha incorrecta? Corregir todos:</label>
+                                <label className="text-xs text-[var(--text-muted)]">¿Fecha incorrecta? Corregir todos:</label>
                                 <input
                                     type="date"
                                     className="bg-slate-900 border border-slate-600 rounded px-2 py-1 text-xs text-white outline-none focus:border-blue-500"
@@ -363,8 +363,8 @@ const App = () => {
                             </div>
                         </div>
 
-                        <table className="w-full text-sm text-left text-slate-300">
-                            <thead className="text-xs text-slate-400 uppercase bg-slate-900 sticky top-0 shadow-md">
+                        <table className="w-full text-sm text-left text-[var(--text-secondary)]">
+                            <thead className="text-xs text-[var(--text-muted)] uppercase bg-[var(--bg-page)] sticky top-0 shadow-md">
                                 <tr>
                                     {previewData.length > 0 && Object.keys(previewData[0]).map((key) => {
                                         // Alineación derecha para columnas numéricas
@@ -379,7 +379,7 @@ const App = () => {
                             </thead>
                             <tbody>
                                 {previewData.map((row, index) => (
-                                    <tr key={index} className="border-b border-slate-700 hover:bg-slate-700/50 transition">
+                                    <tr key={index} className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-surface)] transition">
                                         {Object.keys(row).map((key) => {
                                             const isNumeric = typeof row[key] === 'number';
                                             const isLargeText = key === 'observaciones' || key === 'vendedor_nombre';
@@ -390,7 +390,7 @@ const App = () => {
                                                         type={key.includes('fecha') ? 'date' : typeof row[key] === 'number' ? 'number' : 'text'}
                                                         value={row[key]}
                                                         onChange={(e) => handleCellEdit(index, key, e.target.value)}
-                                                        className={`bg-transparent border-b border-slate-700/50 hover:border-blue-500 focus:border-blue-500 focus:bg-slate-800 rounded-t px-2 py-1.5 w-full outline-none transition text-slate-200 ${isNumeric ? 'text-right font-mono' : 'text-left'}`}
+                                                        className={`bg-transparent border-b border-[var(--border-mid)]/30 hover:border-blue-500 focus:border-blue-500 focus:bg-[var(--bg-surface)] rounded-t px-2 py-1.5 w-full outline-none transition text-[var(--text-primary)] ${isNumeric ? 'text-right font-mono' : 'text-left'}`}
                                                     />
                                                 </td>
                                             );
@@ -402,10 +402,10 @@ const App = () => {
                     </div>
                 )}
 
-                <div className="p-6 bg-slate-900/50 border-t border-slate-700 flex justify-end gap-4 flex-shrink-0">
+                <div className="p-6 bg-[var(--bg-surface)] border-t border-[var(--border-card)] flex justify-end gap-4 flex-shrink-0">
                     <button
                         onClick={() => setPreviewData(null)}
-                        className="px-6 py-2.5 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white transition font-medium"
+                        className="px-6 py-2.5 rounded-lg border border-[var(--border-mid)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] transition font-medium"
                     >
                         Cancelar
                     </button>

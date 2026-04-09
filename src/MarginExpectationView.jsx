@@ -378,14 +378,14 @@ export default function MarginExpectationView() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }} onClick={() => setDebugOpen(false)}>
           <div style={{
-            background: '#0b1121', border: '1px solid #334155', borderRadius: 14,
+            background: colors.bgCard, border: `1px solid ${colors.borderMid}`, borderRadius: 14,
             padding: 24, maxWidth: 680, width: '90%', maxHeight: '80vh', overflowY: 'auto',
           }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Debug — Estado</span>
-              <button onClick={() => setDebugOpen(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 18 }}>✕</button>
+              <span style={{ fontSize: 12, fontWeight: 700, color: colors.textDim, textTransform: 'uppercase', letterSpacing: '1px' }}>Debug — Estado</span>
+              <button onClick={() => setDebugOpen(false)} style={{ background: 'none', border: 'none', color: colors.textDim, cursor: 'pointer', fontSize: 18 }}>✕</button>
             </div>
-            <pre style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+            <pre style={{ fontSize: 11, color: colors.textMuted, lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
               {JSON.stringify(debugInfo, null, 2)}
             </pre>
           </div>
