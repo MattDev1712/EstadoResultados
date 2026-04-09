@@ -474,7 +474,7 @@ const App = () => {
                 </div>
 
                 {/* Selector de Meses Centrado */}
-                <div className="flex items-center gap-2 p-2 bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl no-scrollbar overflow-x-auto max-w-full">
+                <div className="flex items-center gap-2 p-2 bg-[var(--bg-surface)] backdrop-blur-xl rounded-2xl border border-[var(--border-card)] shadow-lg no-scrollbar overflow-x-auto max-w-full">
                     {periodButtons.map(p => {
                         const isSelected = selectedMonth === p.m && String(selectedYear) === p.y;
                         const score = p.score;

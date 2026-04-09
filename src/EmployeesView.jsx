@@ -59,32 +59,32 @@ const EmployeesView = () => {
         <div className="animate-fade-in mt-4">
             {/* Fila Destacada: Costo Total Estimado */}
             <div className="w-full mb-6">
-                <div className="relative p-[1px] rounded-[2.5rem] bg-gradient-to-br from-emerald-500/40 via-slate-700/20 to-blue-500/20 shadow-2xl">
-                    <div className="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-900 p-8 rounded-[calc(2.5rem-1px)] relative overflow-hidden group">
+                <div className="relative p-[1px] rounded-[2.5rem] bg-gradient-to-br from-emerald-500/20 via-[var(--border-card)] to-blue-500/20 shadow-xl">
+                    <div className="bg-gradient-to-br from-[var(--bg-card)] via-[var(--bg-card)] to-[var(--bg-surface)] p-8 rounded-[calc(2.5rem-1px)] relative overflow-hidden group">
                         <div className="absolute -right-16 -top-16 w-64 h-64 bg-emerald-500/8 rounded-full blur-3xl group-hover:bg-emerald-500/15 transition-all duration-700"></div>
                         <div className="absolute -left-8 -bottom-8 w-48 h-48 bg-blue-500/5 rounded-full blur-3xl"></div>
-                        <p className="section-label !mb-3 !text-emerald-400/80">Lo que realmente cuesta el equipo (Sueldos + Impuestos Est.)</p>
+                        <p className="section-label !mb-3 !text-emerald-600 dark:!text-emerald-400/80">Lo que realmente cuesta el equipo (Sueldos + Impuestos Est.)</p>
                         <div className="flex flex-col md:flex-row md:items-baseline gap-2 md:gap-6">
-                            <h2 className="text-5xl font-black text-white font-mono tracking-tighter leading-none drop-shadow-lg">
+                            <h2 className="text-5xl font-black text-[var(--text-primary)] font-mono tracking-tighter leading-none">
                                 {Utils.fmt(totalRealConCargas)}
                             </h2>
-                            <div className="flex items-center gap-2 text-slate-400 text-xs font-medium border-l border-slate-600 md:pl-6">
+                            <div className="flex items-center gap-2 text-[var(--text-muted)] text-xs font-medium border-l border-[var(--border-mid)] md:pl-6">
                                 <span className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider">ESTIMADO</span>
-                                <span>Incluye <span className="text-slate-200 font-semibold">{Utils.fmt(montoCargas)}</span> de impuestos al sueldo (proyectado)</span>
+                                <span>Incluye <span className="text-[var(--text-secondary)] font-semibold">{Utils.fmt(montoCargas)}</span> de impuestos al sueldo (proyectado)</span>
                             </div>
                         </div>
                         <div className="mt-5 flex gap-6">
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-                                <span className="text-xs text-slate-500">Blanco <span className="text-slate-300 font-semibold">{Utils.fmt(totals.recibo)}</span></span>
+                                <span className="text-xs text-[var(--text-dim)]">Blanco <span className="text-[var(--text-secondary)] font-semibold">{Utils.fmt(totals.recibo)}</span></span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-rose-400"></div>
-                                <span className="text-xs text-slate-500">Informal <span className="text-slate-300 font-semibold">{Utils.fmt(totals.negro)}</span></span>
+                                <span className="text-xs text-[var(--text-dim)]">Informal <span className="text-[var(--text-secondary)] font-semibold">{Utils.fmt(totals.negro)}</span></span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                                <span className="text-xs text-slate-500">Cargas est. <span className="text-slate-300 font-semibold">{Utils.fmt(montoCargas)}</span></span>
+                                <span className="text-xs text-[var(--text-dim)]">Cargas est. <span className="text-[var(--text-secondary)] font-semibold">{Utils.fmt(montoCargas)}</span></span>
                             </div>
                         </div>
                     </div>
@@ -92,36 +92,36 @@ const EmployeesView = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div className="bg-gradient-to-br from-blue-500/10 to-slate-800 p-6 rounded-2xl border border-blue-500/20 shadow-xl">
+                <div className="bg-gradient-to-br from-blue-500/10 to-[var(--bg-card)] p-6 rounded-2xl border border-blue-500/20 shadow-sm">
                     <p className="section-label !mb-3 !text-blue-400/70">Cantidad de personas</p>
                     <h2 className="text-3xl font-black text-blue-400 leading-none">{Utils.arr(employees).length}</h2>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Personas</p>
+                    <p className="text-[10px] text-[var(--text-dim)] font-bold uppercase tracking-widest mt-1">Personas</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-emerald-500/10 to-slate-800 p-6 rounded-2xl border border-emerald-500/20 shadow-xl">
+                <div className="bg-gradient-to-br from-emerald-500/10 to-[var(--bg-card)] p-6 rounded-2xl border border-emerald-500/20 shadow-sm">
                     <p className="section-label !mb-3 !text-emerald-400/70">% Pago en blanco</p>
                     <h2 className="text-3xl font-black text-emerald-400 leading-none">{totalNomina > 0 ? Utils.pct(totals.recibo, totalNomina) : 0}%</h2>
-                    <p className="text-[10px] text-slate-500 mt-1">{Utils.fmt(totals.recibo)} registrado</p>
+                    <p className="text-[10px] text-[var(--text-dim)] mt-1">{Utils.fmt(totals.recibo)} registrado</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-rose-500/10 to-slate-800 p-6 rounded-2xl border border-rose-500/20 shadow-xl">
+                <div className="bg-gradient-to-br from-rose-500/10 to-[var(--bg-card)] p-6 rounded-2xl border border-rose-500/20 shadow-sm">
                     <p className="section-label !mb-3 !text-rose-400/70">% Costo sobre ventas</p>
                     <h2 className="text-3xl font-black text-rose-400 leading-none">{Utils.num(ventasNetas) > 0 ? Utils.pct(totalNomina, Utils.num(ventasNetas)) : '—'}%</h2>
-                    <p className="text-[10px] text-slate-500 mt-1">de {Utils.fmt(ventasNetas)} en ventas</p>
+                    <p className="text-[10px] text-[var(--text-dim)] mt-1">de {Utils.fmt(ventasNetas)} en ventas</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-violet-500/10 to-slate-800 p-6 rounded-2xl border border-violet-500/25 shadow-xl">
+                <div className="bg-gradient-to-br from-violet-500/10 to-[var(--bg-card)] p-6 rounded-2xl border border-violet-500/25 shadow-sm">
                     <p className="section-label !text-violet-400/70 !mb-3">Impuestos al sueldo (%)</p>
                     <div className="flex items-baseline gap-1.5">
                         <input
                             type="number"
                             value={cargasPct}
                             onChange={(e) => setCargasPct(e.target.value)}
-                            className="bg-slate-900/80 border border-violet-500/30 rounded-lg w-20 px-3 py-1 text-2xl font-black text-white outline-none focus:border-violet-400 transition-all"
+                            className="bg-[var(--bg-page)] border border-violet-500/30 rounded-lg w-20 px-3 py-1 text-2xl font-black text-[var(--text-primary)] outline-none focus:border-violet-400 transition-all"
                         />
-                        <span className="text-xl font-bold text-slate-500">%</span>
+                        <span className="text-xl font-bold text-[var(--text-faint)]">%</span>
                     </div>
-                    <p className="text-[10px] text-slate-500 mt-2">Sobre {Utils.fmt(totals.recibo)} (Blanco)</p>
+                    <p className="text-[10px] text-[var(--text-dim)] mt-2">Sobre {Utils.fmt(totals.recibo)} (Blanco)</p>
                 </div>
             </div>
 

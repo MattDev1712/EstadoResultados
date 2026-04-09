@@ -175,38 +175,98 @@ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin
 input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 .amount-input {
-  @apply bg-transparent border-none border-b border-slate-700/40 outline-none text-right text-slate-100 font-semibold w-full py-1 transition-colors tracking-tight;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+  outline: none;
+  text-align: right;
+  color: rgba(226, 232, 240, 1);
+  font-weight: 600;
+  width: 100%;
+  padding: 0.25rem 0;
+  transition-property: color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+  letter-spacing: -0.025em;
   font-family: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
   font-size: 1rem;
 }
-.amount-input:focus { @apply border-b-blue-400; }
+.amount-input:focus {
+  border-bottom-color: rgb(96, 165, 250);
+}
 
 .qty-input {
-  @apply bg-slate-800/60 border border-slate-700/30 rounded outline-none text-center text-slate-400 font-medium w-16 py-1 transition-all;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.3);
+  border-radius: 0.25rem;
+  outline: none;
+  text-align: center;
+  color: rgba(148, 163, 184, 1);
+  font-weight: 500;
+  width: 4rem;
+  padding: 0.25rem 0;
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-size: 0.7rem;
 }
-.qty-input:focus { @apply border-blue-400 text-slate-200; }
+.qty-input:focus {
+  border-color: rgb(96, 165, 250);
+  color: rgba(226, 232, 240, 0.8);
+}
 
 .stat-card {
-  @apply bg-slate-900/50 border border-slate-800/40 rounded-xl p-4 transition-all;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(30, 41, 59, 0.4);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
 }
-.stat-card:hover { @apply border-slate-700/70; }
+.stat-card:hover {
+  border-color: rgba(51, 65, 85, 0.7);
+}
 
 .section-label {
-  @apply text-[11px] font-bold uppercase tracking-[0.15em] mb-2 text-slate-500/80;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 0.5rem;
+  color: rgba(100, 116, 139, 0.8);
 }
 
 .highlight-val {
-  @apply text-3xl font-black font-mono tracking-tighter leading-none;
+  font-size: 1.875rem;
+  font-weight: 900;
+  font-family: monospace;
+  letter-spacing: -0.05em;
+  line-height: 1;
 }
 
 .sub-val {
-  @apply text-lg font-bold font-mono tracking-tight;
+  font-size: 1.125rem;
+  font-weight: 700;
+  font-family: monospace;
+  letter-spacing: -0.025em;
 }
 
 .badge-calc {
-  @apply px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest bg-slate-800 text-slate-500 border border-slate-700/50 ml-2;
+  padding-left: 0.375rem;
+  padding-right: 0.375rem;
+  padding-top: 0.125rem;
+  padding-bottom: 0.125rem;
+  border-radius: 0.25rem;
+  font-size: 0.5625rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: rgba(30, 41, 59, 1);
+  color: rgba(100, 116, 139, 1);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  margin-left: 0.5rem;
 }
 
 .tooltip-trigger { @apply relative inline-flex; }
@@ -249,5 +309,6 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   background-size: 468px 100%;
   animation: shimmer 1.5s infinite linear;
 }
+[data-theme="light"] button span, [data-theme="light"] .text-white { color: var(--text-primary) !important; }
 
 .scrollbar-hide::-webkit-scrollbar { display: none; }
