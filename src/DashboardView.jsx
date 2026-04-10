@@ -275,7 +275,7 @@ const AlertsPanel = ({ kpis, egresos, periodo, empData = [], arcaData = [], vent
     );
 };
 
-const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaultDate }) => {
+const DashboardView = ({ onDataReady, setShowStructModal, setShowRetentionsModal, defaultDate, setDefaultDate }) => {
     const {
         dashData: data, empData, arcaData, ventasData,
         loading, error, viewMode, setViewMode,
@@ -306,11 +306,12 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
             const b = Utils.num(v.val_factura_b_elec);
             const a = Utils.num(v.val_factura_a_elec);
             const manual = Utils.num(v.val_factura_b);
+            acc.totalBElec += b;
             acc.ivaB += b - (b / 1.21);
             acc.ivaA += a - (a / 1.21);
             acc.totalB += manual;
             return acc;
-        }, { ivaB: 0, ivaA: 0, totalB: 0 });
+        }, { ivaB: 0, ivaA: 0, totalB: 0, totalBElec: 0 });
     }, [ventasData]);
 
     const { kpis, egresos, historial, mixPagos } = useMemo(() => ({
@@ -319,6 +320,10 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
         historial: data?.historial || {},
         mixPagos: data?.mix_pagos || {}
     }), [data]);
+
+    // Cálculo de Posición Fiscal Real (Auditoría Contable)
+    const ivaPosicionTeorica = Utils.num(kpis.iva_posicion);
+    const ivaPosicionReal = ivaPosicionTeorica - Math.abs(Utils.num(egresos.retenciones));
 
     const getAdj = (val) => {
         const n = Utils.num(val);
@@ -439,6 +444,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
                 {[
                     { title: 'Gastos fijos del local', desc: 'Alquiler, luz, gas, expensas', color: 'border-blue-500/30', hover: 'hover:border-blue-500', action: () => setShowStructModal && setShowStructModal(true), icon: '🏢' },
+                    { title: 'Retenciones del mes', desc: 'IVA/Ganancias en tarjetas y apps', color: 'border-amber-500/30', hover: 'hover:border-amber-500', action: () => setShowRetentionsModal && setShowRetentionsModal(true), icon: '🏧' },
                 ].map((card, i) => (
                     <div key={i} onClick={card.action} className={`p-4 rounded-xl border ${card.color} bg-slate-900/60 backdrop-blur-sm ${card.hover} cursor-pointer transition-all duration-300 group hover:-translate-y-1`}>
                         <div className="flex items-center justify-between mb-2">
@@ -575,16 +581,32 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                 {/* ── IVA DEL MES ─────────────────────────────────── */}
                 <div style={{ marginBottom: 16 }}>
                     <Card style={{ padding: 28, borderLeft: '4px solid #3b82f6', background: isLight ? 'linear-gradient(135deg, rgba(59,130,246,0.06) 0%, #F8F9FB 100%)' : 'linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(15,23,42,0.6) 100%)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                                <CardTitle title="Posición Fiscal IVA" onInfo={() => setInfoModalKey('iva')} />
+                                <p className="text-4xl font-black tracking-tighter leading-none font-mono" style={{ color: ivaPosicionReal > 0 ? '#f43f5e' : '#10b981', fontVariantNumeric: 'tabular-nums', margin: 0 }}>
+                                    {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaPosicionReal))}
+                                </p>
+                                <p style={{ fontSize: 13, fontWeight: 700, marginTop: 10, color: ivaPosicionReal > 0 ? '#f43f5e' : '#10b981' }}>
+                                    {ivaPosicionReal > 0 ? 'Monto estimado a pagar (VEP)' : 'Saldo a favor proyectado'}
+                                </p>
+                            </div>
+                            <div style={{ textAlign: 'right', background: 'rgba(59,130,246,0.05)', padding: '12px 16px', borderRadius: 16, border: '1px solid rgba(59,130,246,0.1)' }}>
+                                <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-faint)', textTransform: 'uppercase', marginBottom: 8 }}>Ajustes de Auditoría</p>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20 }}>
+                                        <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>Retenciones Bancos/Tarj.</span>
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981' }}>− {Utils.fmt(getAdj(Math.abs(egresos.retenciones)))}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, borderTop: '1px solid var(--border-subtle)', paddingTop: 4, marginTop: 2 }}>
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>Teórico (Ventas-Compras)</span>
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>{Utils.fmt(getAdj(ivaPosicionTeorica))}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                        {/* Full row: título + número grande */}
-                        <CardTitle title="IVA del mes" onInfo={() => setInfoModalKey('iva')} />
-                        <p className="text-4xl font-black tracking-tighter leading-none font-mono" style={{ color: getAdj(kpis.iva_posicion) > 0 ? '#f43f5e' : '#10b981', fontVariantNumeric: 'tabular-nums', margin: 0 }}>
-                            {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(kpis.iva_posicion))}
-                        </p>
-                        <p style={{ fontSize: 14, fontWeight: 700, marginTop: 10, color: getAdj(kpis.iva_posicion) > 0 ? '#fda4af' : '#6ee7b7' }}>
-                            {getAdj(kpis.iva_posicion) > 0 ? '⚠️ Tenés que pagar este monto a AFIP' : '✅ Tenés saldo a favor en AFIP'}
-                        </p>
-                        <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4, marginBottom: 20 }}>IVA cobrado a clientes − IVA pagado en compras con factura</p>
+                        <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 12, marginBottom: 20 }}>Saldo real proyectado considerando pagos a cuenta del mes.</p>
 
                         {/* Dos columnas: IVA cobrado | IVA pagado */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -607,8 +629,12 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                                 {ivaCobradoExpanded && (
                                     <div style={{ borderTop: '1px solid var(--border-subtle)', padding: '10px 18px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>IVA Factura B Electrónica</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.ivaB))}</span>
+                                            <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>Total Factura B Electrónica</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.totalBElec))}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: 12, marginBottom: 2 }}>
+                                            <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>↳ IVA contenido (21%)</span>
+                                            <span style={{ fontSize: 9, fontWeight: 600, color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.ivaB))}</span>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>IVA Factura A</span>

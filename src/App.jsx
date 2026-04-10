@@ -12,6 +12,7 @@ import ConfigView from './ConfigView';
 import AuditView from './AuditView';
 import { CardSkeleton, TableSkeleton } from './Skeleton';
 import MarginExpectationView from './MarginExpectationView';
+import RetentionsModal from './RetentionsModal';
 
 // Componentes Comunes
 import FileCard from './FileCard';
@@ -59,6 +60,7 @@ const App = () => {
 
     const [activeTab, setActiveTab] = useState('iva_dashboard');
     const [showStructModal, setShowStructModal] = useState(false);
+    const [showRetentionsModal, setShowRetentionsModal] = useState(false);
     const [previewData, setPreviewData] = useState(null);
     const [previewOrigen, setPreviewOrigen] = useState(null);
     const [defaultDate, setDefaultDate] = useState(new Date().toISOString().split('T')[0]);
@@ -437,6 +439,7 @@ const App = () => {
             ) : <DashboardView 
                     onDataReady={handleDataReady} 
                     setShowStructModal={setShowStructModal} 
+                    setShowRetentionsModal={setShowRetentionsModal}
                     defaultDate={defaultDate}
                     setDefaultDate={setDefaultDate}
                 />;
@@ -617,6 +620,12 @@ const App = () => {
             <StructuralCostsModal
                 isOpen={showStructModal}
                 onClose={() => setShowStructModal(false)}
+                onConfirm={(data) => sendToBackend(data, 'MANUAL_COSTS')}
+                defaultDate={defaultDate}
+            />
+            <RetentionsModal
+                isOpen={showRetentionsModal}
+                onClose={() => setShowRetentionsModal(false)}
                 onConfirm={(data) => sendToBackend(data, 'MANUAL_COSTS')}
                 defaultDate={defaultDate}
             />
