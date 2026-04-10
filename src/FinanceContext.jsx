@@ -157,7 +157,7 @@ export const FinanceProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    }, [finalApiUrl, selectedYear, selectedMonth]);
+    }, [finalApiUrl, selectedYear, selectedMonth, cargasPct]);
 
     // Auto-fetch al montar y cada vez que cambia período o URL
     useEffect(() => {
@@ -171,10 +171,17 @@ export const FinanceProvider = ({ children }) => {
 
     // Función robusta para refrescar todo secuencialmente
     const refreshAll = useCallback(async () => {
-        setLoading(true);
-        await fetchData(true); // Primero los datos
-        await fetchMetadata(); // Luego los periodos
-        setLoading(false);
+        try {
+            setLoading(true);
+            setError(null);
+            await fetchData(true); // Forzar descarga de datos omitiendo caché
+            await fetchMetadata(); // Actualizar lista de periodos
+        } catch (e) {
+            setError("Error al sincronizar con Google Sheets. Intente nuevamente.");
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
     }, [fetchData, fetchMetadata]);
 
     const value = useMemo(() => ({
