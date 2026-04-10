@@ -254,12 +254,16 @@ export default function MarginExpectationView() {
   const draftKey = `er_draft_${selectedYear}_${selectedMonth}`;
 
   const INFO_TOOLTIPS = {
-    ventas_card: { title: "Ventas", explanation: "Datos extraídos del Resumen Mensual de Maxirest. Representan el total de facturación neta de IVA." },
-    gastos_card: { title: "Gastos", explanation: "Suma de sueldos, cargas, gastos fijos y excepcionales. Los datos provienen de la planilla de sueldos y cargas manuales." },
-    mix_cafe: { title: "Mix de Cafetería", explanation: "Proporción estimada de la venta neta que corresponde a productos de cafetería. Se usa para calcular el margen de contribución." },
-    sueldos: { title: "Costo Laboral", explanation: "Surge de la planilla de sueldos cargada. Incluye el neto pagado más la provisión de SAC y las cargas sociales estimadas." },
-    comisiones_bancarias: { title: "Comisiones Bancarias", explanation: "Es un gasto calculado automáticamente. Aplica los porcentajes configurados en 'Ajustes' sobre los totales de cada medio de pago informados en Maxirest." },
-    otros_pagos: { title: "Otros Medios de Pago", explanation: "Representa cobros realizados por medios distintos a Efectivo o Tarjetas (ej: transferencias o QR) según informa Maxirest." }
+    ventas_card: { title: "Ventas Netas", explanation: "Venta bruta de Maxirest menos el IVA (21%) y las anulaciones. Es la base real de ingresos sobre la que trabajamos." },
+    gastos_card: { title: "Egresos Totales", explanation: "Suma de todos los costos del local. Incluye lo que cargaste por planilla de sueldos, facturas de proveedores y gastos fijos." },
+    mix_cafe: { title: "Mix de Cafetería", explanation: "Qué porcentaje de la venta total creés que corresponde a Cafetería vs. Cocina/Producto. Esto permite aplicar márgenes distintos a cada rubro." },
+    laboral: { title: "Sueldos y Cargas", explanation: "Costo total de personal. Surge de la planilla de sueldos + el 33% (aprox) de cargas sociales configurado en Ajustes + la reserva mensual de SAC." },
+    estructural: { title: "Gastos Fijos", explanation: "Alquiler, Luz, Gas, Internet y servicios. Son los montos que cargaste manualmente en la sección de 'Gastos Fijos'." },
+    excepcionales_manual: { title: "Gastos Excepcionales", explanation: "Gastos extraordinarios o arreglos que ingresaste manualmente para este mes específico." },
+    iibb: { title: "Ingresos Brutos", explanation: "Impuesto provincial sobre la facturación. Se deduce de la carga manual del pago de IIBB de este mes." },
+    retenciones: { title: "Retenciones Impositivas", explanation: "Pagos a cuenta de IVA/Ganancias que te retuvieron bancos o aplicaciones (PedidosYa, etc.) y cargaste manualmente." },
+    amortizaciones: { title: "Amortizaciones", explanation: "Pérdida de valor mensual de tus máquinas y mobiliario (Activos). Se calcula según la vida útil que definiste en la solapa Activos." },
+    comisiones: { title: "Comisiones Bancarias/Apps", explanation: "Gasto automático calculado sobre las ventas de Tarjeta y Otros (QR/Apps) usando los porcentajes que definiste en Ajustes." }
   };
 
   // Al cambiar período: cargar borrador local (no mirar dashData, puede ser del mes anterior)
@@ -521,7 +525,7 @@ export default function MarginExpectationView() {
 
         {/* ── VENTAS ── */}
         <Card>
-          <CardHeader icon="↑" label="Ventas" iconBg="rgba(16,185,129,0.1)" iconColor="#10b981" />
+          <CardHeader icon="↑" label="Ventas" iconBg="rgba(16,185,129,0.1)" iconColor="#10b981" onInfo={() => setInfoModal('ventas_card')} />
 
           <Row label="IVA cobrado" value={Utils.fmt(ivaDébito)} />
           <Row label="Venta Neta S/IVA" bold value={Utils.fmt(ventaNeta)} valueColor="#10b981" />
@@ -530,6 +534,7 @@ export default function MarginExpectationView() {
 
           <Row
             label="Mix Cafetería"
+            onInfo={() => setInfoModal('mix_cafe')}
             right={
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
                 <PctInput value={manual.mix_cafe} onChange={setMixCafe} />
@@ -575,7 +580,7 @@ export default function MarginExpectationView() {
 
         {/* ── GASTOS ── */}
         <Card>
-          <CardHeader icon="↓" label="Gastos" iconBg="rgba(244,63,94,0.1)" iconColor="#f43f5e" />
+          <CardHeader icon="↓" label="Gastos" iconBg="rgba(244,63,94,0.1)" iconColor="#f43f5e" onInfo={() => setInfoModal('gastos_card')} />
 
           <div style={S.sectionDivider}>Laboral</div>
 
@@ -604,6 +609,7 @@ export default function MarginExpectationView() {
 
           <Row
             label="Excepcionales"
+            onInfo={() => setInfoModal('excepcionales_manual')}
             right={<CurrencyInput value={manual.excepcionales} onChange={setField('excepcionales')} />}
           />
 
@@ -687,9 +693,19 @@ export default function MarginExpectationView() {
                 onChange={() => toggleExpense(exp.key)} // Keep onChange for accessibility
                 style={{ accentColor: '#3b82f6', transform: 'scale(1.1)' }}
               />
-              <span style={{ fontSize: 12, fontWeight: 600, color: activeExpenses[exp.key] ? (isLight ? '#3b82f6' : '#60a5fa') : colors.textMuted }}>
-                {exp.label}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: activeExpenses[exp.key] ? (isLight ? '#3b82f6' : '#60a5fa') : colors.textMuted }}>
+                  {exp.label}
+                </span>
+                <button 
+                    onClick={(e) => { e.stopPropagation(); setInfoModal(exp.key); }}
+                    style={{
+                        width: 14, height: 14, borderRadius: '50%', border: '1px solid var(--border-subtle)',
+                        background: 'none', color: 'var(--text-faint)', fontSize: 8, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}
+                >?</button>
+              </div>
               <span style={{ fontSize: 12, fontWeight: 700, color: activeExpenses[exp.key] ? (isLight ? '#3b82f6' : '#60a5fa') : colors.textSecondary, marginLeft: 'auto' }}>
                 {Utils.fmt(exp.value)}
               </span>
@@ -737,6 +753,32 @@ export default function MarginExpectationView() {
           {saving ? 'Guardando...' : 'Guardar período'}
         </button>
       </div>
+
+      {/* Info Modal */}
+      {infoModal && INFO_TOOLTIPS[infoModal] && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.5)', backdropBlur: '4px'
+        }} onClick={() => setInfoModal(null)}>
+          <div style={{
+            background: colors.bgCard, border: `1px solid ${colors.borderCard}`, borderRadius: 24,
+            width: '90%', maxWidth: 400, padding: 24, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: colors.textPrimary, margin: 0 }}>
+                {INFO_TOOLTIPS[infoModal].title}
+              </h3>
+              <button 
+                onClick={() => setInfoModal(null)} 
+                style={{ background: 'none', border: 'none', color: colors.textDim, cursor: 'pointer', fontSize: 20 }}
+              >✕</button>
+            </div>
+            <p style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 1.6, margin: 0 }}>
+              {INFO_TOOLTIPS[infoModal].explanation}
+            </p>
+          </div>
+        </div>
+      )}
 
     </div>
   );

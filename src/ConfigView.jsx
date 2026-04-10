@@ -11,7 +11,10 @@ const ConfigView = () => {
         OBJETIVO_VENTAS: '',
         COMISION_TARJETAS: '',
         COMISION_OTROS: '',
-        COMISION_EFECTIVO: ''
+        COMISION_EFECTIVO: '',
+        PCT_CARGAS_SOCIALES: '',
+        KW_ESTRUCTURAL: '',
+        KW_CMV: ''
     });
     const [saving, setSaving] = useState(false);
 
@@ -125,6 +128,27 @@ const ConfigView = () => {
                                 <div>
                                     <p className="text-[9px] text-slate-500 mb-1">Efectivo</p>
                                     <input name="COMISION_EFECTIVO" type="number" step="0.001" value={config.COMISION_EFECTIVO} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-6 grid grid-cols-1 gap-6 border-t border-slate-700/50">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-violet-400">Provisión Cargas Sociales (Decimal: 0.33 = 33%)</label>
+                            <input name="PCT_CARGAS_SOCIALES" type="number" step="0.01" value={config.PCT_CARGAS_SOCIALES} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-violet-200 font-mono" />
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Auto-Categorización (Palabras separadas por coma)</label>
+                            <div className="space-y-3">
+                                <div>
+                                    <p className="text-[9px] text-slate-500 mb-1 italic">Si el proveedor contiene estas palabras, será "Gasto Fijo/Estructural":</p>
+                                    <input name="KW_ESTRUCTURAL" value={config.KW_ESTRUCTURAL} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white" />
+                                </div>
+                                <div>
+                                    <p className="text-[9px] text-slate-500 mb-1 italic">Si el proveedor contiene estas palabras, será "CMV/Materia Prima":</p>
+                                    <input name="KW_CMV" value={config.KW_CMV} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white" />
                                 </div>
                             </div>
                         </div>

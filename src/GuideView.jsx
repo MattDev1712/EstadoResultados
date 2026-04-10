@@ -278,7 +278,7 @@ const GuideView = () => {
 
                     <Accordion icon="🧾" title="Maxirest PDF — Resumen Mensual de Ventas" defaultOpen>
                         <p><Highlight>¿Qué es Maxirest?</Highlight> Es el sistema de punto de venta (caja) que procesa cada venta de tu local.</p>
-                        <p style={{ marginTop: 10 }}><Highlight>¿Qué contiene este PDF?</Highlight> Un resumen de todo lo que vendiste en el mes: el total facturado, cuántas operaciones, cómo pagaron los clientes (efectivo, tarjeta, apps), y cuánto vendiste en cada turno.</p>
+                        <p style={{ marginTop: 10 }}><Highlight>¿Qué contiene este PDF?</Highlight> Un resumen de todo lo que vendiste en el mes: el total facturado, cuántas operaciones, cómo pagaron los clientes (efectivo, tarjeta, otros medios), y cuánto vendiste en cada turno.</p>
                         <p style={{ marginTop: 10 }}><Highlight>¿Dónde lo descargo?</Highlight></p>
                         <ol style={{ margin: '8px 0', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>
                             <li>Entrá a Maxirest → sección <em>Reportes</em></li>
@@ -332,10 +332,17 @@ const GuideView = () => {
                         <Tip>Si ya tenés tu planilla en otro formato, podés exportar desde Excel a CSV y editar las columnas para que coincidan. El equipo puede ayudarte a adaptar el formato.</Tip>
                     </Accordion>
 
-                    <Accordion icon="🏦" title="Honorarios Manuales — Contador, Abogado, Asesor">
+                    <Accordion icon="" title="Retenciones — IVA y Ganancias">
+                        <p><Highlight>¿Qué son las retenciones?</Highlight> Es dinero que el Estado te cobra "por adelantado" a través de los bancos o aplicaciones al momento de cobrar con tarjeta o QR.</p>
+                        <p style={{ marginTop: 10 }}><Highlight>¿Para qué sirven en la app?</Highlight> Al cargarlas, el sistema las resta de tu Posición de IVA, mostrándote el monto real que tendrías que pagar en el VEP.</p>
+                        <p style={{ marginTop: 10 }}><Highlight>¿Dónde las veo?</Highlight> Una vez cargadas, podés ver el detalle en la sección <strong>Datos → Retenciones</strong>.</p>
+                        <Tip>Las retenciones no son un gasto, sino un pago a cuenta de impuestos.</Tip>
+                    </Accordion>
+
+                    <Accordion icon="🏦" title="Honorarios — Contador, Abogado, Asesor">
                         <p><Highlight>¿Qué es esto?</Highlight> Cualquier pago a un profesional que te presta servicios al local pero que no tiene un archivo para importar.</p>
-                        <p style={{ marginTop: 10 }}>Ejemplos: tu contador, un abogado, un asesor impositivo, un diseñador.</p>
-                        <p style={{ marginTop: 10 }}><Highlight>¿Cómo lo cargo?</Highlight> Desde la pantalla de Carga, hacé clic en el botón <em>Honorarios Manuales</em> y escribí el nombre y el monto. No necesitás ningún archivo.</p>
+                        <p style={{ marginTop: 10 }}>Ejemplos: tu contador, un abogado, un asesor impositivo.</p>
+                        <p style={{ marginTop: 10 }}><Highlight>¿Cómo lo cargo?</Highlight> Desde la pantalla de Carga, hacé clic en el botón <em>Gastos Fijos</em> o agregalo como un movimiento manual.</p>
                     </Accordion>
 
                     <Accordion icon="🏢" title="Costos Estructurales — Alquiler, Luz, Gas, Expensas">
@@ -349,7 +356,7 @@ const GuideView = () => {
                         <p><Highlight>¿Qué es Ingresos Brutos?</Highlight> Es un impuesto que cobra la provincia sobre todo lo que vendés. Se paga mensualmente y es un porcentaje de las ventas totales.</p>
                         <p style={{ marginTop: 10 }}>La alícuota (el porcentaje) varía según la actividad y la provincia. Para gastronomía en Buenos Aires, suele estar entre el 3% y el 5%.</p>
                         <p style={{ marginTop: 10 }}><Highlight>¿Cómo lo cargo?</Highlight> Hacé clic en <em>Ingresos Brutos</em> desde la pantalla de Carga. Podés separar IIBB Local del Convenio Multilateral si pagás en más de una jurisdicción.</p>
-                        <Warning>Si no cargás IIBB, el resultado del Dashboard va a aparecer más alto de lo real, porque ese gasto no estará restado de la ganancia.</Warning>
+                        <Warning>Recordá configurar tu alícuota real en la pestaña de <strong>Ajustes</strong> para que las proyecciones sean exactas.</Warning>
                     </Accordion>
                 </div>
             )}
@@ -394,13 +401,13 @@ const GuideView = () => {
                             label="CMV (Costo Mercadería)"
                             color="#f59e0b"
                             value="Lo que pagás para vender"
-                            desc="Es el costo de todo lo que usás para preparar tus productos: café, leche, medialunas, insumos. Si este número es muy alto respecto a las ventas (> 40%), tus precios están bajos o tu receta es cara."
+                            desc="Costo de insumos. El sistema lo detecta automáticamente por el nombre del proveedor. Podés ajustar qué palabras clave disparan esta categoría en la sección de Ajustes."
                         />
                         <KpiPill
                             label="Costo Laboral"
                             color="#8b5cf6"
                             value="Total que salió por empleados"
-                            desc="Suma de todos los sueldos del mes, incluyendo cargas sociales. En gastronomía este gasto suele representar entre el 25% y el 35% de las ventas."
+                            desc="Suma de sueldos + provisión de SAC + cargas sociales. El porcentaje de cargas sociales (ej: 33%) es configurable desde la pestaña de Ajustes."
                         />
                         <KpiPill
                             label="Ticket Promedio"
@@ -459,8 +466,8 @@ const GuideView = () => {
                         { term: 'Break-even / Punto de Equilibrio', color: '#f59e0b', def: 'El mínimo de ventas para no perder dinero. Por debajo de ese número, el negocio está perdiendo.' },
                         { term: 'IIBB / Ingresos Brutos', color: '#f97316', def: 'Impuesto provincial sobre las ventas. Lo cobra la Provincia, no AFIP. Se paga mensualmente.' },
                         { term: 'Nómina', color: '#8b5cf6', def: 'La lista de empleados y sus salarios. En finanzas, el "costo de nómina" incluye no solo el sueldo de bolsillo sino también las cargas sociales que paga el empleador.' },
-                        { term: 'Cargas Sociales', color: '#8b5cf6', def: 'Los aportes patronales que pagás al Estado por cada empleado en relación de dependencia. Representan aproximadamente el 33% adicional del sueldo bruto.' },
-                        { term: 'Comisión Bancaria', color: '#f43f5e', def: 'El porcentaje que se queda el banco o la app (PedidosYa, Rappi) por procesar el pago. Las tarjetas cobran ~1.8%, las apps de delivery hasta el 25%.' },
+                        { term: 'Cargas Sociales', color: '#8b5cf6', def: 'Los aportes patronales que pagás al Estado por cada empleado. Se calculan como un porcentaje del sueldo bruto (configurable en Ajustes).' },
+                        { term: 'Comisión Bancaria', color: '#f43f5e', def: 'El porcentaje que se queda el banco o la app por procesar el pago. Se aplica sobre las ventas cobradas por tarjeta u otros medios según lo definas en Ajustes.' },
                         { term: 'Período Fiscal', color: '#64748b', def: 'El mes al que corresponde cada operación. Por ejemplo "2026-03" = marzo de 2026.' },
                         { term: 'Devengado vs Percibido', color: '#64748b', def: 'Devengado = cuando se generó la obligación (cuando vendiste). Percibido = cuando entró el dinero. Esta app trabaja en modo devengado: las ventas de tarjeta se cuentan cuando se hicieron, aunque el dinero llegue días después.' },
                         { term: 'IPC', color: '#f59e0b', def: 'Índice de Precios al Consumidor. Mide la inflación mensual. Lo usamos para ajustar los valores históricos y poder comparar meses de forma justa.' },
@@ -511,7 +518,7 @@ const GuideView = () => {
                         </div>
 
                         {/* ARCA */}
-                        <div style={{ background: '#0b1121', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: '20px 22px' }}>
+                        <div style={{ background: colors.bgCard, border: `1px solid ${colors.borderCard}`, borderRadius: 16, padding: '20px 22px' }}>
                             <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.2em', color: '#3b82f6', textTransform: 'uppercase', marginBottom: 16 }}>
                                 🔵 Compras (ARCA/AFIP)
                             </p>
@@ -536,9 +543,10 @@ const GuideView = () => {
                             </p>
                             {[
                                 { text: 'Subir la planilla CSV de sueldos del mes (Planilla Sueldos)' },
-                                { text: 'Cargar honorarios del contador / asesor (si aplica)' },
                                 { text: 'Cargar el alquiler y los servicios (si no vienen por ARCA)' },
+                                { text: 'Cargar las retenciones de tarjetas y apps del mes' },
                                 { text: 'Cargar el pago de Ingresos Brutos del mes' },
+                                { text: 'Cargar honorarios del contador u otros profesionales' },
                             ].map((item, i) => (
                                 <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
                                     <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>⬜</span>

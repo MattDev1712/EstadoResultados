@@ -28,9 +28,6 @@ let CONST_MEP = {
   '2026-01': 1300, '2026-02': 1350, '2026-03': 1400
 };
 
-const KEYWORDS_CMV = ['frigorifico', 'carniceria', 'verduleria', 'panadería', 'distribuidora', 'bebidas', 'avicola', 'lacteos', 'mercado'];
-const KEYWORDS_ESTRUCTURAL = ['alquiler', 'luz', 'gas', 'expensas', 'ayre', 'telecom', 'internet', 'abl', 'seguro'];
-
 /**
  * ============================================================================
  * MODELO DE DATOS PRINCIPAL
@@ -693,6 +690,10 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
   const commTarj = parseFloat(busConfig.COMISION_TARJETAS || 0);
   const commOtros = parseFloat(busConfig.COMISION_OTROS || 0);
   const commEfvo = parseFloat(busConfig.COMISION_EFECTIVO || 0);
+  const pctCargas = parseFloat(busConfig.PCT_CARGAS_SOCIALES || 0.33);
+  
+  const kwEstruct = (busConfig.KW_ESTRUCTURAL || '').toLowerCase().split(',').map(s => s.trim());
+  const kwCMV = (busConfig.KW_CMV || '').toLowerCase().split(',').map(s => s.trim());
   
   
   // Acumuladores Nominales
@@ -764,7 +765,8 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
         const rubroRow = String(row[5] || '').trim();
         const entLow = entidad.toLowerCase();
 
-        if (KEYWORDS_ESTRUCTURAL.some(kw => entLow.includes(kw)) || rubroRow === 'Costos Estructurales')  egresoEstructural += efectivoNeto;
+        if (kwEstruct.some(kw => kw && entLow.includes(kw)) || rubroRow === 'Costos Estructurales')  egresoEstructural += efectivoNeto;
+        else if (kwCMV.some(kw => kw && entLow.includes(kw)) || rubroRow === 'CMV') egresoOtros += efectivoNeto; 
         else egresoOtros += efectivoNeto;
 
         if (!proveedoresMap[entidad]) proveedoresMap[entidad] = 0;
@@ -830,7 +832,7 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
   // Ajustes Finales
   // Provisión SAC: 1/12 del costo laboral mensual. Impacta el resultado porque el SAC se devenga todos los meses.
   const provisionSAC = egresoLaboral / 12;
-  const provisionCargas = totalRecibo * (parseFloat(cargasPct) / 100);
+  const provisionCargas = totalRecibo * pctCargas;
   const resFinal = totalVentasNeto - (egresoLaboral + egresoEstructural + egresoOtros + provisionSAC + provisionCargas) - totalComisiones;
   const breakEven = (egresoLaboral + egresoEstructural + provisionSAC + provisionCargas) / (totalVentasNeto > 0 ? (totalVentasNeto - totalComisiones) / totalVentasNeto : 1);
 
@@ -912,6 +914,9 @@ function _getBusinessConfig(ss) {
     sheet.appendRow(['COMISION_OTROS', '0.0']);
     sheet.appendRow(['COMISION_EFECTIVO', '0.0']);
     sheet.appendRow(['OBJETIVO_VENTAS', '0']);
+    sheet.appendRow(['PCT_CARGAS_SOCIALES', '0.33']);
+    sheet.appendRow(['KW_ESTRUCTURAL', 'alquiler,luz,gas,expensas,telecom,internet,abl,seguro']);
+    sheet.appendRow(['KW_CMV', 'frigorifico,carniceria,verduleria,panadería,distribuidora,bebidas']);
   }
   const data = sheet.getDataRange().getValues();
   const config = {};
