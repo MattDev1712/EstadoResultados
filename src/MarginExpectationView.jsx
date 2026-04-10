@@ -70,15 +70,15 @@ const Row = ({ label, bold, value, valueColor, right }) => (
 );
 
 const METRICS_DINERO = [
-  { key: 'v',             label: 'Venta neta s/IVA',      color: '#10b981' },
-  { key: 'ticket',        label: 'Ticket Promedio',        color: '#fbbf24' },
-  { key: 'sueldo_prom',   label: 'Sueldo prom./empleado', color: '#f97316' },
-  { key: 'resultado_mgn', label: 'Resultado márgenes',    color: '#4ade80' },
+  { key: 'v',             label: 'Venta neta s/IVA',      color: '#10b981', yAxisID: 'y' },
+  { key: 'ticket',        label: 'Ticket Promedio',        color: '#fbbf24', yAxisID: 'y1' },
+  { key: 'sueldo_prom',   label: 'Sueldo prom./empleado', color: '#f97316', yAxisID: 'y' },
+  { key: 'resultado_mgn', label: 'Resultado márgenes',    color: '#4ade80', yAxisID: 'y' },
 ];
 
 const METRICS_CANTIDAD = [
-  { key: 'ops', label: 'Cant. Operaciones', color: '#60a5fa' },
-  { key: 'emp', label: 'Cant. Empleados',   color: '#a78bfa' },
+  { key: 'ops', label: 'Cant. Operaciones', color: '#60a5fa', yAxisID: 'y' },
+  { key: 'emp', label: 'Cant. Empleados',   color: '#a78bfa', yAxisID: 'y1' },
 ];
 
 function HistorialLineChart({ metrics, historial, title, isPesos, defaultActive }) {
@@ -110,6 +110,7 @@ function HistorialLineChart({ metrics, historial, title, isPesos, defaultActive 
         pointHoverRadius: 6,
         tension: 0.3,
         fill: false,
+        yAxisID: m.yAxisID || 'y',
       }));
 
     const gridColor = isLight ? 'rgba(28,37,55,0.07)' : 'rgba(255,255,255,0.05)';
@@ -153,6 +154,7 @@ function HistorialLineChart({ metrics, historial, title, isPesos, defaultActive 
             ticks: { color: tickColor, font: { size: 11 } },
           },
           y: {
+            position: 'left',
             grid: { color: gridColor },
             ticks: {
               color: tickColor,
@@ -160,12 +162,22 @@ function HistorialLineChart({ metrics, historial, title, isPesos, defaultActive 
               callback: v => isPesos ? `$${(v / 1000).toFixed(0)}k` : Math.round(v).toLocaleString('es-AR'),
             },
           },
+          y1: {
+            position: 'right',
+            display: metrics.some(m => m.yAxisID === 'y1' && active[m.key]),
+            grid: { drawOnChartArea: false }, // Evita que las líneas de grilla se superpongan
+            ticks: {
+              color: tickColor,
+              font: { size: 10 },
+              callback: v => isPesos ? `$${v.toLocaleString('es-AR')}` : Math.round(v).toLocaleString('es-AR'),
+            },
+          },
         },
       },
     });
 
     return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
-  }, [active, historial, isLight]);
+  }, [active, historial, isLight, metrics]);
 
   const toggle = key => setActive(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -355,6 +367,31 @@ export default function MarginExpectationView() {
   const mesNombre = MESES[parseInt(selectedMonth) - 1];
   const periodoLabel = `${mesNombre} ${selectedYear}`;
 
+  const [activeExpenses, setActiveExpenses] = useState({});
+  const toggleExpense = (key) => {
+    setActiveExpenses(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  let resultadoAjustado = resultadoMargenes;
+  const expensesToSubtract = [
+    { key: 'laboral', value: sueldosTotal, label: 'Sueldos y Cargas' },
+    { key: 'estructural', value: n(egresos.estructural), label: 'Gastos Fijos Operativos' },
+    { key: 'excepcionales_manual', value: excepcionales, label: 'Gastos Excepcionales' },
+    { key: 'iibb', value: n(egresos.iibb), label: 'Ingresos Brutos' },
+    { key: 'retenciones', value: n(egresos.retenciones), label: 'Retenciones' },
+    { key: 'amortizaciones', value: n(egresos.amortizaciones), label: 'Amortizaciones' },
+    { key: 'comisiones', value: n(egresos.comisiones), label: 'Comisiones Bancarias/Apps' },
+  ];
+
+  expensesToSubtract.forEach(exp => {
+    if (activeExpenses[exp.key]) {
+      resultadoAjustado -= exp.value;
+    }
+  });
+
+  const resultadoAjustadoPositivo = resultadoAjustado >= 0;
+  const margenAjustadoPct = ventaNeta > 0 ? ((resultadoAjustado / ventaNeta) * 100).toFixed(1) : '0.0';
+
   const isLight = useTheme();
   const [debugOpen, setDebugOpen] = useState(false);
   const debugInfo = {
@@ -543,47 +580,89 @@ export default function MarginExpectationView() {
       </div>
 
       {/* Resultado */}
-      <div style={{
-        borderRadius: 16,
-        background: resultadoPositivo
+      <Card style={{
+        background: resultadoAjustadoPositivo
           ? (isLight ? 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)' : 'linear-gradient(135deg, rgba(5,46,22,0.8) 0%, rgba(7,12,24,0.95) 100%)')
           : (isLight ? 'linear-gradient(135deg, #fff1f2 0%, #fff5f5 100%)' : 'linear-gradient(135deg, rgba(45,10,10,0.8) 0%, rgba(7,12,24,0.95) 100%)'),
-        border: `1px solid ${resultadoPositivo
+        border: `1px solid ${resultadoAjustadoPositivo
           ? (isLight ? 'rgba(16,185,129,0.35)' : 'rgba(74,222,128,0.2)')
           : (isLight ? 'rgba(244,63,94,0.35)' : 'rgba(248,113,113,0.2)')}`,
-        padding: '24px 28px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        padding: 0, // Remove padding from Card, add to internal divs
       }}>
-        <div>
-          <p style={{
-            fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px',
-            color: resultadoPositivo
-              ? (isLight ? '#059669' : '#6ee7b7')
-              : (isLight ? '#dc2626' : '#fca5a5'),
-            margin: 0,
-          }}>Resultado según márgenes esperados</p>
-          <p style={{
-            fontSize: 32, fontWeight: 800, margin: '4px 0 0',
-            color: resultadoPositivo
-              ? (isLight ? '#059669' : '#4ade80')
-              : (isLight ? '#dc2626' : '#f87171'),
-            fontVariantNumeric: 'tabular-nums', letterSpacing: '-1px',
-          }}>{Utils.fmt(resultadoMargenes)}</p>
+        <div style={{ padding: '24px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <p style={{
+              fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px',
+              color: resultadoAjustadoPositivo
+                ? (isLight ? '#059669' : '#6ee7b7')
+                : (isLight ? '#dc2626' : '#fca5a5'),
+              margin: 0,
+            }}>Resultado según márgenes esperados</p>
+            <p style={{
+              fontSize: 32, fontWeight: 800, margin: '4px 0 0',
+              color: resultadoAjustadoPositivo
+                ? (isLight ? '#059669' : '#4ade80')
+                : (isLight ? '#dc2626' : '#f87171'),
+              fontVariantNumeric: 'tabular-nums', letterSpacing: '-1px',
+            }}>{Utils.fmt(resultadoAjustado)}</p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{
+              fontSize: 24, fontWeight: 700, margin: 0,
+              color: resultadoAjustadoPositivo
+                ? (isLight ? '#059669' : '#4ade80')
+                : (isLight ? '#dc2626' : '#f87171'),
+            }}>
+              {margenAjustadoPct}%
+            </p>
+            <p style={{ fontSize: 11, color: colors.textFaint, marginTop: 2 }}>sobre venta neta</p>
+          </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <p style={{
-            fontSize: 24, fontWeight: 700, margin: 0,
-            color: resultadoPositivo
-              ? (isLight ? '#059669' : '#4ade80')
-              : (isLight ? '#dc2626' : '#f87171'),
-          }}>
-            {margenPct}%
-          </p>
-          <p style={{ fontSize: 11, color: colors.textFaint, marginTop: 2 }}>sobre venta neta</p>
+
+        {/* Expense Toggles */}
+        <div style={{
+          borderTop: `1px solid ${isLight ? 'rgba(28,37,55,0.07)' : 'rgba(255,255,255,0.05)'}`,
+          padding: '16px 28px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: 12,
+        }}>
+          {expensesToSubtract.map(exp => (
+            <div
+              key={exp.key}
+              onClick={() => toggleExpense(exp.key)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                cursor: 'pointer',
+                padding: '8px 12px',
+                borderRadius: 8,
+                background: activeExpenses[exp.key]
+                  ? (isLight ? 'rgba(59,130,246,0.1)' : 'rgba(59,130,246,0.15)')
+                  : (isLight ? 'rgba(28,37,55,0.03)' : 'rgba(255,255,255,0.03)'),
+                border: `1px solid ${activeExpenses[exp.key]
+                  ? (isLight ? 'rgba(59,130,246,0.3)' : 'rgba(59,130,246,0.4)')
+                  : (isLight ? 'rgba(28,37,55,0.07)' : 'rgba(255,255,255,0.05)')}`,
+                transition: 'all 0.2s ease-in-out',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={activeExpenses[exp.key] || false}
+                onChange={() => toggleExpense(exp.key)} // Keep onChange for accessibility
+                style={{ accentColor: '#3b82f6', transform: 'scale(1.1)' }}
+              />
+              <span style={{ fontSize: 12, fontWeight: 600, color: activeExpenses[exp.key] ? (isLight ? '#3b82f6' : '#60a5fa') : colors.textMuted }}>
+                {exp.label}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: activeExpenses[exp.key] ? (isLight ? '#3b82f6' : '#60a5fa') : colors.textSecondary, marginLeft: 'auto' }}>
+                {Utils.fmt(exp.value)}
+              </span>
+            </div>
+          ))}
         </div>
-      </div>
+      </Card>
 
       {/* Gráficos históricos */}
       <HistorialLineChart

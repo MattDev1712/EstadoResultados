@@ -287,6 +287,7 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
     const [isSaving, setIsSaving] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [ivaShowAll, setIvaShowAll] = useState(false);
+    const [ivaCobradoExpanded, setIvaCobradoExpanded] = useState(false);
     const [ivaProveedoresExpanded, setIvaProveedoresExpanded] = useState(false);
     const [detalleExpanded, setDetalleExpanded] = useState(false);
 
@@ -299,6 +300,18 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
         });
         return Object.entries(map).sort((a, b) => b[1] - a[1]);
     }, [arcaData]);
+
+    const ivaCobradoBreakdown = useMemo(() => {
+        return Utils.arr(ventasData).reduce((acc, v) => {
+            const b = Utils.num(v.val_factura_b_elec);
+            const a = Utils.num(v.val_factura_a_elec);
+            const manual = Utils.num(v.val_factura_b);
+            acc.ivaB += b - (b / 1.21);
+            acc.ivaA += a - (a / 1.21);
+            acc.totalB += manual;
+            return acc;
+        }, { ivaB: 0, ivaA: 0, totalB: 0 });
+    }, [ventasData]);
 
     const { kpis, egresos, historial, mixPagos } = useMemo(() => ({
         kpis: data?.kpis || {},
@@ -577,16 +590,42 @@ const DashboardView = ({ onDataReady, setShowStructModal, defaultDate, setDefaul
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
 
                             {/* IVA Cobrado */}
-                            <div style={{ background: 'rgba(16,185,129,0.05)', borderRadius: 12, padding: '14px 18px', border: '1px solid rgba(16,185,129,0.14)' }}>
-                                <p className="section-label !mb-1">IVA Cobrado — total ventas × 21%</p>
-                                <p className="text-xl font-black font-mono" style={{ color: '#10b981', margin: 0 }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(kpis.iva_debito))}</p>
-                                <p className="text-[10px] text-slate-500 mt-1">Débito fiscal — IVA que cobrás a tus clientes</p>
+                            <div style={{ background: 'rgba(16,185,129,0.05)', borderRadius: 12, border: '1px solid rgba(16,185,129,0.14)', overflow: 'hidden' }}>
+                                <div style={{ padding: '14px 18px' }}>
+                                    <p className="section-label !mb-1">IVA Cobrado — Facturas Electrónicas</p>
+                                    <p className="text-xl font-black font-mono" style={{ color: '#10b981', margin: 0 }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(kpis.iva_debito))}</p>
+                                    <p className="text-[10px] text-slate-500 mt-1">Débito fiscal — IVA que cobrás a tus clientes</p>
+                                    {(ivaCobradoBreakdown.ivaB > 0 || ivaCobradoBreakdown.ivaA > 0 || ivaCobradoBreakdown.totalB > 0) && (
+                                        <button
+                                            onClick={() => setIvaCobradoExpanded(v => !v)}
+                                            style={{ marginTop: 8, fontSize: 10, fontWeight: 700, color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                        >
+                                            {ivaCobradoExpanded ? '▲ Ocultar detalle' : '▼ Ver detalle por factura'}
+                                        </button>
+                                    )}
+                                </div>
+                                {ivaCobradoExpanded && (
+                                    <div style={{ borderTop: '1px solid var(--border-subtle)', padding: '10px 18px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>IVA Factura B Electrónica</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.ivaB))}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>IVA Factura A</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.ivaA))}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed var(--border-subtle)', paddingTop: 4, marginTop: 2 }}>
+                                            <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>Monto Factura B (No genera IVA)</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.totalB))}</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* IVA Pagado con dropdown de proveedores */}
                             <div style={{ background: 'rgba(244,63,94,0.04)', borderRadius: 12, border: '1px solid rgba(244,63,94,0.14)', overflow: 'hidden' }}>
                                 <div style={{ padding: '14px 18px' }}>
-                                    <p className="section-label !mb-1">IVA Pagado — proveedores con factura</p>
+                                    <p className="section-label !mb-1">IVA Pagado — Informe ARCA</p>
                                     <p className="text-xl font-black font-mono" style={{ color: '#f43f5e', margin: 0 }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(kpis.iva_credito || 0))}</p>
                                     <p className="text-[10px] text-slate-500 mt-1">Crédito fiscal (ARCA) — no incluye sueldos</p>
                                     {ivaGrouped.length > 0 && (

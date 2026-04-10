@@ -83,11 +83,18 @@ export const Parsers = {
 
         const totalData     = extractLineData('TOTAL', null, true);
         const factBElecData = extractLineData('Factura B ELECTR', null, true);
+        const factAElecData = extractLineData('Factura A', null, true);
         const factBData     = extractLineData('Factura B', 'ELECTR', true);
 
-        // Calculate IVA from Factura B Electrónica (divide by 1.21)
-        const calcIva = factBElecData.importe - (factBElecData.importe / 1.21);
-        const calcNeto = (factBElecData.importe / 1.21) + factBData.importe;
+        // Calculamos el IVA solo de las facturas electrónicas (A y B)
+        // El reporte de Maxirest suele mostrar el bruto (Neto + IVA)
+        const ivaB = factBElecData.importe - (factBElecData.importe / 1.21);
+        const ivaA = factAElecData.importe - (factAElecData.importe / 1.21);
+        const calcIva = ivaB + ivaA;
+
+        const netoB = (factBElecData.importe / 1.21) + factBData.importe;
+        const netoA = factAElecData.importe / 1.21;
+        const calcNeto = netoB + netoA;
 
         const rawData = {
             fecha: isoDate,
@@ -103,6 +110,8 @@ export const Parsers = {
 
             val_factura_b_elec: factBElecData.importe,
             val_factura_b_elec_cantidad: factBElecData.cantidad,
+            val_factura_a_elec: factAElecData.importe,
+            val_factura_a_elec_cantidad: factAElecData.cantidad,
             val_factura_b: factBData.importe,
             val_factura_b_cantidad: factBData.cantidad,
 
