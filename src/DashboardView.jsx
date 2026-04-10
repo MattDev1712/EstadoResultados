@@ -401,7 +401,8 @@ const DashboardView = ({ onDataReady, setShowStructModal, setShowRetentionsModal
         getAdj(egresos.comisiones || 0) +
         getAdj(egresos.otros || 0);
 
-    if (loading) return (
+    // Solo mostrar skeleton si estamos cargando Y NO tenemos datos previos
+    if (loading && !data) return (
         <div className="animate-fade-in space-y-6" style={{ marginTop: 32 }}>
             <div className="h-32 bg-slate-900/40 rounded-2xl border border-slate-800/40 skeleton mb-6" />
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: 16, marginBottom: 16 }}>

@@ -32,14 +32,24 @@ export const FinanceProvider = ({ children }) => {
     const [ventasData, setVentasData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-    const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
+    const [selectedYear, setSelectedYear] = useState(() => 
+        localStorage.getItem('selectedYear') || String(new Date().getFullYear())
+    );
+    const [selectedMonth, setSelectedMonth] = useState(() => 
+        localStorage.getItem('selectedMonth') || String(new Date().getMonth() + 1).padStart(2, '0')
+    );
     const [cargasPct, setCargasPct] = useState(() => localStorage.getItem('cfg_cargas_pct') || "33");
     const [viewMode, setViewMode] = useState('NOMINAL'); // 'NOMINAL', 'REAL_IPC', 'DOLAR_MEP'
     const [availablePeriods, setAvailablePeriods] = useState([]);
 
     // Estado local para los ajustes del periodo actual (IPC y MEP)
     const [localAjustes, setLocalAjustes] = useState({ ipc: 1, mep: 1000 });
+
+    // Guardar cambios en localStorage
+    useEffect(() => {
+        localStorage.setItem('selectedYear', selectedYear);
+        localStorage.setItem('selectedMonth', selectedMonth);
+    }, [selectedYear, selectedMonth]);
 
     // Sincronizar ajustes locales cuando cambian los datos del dashboard
     useEffect(() => {
@@ -159,6 +169,14 @@ export const FinanceProvider = ({ children }) => {
         localStorage.removeItem(`cache_${urlHash}_${year}_${month}`);
     }, [apiUrl]);
 
+    // Función robusta para refrescar todo secuencialmente
+    const refreshAll = useCallback(async () => {
+        setLoading(true);
+        await fetchData(true); // Primero los datos
+        await fetchMetadata(); // Luego los periodos
+        setLoading(false);
+    }, [fetchData, fetchMetadata]);
+
     const value = useMemo(() => ({
         apiUrl, setApiUrl, finalApiUrl,
         dashData, setDashData, empData, arcaData, ventasData,
@@ -172,8 +190,9 @@ export const FinanceProvider = ({ children }) => {
         updateConfig,
         fetchData,
         fetchMetadata,
+        refreshAll,
         invalidateCache,
-    }), [apiUrl, dashData, empData, arcaData, ventasData, loading, error, selectedYear, selectedMonth, cargasPct, viewMode, availablePeriods, localAjustes, fetchData, fetchMetadata, invalidateCache]);
+    }), [apiUrl, dashData, empData, arcaData, ventasData, loading, error, selectedYear, selectedMonth, cargasPct, viewMode, availablePeriods, localAjustes, fetchData, fetchMetadata, refreshAll, invalidateCache]);
 
     return (
         <FinanceContext.Provider value={value}>

@@ -21,7 +21,7 @@ import NavDropdown from './components/NavDropdown';
 
 const App = () => {
     const {
-        apiUrl, setApiUrl, fetchData, fetchMetadata, loading, setLoading,
+        apiUrl, setApiUrl, refreshAll, loading, setLoading,
         selectedYear, setSelectedYear,
         selectedMonth, setSelectedMonth,
         availablePeriods, cargasPct, setCargasPct
@@ -428,7 +428,7 @@ const App = () => {
     const renderTabContent = () => {
         switch (activeTab) {
             case 'iva_dashboard':
-            case 'dashboard': return loading ? (
+            case 'dashboard': return (loading && !useFinance().dashData) ? (
                 <div className="animate-fade-in space-y-6">
                     <div className="h-32 bg-slate-800/20 rounded-2xl skeleton" />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -445,12 +445,12 @@ const App = () => {
                     setDefaultDate={setDefaultDate}
                 />;
             case 'margin_dashboard': return <MarginExpectationView />;
-            case 'empleados': return loading ? <TableSkeleton /> : <EmployeesView />;
-            case 'arca': return loading ? <TableSkeleton /> : <ArcaView />;
-            case 'ventas': return loading ? <TableSkeleton /> : <VentasSistemaView />;
+            case 'empleados': return (loading && useFinance().empData.length === 0) ? <TableSkeleton /> : <EmployeesView />;
+            case 'arca': return (loading && useFinance().arcaData.length === 0) ? <TableSkeleton /> : <ArcaView />;
+            case 'ventas': return (loading && useFinance().ventasData.length === 0) ? <TableSkeleton /> : <VentasSistemaView />;
 
-            case 'estructurales': return loading ? <TableSkeleton /> : <StructuralCostsView />;
-            case 'retenciones': return loading ? <TableSkeleton /> : <RetentionsView />;
+            case 'estructurales': return (loading && useFinance().arcaData.length === 0) ? <TableSkeleton /> : <StructuralCostsView />;
+            case 'retenciones': return (loading && useFinance().arcaData.length === 0) ? <TableSkeleton /> : <RetentionsView />;
             case 'config': return <ConfigView />;
             case 'audit': return <AuditView />;
             case 'guia': return <GuideView />;
@@ -571,7 +571,7 @@ const App = () => {
                 </button>
 
                 <button
-                    onClick={() => fetchData(true)}
+                    onClick={() => refreshAll()}
                     disabled={loading}
                     className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all border ${
                         loading 
