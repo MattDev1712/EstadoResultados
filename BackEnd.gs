@@ -17,13 +17,6 @@ const ESTADO_RESULT_MANUAL_SHEET_NAME = 'EstadoResultManual';
 /**
  * CONFIGURACIÓN FINANCIERA PROFESIONAL
  */
-const CONFIG_COMISIONES = {
-  'Tarjetas': 0.018, // 1.8% promedio
-  'Otros': 0.25,     // Estimado para Apps (PeYa/Rappi)
-  'Efectivo': 0.0,
-  'MIXTO': 0.08      // Ponderado para Ventas Mensuales Z
-};
-
 // Variables globales para caché de sesión (se sincronizan con la hoja 'Config')
 let CONST_IPC = {
   '2025-10': 1.65, '2025-11': 1.50, '2025-12': 1.35,
@@ -695,6 +688,11 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
   
   // Sincronizar configuración dinámica antes de procesar
   _syncConfigFromSheet(ss);
+  const busConfig = _getBusinessConfig(ss);
+  
+  const commTarj = parseFloat(busConfig.COMISION_TARJETAS || 0);
+  const commOtros = parseFloat(busConfig.COMISION_OTROS || 0);
+  const commEfvo = parseFloat(busConfig.COMISION_EFECTIVO || 0);
   
   
   // Acumuladores Nominales
@@ -821,7 +819,7 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
 
       // Cálculo de Comisiones por Medio de Pago
       const efvo = parseFloat(row[13] || 0), tarj = parseFloat(row[15] || 0), otros = parseFloat(row[17] || 0);
-      totalComisiones += (tarj * CONFIG_COMISIONES['Tarjetas']) + (otros * CONFIG_COMISIONES['Otros']);
+      totalComisiones += (tarj * commTarj) + (otros * commOtros) + (efvo * commEfvo);
       
       if (efvo > 0) mixPagos['Efectivo'] = (mixPagos['Efectivo'] || 0) + efvo;
       if (tarj > 0) mixPagos['Tarjetas'] = (mixPagos['Tarjetas'] || 0) + tarj;
@@ -910,6 +908,9 @@ function _getBusinessConfig(ss) {
     sheet.appendRow(['LOCAL_CUIT', '']);
     sheet.appendRow(['IIBB_ALICUOTA', '0.035']);
     sheet.appendRow(['OBJETIVO_MARGEN', '0.15']);
+    sheet.appendRow(['COMISION_TARJETAS', '0.018']);
+    sheet.appendRow(['COMISION_OTROS', '0.0']);
+    sheet.appendRow(['COMISION_EFECTIVO', '0.0']);
     sheet.appendRow(['OBJETIVO_VENTAS', '0']);
   }
   const data = sheet.getDataRange().getValues();

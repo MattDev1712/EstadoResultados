@@ -459,4 +459,21 @@ export const StructuralCostsView = ({ data: dataProp }) => {
     return <ArcaView data={filtered} />;
 };
 
+export const RetentionsView = ({ data: dataProp }) => {
+    const { arcaData } = useFinance();
+    const raw = dataProp ?? arcaData;
+    const filtered = useMemo(() => Utils.arr(raw)
+        .filter(row => row.rubro === 'Retenciones')
+        .map(row => ({
+            ...row,
+            entidad:   (row.entidad && row.entidad !== 'Consumidor Final') ? row.entidad : (row.sub_rubro || 'Retención'),
+            tipo_comp: row.tipo_comp || 'Certificado',
+            nro_comp:  row.nro_comp || 'Manual',
+            neto:      row.neto  ?? row.importe_neto,
+            iva:       row.iva   ?? row.importe_iva,
+            total:     row.total ?? row.importe_total
+        })), [raw]);
+    return <ArcaView data={filtered} />;
+};
+
 export default ArcaView;

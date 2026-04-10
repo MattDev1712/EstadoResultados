@@ -489,6 +489,24 @@ const DashboardView = ({ onDataReady, setShowStructModal, setShowRetentionsModal
                 { label: 'Posición neta del mes', val: Utils.num(kpis.iva_posicion), total: true }
             ]
         },
+        'ventas': {
+            title: 'Ventas Netas',
+            explanation: 'Es el ingreso real del local. Se calcula tomando el Total Bruto del sistema de ventas, restándole el IVA (que es del Estado) y las anulaciones. Es la base sobre la cual medimos la rentabilidad.',
+            breakdown: [
+                { label: 'Total Facturado (con IVA)', val: kpis.venta_bruta },
+                { label: 'IVA Débito Fiscal', val: -kpis.iva_debito, color: 'text-rose-400' },
+                { label: 'Venta Real Neta', val: kpis.ventas_netas_reales, total: true, color: 'text-emerald-400' }
+            ]
+        },
+        'compras': {
+            title: 'Egresos y Comisiones',
+            explanation: 'Suma de todos los costos operativos. Las "Comisiones" son un cálculo estimado basado en los porcentajes que definas en la pestaña de Ajustes aplicados sobre los medios de pago de Maxirest.',
+            breakdown: [
+                { label: 'Costo Laboral (Sueldos + SAC)', val: laboralEfectivo + sacEfectivo + cargasEfectivo },
+                { label: 'Comisiones Estimadas (Bancos/Apps)', val: egresos.comisiones, color: 'text-rose-400' },
+                { label: 'Gastos Fijos y Proveedores', val: (egresos.estructural || 0) + (egresos.otros || 0) }
+            ]
+        },
         'evolucion': {
             title: 'Cómo evolucionó el negocio',
             explanation: 'Muestra mes a mes cómo fueron tus ventas y gastos. En modo "Ajustado por inflación", los meses pasados se actualizan a pesos de hoy para que la comparación sea justa.'

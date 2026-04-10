@@ -49,22 +49,46 @@ const S = {
   rowValue:     { fontSize: 14, fontWeight: 600, color: colors.textSecondary, fontVariantNumeric: 'tabular-nums' },
 };
 
-const CardHeader = ({ icon, label, iconBg, iconColor }) => (
-  <div style={S.cardHeader}>
-    <div style={{
-      width: 28, height: 28, borderRadius: 8, background: iconBg,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 13, color: iconColor, fontWeight: 700,
-    }}>{icon}</div>
-    <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: colors.textDim }}>
-      {label}
-    </span>
-  </div>
+const CardHeader = ({ icon, label, iconBg, iconColor, onInfo }) => (
+    <div style={{ ...S.cardHeader, justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+                width: 28, height: 28, borderRadius: 8, background: iconBg,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 13, color: iconColor, fontWeight: 700,
+            }}>{icon}</div>
+            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: colors.textDim }}>
+                {label}
+            </span>
+        </div>
+        {onInfo && (
+            <button 
+                onClick={onInfo}
+                style={{
+                    width: 20, height: 20, borderRadius: '50%', border: '1px solid var(--border-subtle)',
+                    background: 'none', color: 'var(--text-dim)', fontSize: 10, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}
+            >?</button>
+        )}
+    </div>
 );
 
-const Row = ({ label, bold, value, valueColor, right }) => (
+const Row = ({ label, bold, value, valueColor, right, onInfo }) => (
   <div style={S.row} className={bold ? 'row-highlight' : ''}>
-    <span style={bold ? S.rowLabelBold : S.rowLabel}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={bold ? S.rowLabelBold : S.rowLabel}>{label}</span>
+        {onInfo && (
+            <button 
+                onClick={onInfo}
+                style={{
+                    width: 14, height: 14, borderRadius: '50%', border: '1px solid var(--border-subtle)',
+                    background: 'none', color: 'var(--text-faint)', fontSize: 8, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}
+            >?</button>
+        )}
+    </div>
     {right || <span style={{ ...S.rowValue, color: valueColor || colors.textSecondary }}>{value}</span>}
   </div>
 );
@@ -225,8 +249,18 @@ export default function MarginExpectationView() {
   const [manual, setManual] = useState({ mix_cafe: '', mix_producto: '', mgn_cafe: '', mgn_producto: '', excepcionales: '' });
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null); // 'ok' | 'error'
+  const [infoModal, setInfoModal] = useState(null);
 
   const draftKey = `er_draft_${selectedYear}_${selectedMonth}`;
+
+  const INFO_TOOLTIPS = {
+    ventas_card: { title: "Ventas", explanation: "Datos extraídos del Resumen Mensual de Maxirest. Representan el total de facturación neta de IVA." },
+    gastos_card: { title: "Gastos", explanation: "Suma de sueldos, cargas, gastos fijos y excepcionales. Los datos provienen de la planilla de sueldos y cargas manuales." },
+    mix_cafe: { title: "Mix de Cafetería", explanation: "Proporción estimada de la venta neta que corresponde a productos de cafetería. Se usa para calcular el margen de contribución." },
+    sueldos: { title: "Costo Laboral", explanation: "Surge de la planilla de sueldos cargada. Incluye el neto pagado más la provisión de SAC y las cargas sociales estimadas." },
+    comisiones_bancarias: { title: "Comisiones Bancarias", explanation: "Es un gasto calculado automáticamente. Aplica los porcentajes configurados en 'Ajustes' sobre los totales de cada medio de pago informados en Maxirest." },
+    otros_pagos: { title: "Otros Medios de Pago", explanation: "Representa cobros realizados por medios distintos a Efectivo o Tarjetas (ej: transferencias o QR) según informa Maxirest." }
+  };
 
   // Al cambiar período: cargar borrador local (no mirar dashData, puede ser del mes anterior)
   useEffect(() => {

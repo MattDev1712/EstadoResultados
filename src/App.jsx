@@ -5,7 +5,7 @@ import { formatters as Utils } from './formatters'; // Asumo que tienes un archi
 // Componentes de Vista
 import DashboardView from './DashboardView';
 import EmployeesView from './EmployeesView';
-import ArcaView, { StructuralCostsView } from './ArcaView';
+import ArcaView, { StructuralCostsView, RetentionsView } from './ArcaView';
 import VentasSistemaView from './VentasSistemaView';
 import GuideView from './GuideView';
 import ConfigView from './ConfigView';
@@ -74,6 +74,7 @@ const App = () => {
         arca: 'Mis Compras',
         ventas: 'Mis Ventas',
         estructurales: 'Gastos Fijos',
+        retenciones: 'Retenciones Impositivas',
         config: 'Ajustes del Sistema',
         audit: 'Registro de Cambios',
         guia: 'Ayuda y Guía'
@@ -449,6 +450,7 @@ const App = () => {
             case 'ventas': return loading ? <TableSkeleton /> : <VentasSistemaView />;
 
             case 'estructurales': return loading ? <TableSkeleton /> : <StructuralCostsView />;
+            case 'retenciones': return loading ? <TableSkeleton /> : <RetentionsView />;
             case 'config': return <ConfigView />;
             case 'audit': return <AuditView />;
             case 'guia': return <GuideView />;
@@ -530,6 +532,7 @@ const App = () => {
                         { id: 'empleados', label: 'Mi Equipo', icon: '👥' },
                         { id: 'arca', label: 'Mis Compras', icon: '🧾' },
                         { id: 'ventas', label: 'Mis Ventas', icon: '💰' },
+                        { id: 'retenciones', label: 'Retenciones', icon: '🏧' },
                     ]}
                 />
 

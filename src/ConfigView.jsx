@@ -8,7 +8,10 @@ const ConfigView = () => {
         LOCAL_NOMBRE: '',
         LOCAL_CUIT: '',
         OBJETIVO_MARGEN: '',
-        OBJETIVO_VENTAS: ''
+        OBJETIVO_VENTAS: '',
+        COMISION_TARJETAS: '',
+        COMISION_OTROS: '',
+        COMISION_EFECTIVO: ''
     });
     const [saving, setSaving] = useState(false);
 
@@ -107,6 +110,23 @@ const ConfigView = () => {
                                 onChange={handleChange}
                                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-emerald-200 font-mono focus:ring-2 focus:ring-emerald-500 outline-none transition"
                             />
+                        </div>
+                        <div className="space-y-4">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Comisiones por Cobro (Decimal: 0.018 = 1.8%)</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                <div>
+                                    <p className="text-[9px] text-slate-500 mb-1">Tarjetas</p>
+                                    <input name="COMISION_TARJETAS" type="number" step="0.001" value={config.COMISION_TARJETAS} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono" />
+                                </div>
+                                <div>
+                                    <p className="text-[9px] text-slate-500 mb-1">Otros</p>
+                                    <input name="COMISION_OTROS" type="number" step="0.001" value={config.COMISION_OTROS} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono" />
+                                </div>
+                                <div>
+                                    <p className="text-[9px] text-slate-500 mb-1">Efectivo</p>
+                                    <input name="COMISION_EFECTIVO" type="number" step="0.001" value={config.COMISION_EFECTIVO} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono" />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
