@@ -24,7 +24,9 @@ const App = () => {
         apiUrl, setApiUrl, refreshAll, loading, setLoading,
         selectedYear, setSelectedYear,
         selectedMonth, setSelectedMonth,
-        availablePeriods, cargasPct, setCargasPct
+        availablePeriods, cargasPct, setCargasPct,
+        dashData, empData, arcaData, ventasData,
+        fetchData, fetchMetadata
     } = useFinance();
 
     // Generar botones de periodos (últimos 9 meses)
@@ -428,7 +430,7 @@ const App = () => {
     const renderTabContent = () => {
         switch (activeTab) {
             case 'iva_dashboard':
-            case 'dashboard': return (loading && !useFinance().dashData) ? (
+            case 'dashboard': return (loading && !dashData) ? (
                 <div className="animate-fade-in space-y-6">
                     <div className="h-32 bg-slate-800/20 rounded-2xl skeleton" />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -445,12 +447,12 @@ const App = () => {
                     setDefaultDate={setDefaultDate}
                 />;
             case 'margin_dashboard': return <MarginExpectationView />;
-            case 'empleados': return (loading && useFinance().empData.length === 0) ? <TableSkeleton /> : <EmployeesView />;
-            case 'arca': return (loading && useFinance().arcaData.length === 0) ? <TableSkeleton /> : <ArcaView />;
-            case 'ventas': return (loading && useFinance().ventasData.length === 0) ? <TableSkeleton /> : <VentasSistemaView />;
+            case 'empleados': return (loading && empData.length === 0) ? <TableSkeleton /> : <EmployeesView />;
+            case 'arca': return (loading && arcaData.length === 0) ? <TableSkeleton /> : <ArcaView />;
+            case 'ventas': return (loading && ventasData.length === 0) ? <TableSkeleton /> : <VentasSistemaView />;
 
-            case 'estructurales': return (loading && useFinance().arcaData.length === 0) ? <TableSkeleton /> : <StructuralCostsView />;
-            case 'retenciones': return (loading && useFinance().arcaData.length === 0) ? <TableSkeleton /> : <RetentionsView />;
+            case 'estructurales': return (loading && arcaData.length === 0) ? <TableSkeleton /> : <StructuralCostsView />;
+            case 'retenciones': return (loading && arcaData.length === 0) ? <TableSkeleton /> : <RetentionsView />;
             case 'config': return <ConfigView />;
             case 'audit': return <AuditView />;
             case 'guia': return <GuideView />;
