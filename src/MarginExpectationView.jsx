@@ -254,16 +254,16 @@ export default function MarginExpectationView() {
   const draftKey = `er_draft_${selectedYear}_${selectedMonth}`;
 
   const INFO_TOOLTIPS = {
-    ventas_card: { title: "Ventas Netas", explanation: "Venta bruta de Maxirest menos el IVA (21%) y las anulaciones. Es la base real de ingresos sobre la que trabajamos." },
-    gastos_card: { title: "Egresos Totales", explanation: "Suma de todos los costos del local. Incluye lo que cargaste por planilla de sueldos, facturas de proveedores y gastos fijos." },
-    mix_cafe: { title: "Mix de Cafetería", explanation: "Qué porcentaje de la venta total creés que corresponde a Cafetería vs. Cocina/Producto. Esto permite aplicar márgenes distintos a cada rubro." },
-    laboral: { title: "Sueldos y Cargas", explanation: "Costo total de personal. Surge de la planilla de sueldos + el 33% (aprox) de cargas sociales configurado en Ajustes + la reserva mensual de SAC." },
-    estructural: { title: "Gastos Fijos", explanation: "Alquiler, Luz, Gas, Internet y servicios. Son los montos que cargaste manualmente en la sección de 'Gastos Fijos'." },
-    excepcionales_manual: { title: "Gastos Excepcionales", explanation: "Gastos extraordinarios o arreglos que ingresaste manualmente para este mes específico." },
-    iibb: { title: "Ingresos Brutos", explanation: "Impuesto provincial sobre la facturación. Se deduce de la carga manual del pago de IIBB de este mes." },
-    retenciones: { title: "Retenciones Impositivas", explanation: "Pagos a cuenta de IVA/Ganancias que te retuvieron bancos o aplicaciones (PedidosYa, etc.) y cargaste manualmente." },
-    amortizaciones: { title: "Amortizaciones", explanation: "Pérdida de valor mensual de tus máquinas y mobiliario (Activos). Se calcula según la vida útil que definiste en la solapa Activos." },
-    comisiones: { title: "Comisiones Bancarias/Apps", explanation: "Gasto automático calculado sobre las ventas de Tarjeta y Otros (QR/Apps) usando los porcentajes que definiste en Ajustes." }
+    ventas_card: { title: "Origen: Ventas Netas", explanation: "Se toma el 'Neto ACF' del reporte Maxirest. Cálculo: Total Facturado - Anulaciones - IVA (21% sobre Factura B Electrónica). Es el dinero real que ingresa al local sin impuestos ni devoluciones." },
+    gastos_card: { title: "Origen: Egresos Totales", explanation: "Suma de tres fuentes: 1. Nómina (planilla de sueldos + cargas + SAC). 2. Gastos fijos (Alquiler/Servicios detectados en ARCA o cargados a mano). 3. Gastos extraordinarios cargados en esta pantalla." },
+    mix_cafe: { title: "Origen: Mix de Cafetería", explanation: "Es un valor de entrada manual. Define qué porcentaje de la 'Venta Neta' total se le atribuye a Cafetería para aplicarle su margen de ganancia específico en el cálculo del resultado." },
+    laboral: { title: "Cálculo: Sueldos y Cargas", explanation: "Suma de: 1. Sueldo neto (Recibo + Negro) de la planilla cargada. 2. Provisión de SAC (Total / 12). 3. Cargas Sociales (Sueldo en Recibo × % definido en la pestaña Ajustes)." },
+    estructural: { title: "Origen: Gastos Fijos", explanation: "Suma de los montos cargados en el modal 'Gastos Fijos' de este mes, más los comprobantes de ARCA que coinciden con las 'Palabras Clave' definidas en la pestaña Ajustes (ej: Alquiler, Luz)." },
+    excepcionales_manual: { title: "Origen: Gastos Excepcionales", explanation: "Es el valor numérico que ingresaste manualmente en el campo 'Excepcionales' de esta pantalla. No proviene de ninguna planilla externa." },
+    iibb: { title: "Origen: Ingresos Brutos", explanation: "Suma de los movimientos manuales cargados con el rubro 'IIBB' para este período. Si no cargaste el pago del impuesto, este valor será $0." },
+    retenciones: { title: "Origen: Retenciones", explanation: "Suma de los montos cargados manualmente en el modal 'Retenciones'. Representan pagos a cuenta de impuestos que te descontaron bancos o tarjetas (visto en liquidaciones)." },
+    amortizaciones: { title: "Cálculo: Amortizaciones", explanation: "Cálculo automático: (Valor de compra del Activo / Meses de vida útil). Toma los datos de cada ítem que diste de alta en la solapa de 'Activos'." },
+    comisiones: { title: "Cálculo: Comisiones", explanation: "Cálculo automático basado en Maxirest: (Total Tarjetas × % Tarjeta) + (Total Otros × % Otros). Los porcentajes se definen en la pestaña de Ajustes. Si el número es alto, revisá los % configurados." }
   };
 
   // Al cambiar período: cargar borrador local (no mirar dashData, puede ser del mes anterior)
