@@ -8,6 +8,7 @@ import EmployeesView from './EmployeesView';
 import ArcaView, { StructuralCostsView, RetentionsView } from './ArcaView';
 import VentasSistemaView from './VentasSistemaView';
 import GuideView from './GuideView';
+import CategoriesView from './CategoriesView';
 import ConfigView from './ConfigView';
 import AuditView from './AuditView';
 import { CardSkeleton, TableSkeleton } from './Skeleton';
@@ -79,7 +80,8 @@ const App = () => {
         retenciones: 'Retenciones Impositivas',
         config: 'Ajustes del Sistema',
         audit: 'Registro de Cambios',
-        guia: 'Ayuda y Guía'
+        guia: 'Ayuda y Guía',
+        categorias: 'Categorización de Gastos'
     };
 
     const addLog = (msg) => {
@@ -454,6 +456,7 @@ const App = () => {
             case 'estructurales': return (loading && arcaData.length === 0) ? <TableSkeleton /> : <StructuralCostsView />;
             case 'retenciones': return (loading && arcaData.length === 0) ? <TableSkeleton /> : <RetentionsView />;
             case 'config': return <ConfigView />;
+            case 'categorias': return <CategoriesView />;
             case 'audit': return <AuditView />;
             case 'guia': return <GuideView />;
             default: return <DashboardView 
@@ -535,6 +538,7 @@ const App = () => {
                         { id: 'arca', label: 'Mis Compras', icon: '🧾' },
                         { id: 'ventas', label: 'Mis Ventas', icon: '💰' },
                         { id: 'retenciones', label: 'Retenciones', icon: '🏧' },
+                        { id: 'categorias', label: 'Categorías', icon: '🏷️' },
                     ]}
                 />
 

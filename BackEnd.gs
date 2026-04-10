@@ -686,14 +686,12 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
   // Sincronizar configuración dinámica antes de procesar
   _syncConfigFromSheet(ss);
   const busConfig = _getBusinessConfig(ss);
+  const catMap = _getCuitCategoryMap(ss);
   
   const commTarj = parseFloat(busConfig.COMISION_TARJETAS || 0);
   const commOtros = parseFloat(busConfig.COMISION_OTROS || 0);
   const commEfvo = parseFloat(busConfig.COMISION_EFECTIVO || 0);
   const pctCargas = parseFloat(busConfig.PCT_CARGAS_SOCIALES || 0.33);
-  
-  const kwEstruct = (busConfig.KW_ESTRUCTURAL || '').toLowerCase().split(',').map(s => s.trim());
-  const kwCMV = (busConfig.KW_CMV || '').toLowerCase().split(',').map(s => s.trim());
   
   
   // Acumuladores Nominales
@@ -736,6 +734,12 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
       const tipo = row[3], neto = parseFloat(row[11] || 0), iva = parseFloat(row[12] || 0), total = parseFloat(row[14] || 0);
       const k = `${rowDate.getFullYear()}-${String(rowDate.getMonth() + 1).padStart(2, '0')}`;
       
+      const cuitRow = String(row[8] || '').trim();
+      const categoria = catMap[cuitRow];
+
+      // Ignorar si es NO_APTO
+      if (categoria === 'NO_APTO') return;
+
       // Historial
       if (rowDate >= historyStart && rowDate <= endObj) {
         if (!historyMap[k]) historyMap[k] = { ventas: 0, gastos: 0, ventas_real: 0, gastos_real: 0, mep: CONST_MEP[k] || 1400, recibo: 0 };
@@ -751,28 +755,27 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
 
       // KPI Actual
       if (rowDate < startObj || rowDate > endObj) return;
-      let entidad = String(row[7] || 'Varios');
-      if (aliasMap[entidad]) entidad = aliasMap[entidad];
 
-      if (tipo === 'EGRESO') {
-        // Facturas se guardan con signo negativo, NC con signo positivo.
-        // Usar -neto y -iva convierte ambos al mismo espacio positivo = egreso/crédito.
+      if (tipo === 'INGRESO') {
+        utilidadNeta += neto;
+      } else if (tipo === 'EGRESO') {
+        utilidadNeta += neto; // neto es negativo
         const efectivoNeto = -neto;
         const efectivoIva  = -iva;
         creditoFiscal += efectivoIva;
 
-        // Categorización: prioridad rubro explícito > keywords de nombre
-        const rubroRow = String(row[5] || '').trim();
-        const entLow = entidad.toLowerCase();
+        if (categoria === 'GASTO_FIJO') {
+          egresoEstructural += efectivoNeto;
+        } else {
+          // PROVEEDOR o sin clasificar (categoria === 'PROVEEDOR' o undefined)
+          egresoOtros += efectivoNeto;
+        }
 
-        if (kwEstruct.some(kw => kw && entLow.includes(kw)) || rubroRow === 'Costos Estructurales')  egresoEstructural += efectivoNeto;
-        else if (kwCMV.some(kw => kw && entLow.includes(kw)) || rubroRow === 'CMV') egresoOtros += efectivoNeto; 
-        else egresoOtros += efectivoNeto;
-
+        let entidad = String(row[7] || 'Varios');
+        if (aliasMap[entidad]) entidad = aliasMap[entidad];
         if (!proveedoresMap[entidad]) proveedoresMap[entidad] = 0;
         proveedoresMap[entidad] += Math.abs(total);
       }
-      utilidadNeta += neto; 
     });
   }
 
@@ -915,8 +918,6 @@ function _getBusinessConfig(ss) {
     sheet.appendRow(['COMISION_EFECTIVO', '0.0']);
     sheet.appendRow(['OBJETIVO_VENTAS', '0']);
     sheet.appendRow(['PCT_CARGAS_SOCIALES', '0.33']);
-    sheet.appendRow(['KW_ESTRUCTURAL', 'alquiler,luz,gas,expensas,telecom,internet,abl,seguro']);
-    sheet.appendRow(['KW_CMV', 'frigorifico,carniceria,verduleria,panadería,distribuidora,bebidas']);
   }
   const data = sheet.getDataRange().getValues();
   const config = {};
