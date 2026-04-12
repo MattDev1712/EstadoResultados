@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { formatters as Utils } from './formatters';
 import { useFinance } from './FinanceContext';
+import CategoriesView from './CategoriesView';
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
 
@@ -385,6 +386,7 @@ if (dataProp !== undefined) {
         { key: 'otros',label: 'Otros gastos',       count: otros.length    },
         { key: 'nc',   label: 'Devoluciones',        count: nc.length       },
         { key: 'prov', label: 'Proveedores',          count: null            },
+        { key: 'cat',  label: '🏷️ Categorías',       count: null            },
     ];
 
     const ncBadge = nc.length > 0
@@ -421,7 +423,9 @@ if (dataProp !== undefined) {
             </div>
 
             {/* Contenido */}
-            {activeTab === 'prov' ? (
+            {activeTab === 'cat' ? (
+                <CategoriesView />
+            ) : activeTab === 'prov' ? (
                 <ProvidersTab
                     arcaData={data}
                     providers={providers}

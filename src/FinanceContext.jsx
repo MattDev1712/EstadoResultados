@@ -31,6 +31,7 @@ export const FinanceProvider = ({ children }) => {
     const [arcaData, setArcaData] = useState([]);
     const [ventasData, setVentasData] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState(null);
     const [selectedYear, setSelectedYear] = useState(() => 
         localStorage.getItem('selectedYear') || String(new Date().getFullYear())
@@ -104,7 +105,7 @@ export const FinanceProvider = ({ children }) => {
         localStorage.setItem('cfg_cargas_pct', cargasPct);
     }, [cargasPct]);
 
-    const fetchData = useCallback(async (force = false) => {
+    const fetchData = useCallback(async (force = false, silent = false) => {
         if (!apiUrl) return;
 
         const urlHash = btoa(apiUrl).substring(0, 8);
@@ -127,7 +128,8 @@ export const FinanceProvider = ({ children }) => {
             }
         }
 
-        setLoading(true);
+        if (!silent) setLoading(true);
+        else setIsRefreshing(true);
         setError(null);
         try {
             const start = `${selectedYear}-${selectedMonth}-01`;
@@ -156,6 +158,7 @@ export const FinanceProvider = ({ children }) => {
             setError(e.message);
         } finally {
             setLoading(false);
+            setIsRefreshing(false);
         }
     }, [finalApiUrl, selectedYear, selectedMonth, cargasPct]);
 
@@ -172,10 +175,10 @@ export const FinanceProvider = ({ children }) => {
     // Función robusta para refrescar todo secuencialmente
     const refreshAll = useCallback(async () => {
         try {
-            setLoading(true);
             setError(null);
-            await fetchData(true); // Forzar descarga de datos omitiendo caché
-            await fetchMetadata(); // Actualizar lista de periodos
+            // Usamos silent: true para el polling automático
+            await fetchData(true, true); 
+            await fetchMetadata(); 
         } catch (e) {
             setError("Error al sincronizar con Google Sheets. Intente nuevamente.");
             console.error(e);
@@ -187,6 +190,7 @@ export const FinanceProvider = ({ children }) => {
     const value = useMemo(() => ({
         apiUrl, setApiUrl, finalApiUrl,
         dashData, setDashData, empData, arcaData, ventasData,
+        isRefreshing,
         loading, setLoading, error,
         selectedYear, setSelectedYear,
         selectedMonth, setSelectedMonth,
@@ -199,7 +203,7 @@ export const FinanceProvider = ({ children }) => {
         fetchMetadata,
         refreshAll,
         invalidateCache,
-    }), [apiUrl, dashData, empData, arcaData, ventasData, loading, error, selectedYear, selectedMonth, cargasPct, viewMode, availablePeriods, localAjustes, fetchData, fetchMetadata, refreshAll, invalidateCache]);
+    }), [apiUrl, dashData, empData, arcaData, ventasData, isRefreshing, loading, error, selectedYear, selectedMonth, cargasPct, viewMode, availablePeriods, localAjustes, fetchData, fetchMetadata, refreshAll, invalidateCache]);
 
     return (
         <FinanceContext.Provider value={value}>

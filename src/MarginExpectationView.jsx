@@ -278,8 +278,12 @@ export default function MarginExpectationView() {
   }, [selectedYear, selectedMonth]);
 
   // Cuando llegan datos de la BD para el período actual: la BD gana
+  // Pero SOLO si el usuario no tiene cambios sin guardar o el saveStatus es ok
   useEffect(() => {
     if (!dashData?.estado_result_manual) return;
+    
+    // Si el usuario está guardando, permitimos la actualización del servidor
+    if (saveStatus === 'ok' || manual.mix_cafe === '') {
     const m = dashData.estado_result_manual;
     const vals = {
       mix_cafe: m.mix_cafe ?? '',
@@ -290,6 +294,7 @@ export default function MarginExpectationView() {
     };
     setManual(vals);
     localStorage.setItem(draftKey, JSON.stringify(vals));
+    }
   }, [dashData?.estado_result_manual]);
 
   const setField = useCallback((field) => (val) => {
@@ -356,7 +361,8 @@ export default function MarginExpectationView() {
     }
   };
 
-  if (loading) return (
+  // Solo mostramos skeletons si NO hay datos. Si hay datos y loading es true, es un refresh silencioso.
+  if (loading && !dashData) return (
     <div className="animate-fade-in mt-6" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
       {[1,2,3,4].map(i => (
         <Card key={i} style={{ height: 280, opacity: 0.4 }} className="animate-pulse" />

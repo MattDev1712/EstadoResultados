@@ -8,7 +8,6 @@ import EmployeesView from './EmployeesView';
 import ArcaView, { StructuralCostsView, RetentionsView } from './ArcaView';
 import VentasSistemaView from './VentasSistemaView';
 import GuideView from './GuideView';
-import CategoriesView from './CategoriesView';
 import ConfigView from './ConfigView';
 import AuditView from './AuditView';
 import { CardSkeleton, TableSkeleton } from './Skeleton';
@@ -38,14 +37,14 @@ const App = () => {
 
         // Polling cada 30 segundos para chequear cambios en Sheets
         const interval = setInterval(() => {
-            // Solo disparamos si no estamos ya cargando algo para evitar colisiones
-            if (!loading) {
+            // No refrescar si: estamos cargando, hay una previsualización abierta o un modal
+            if (!loading && !previewData && !showStructModal && !showRetentionsModal) {
                 refreshAll(); 
             }
         }, 30000); 
 
         return () => clearInterval(interval);
-    }, [apiUrl, loading, refreshAll]);
+    }, [apiUrl, loading, refreshAll, previewData, showStructModal, showRetentionsModal]);
 
     // Generar botones de periodos (últimos 9 meses)
     const periodButtons = useMemo(() => {
@@ -98,7 +97,6 @@ const App = () => {
         config: 'Ajustes del Sistema',
         audit: 'Registro de Cambios',
         guia: 'Ayuda y Guía',
-        categorias: 'Categorización de Gastos'
     };
 
     const addLog = (msg) => {
@@ -473,7 +471,6 @@ const App = () => {
             case 'estructurales': return (loading && arcaData.length === 0) ? <TableSkeleton /> : <StructuralCostsView />;
             case 'retenciones': return (loading && arcaData.length === 0) ? <TableSkeleton /> : <RetentionsView />;
             case 'config': return <ConfigView />;
-            case 'categorias': return <CategoriesView />;
             case 'audit': return <AuditView />;
             case 'guia': return <GuideView />;
             default: return <DashboardView 
@@ -556,7 +553,6 @@ const App = () => {
                         { id: 'ventas', label: 'Mis Ventas', icon: '💰' },
                         { id: 'retenciones', label: 'Retenciones', icon: '🏧' },
                         { id: 'estructurales', label: 'Gastos Fijos', icon: '🏢' },
-                        { id: 'categorias', label: 'Categorías', icon: '🏷️' },
                     ]}
                 />
 
