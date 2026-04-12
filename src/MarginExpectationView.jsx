@@ -240,7 +240,7 @@ function HistorialLineChart({ metrics, historial, title, isPesos, defaultActive 
 
 export default function MarginExpectationView() {
   const {
-    dashData, setDashData, empData, loading, error,
+    dashData, setDashData, empData, arcaData, loading, error,
     selectedYear, selectedMonth,
     apiUrl, finalApiUrl,
     fetchData, invalidateCache,
@@ -263,7 +263,9 @@ export default function MarginExpectationView() {
     iibb: { title: "Origen: Ingresos Brutos", explanation: "Suma de los movimientos manuales cargados con el rubro 'IIBB' para este período. Si no cargaste el pago del impuesto, este valor será $0." },
     retenciones: { title: "Origen: Retenciones", explanation: "Suma de los montos cargados manualmente en el modal 'Retenciones'. Representan pagos a cuenta de impuestos que te descontaron bancos o tarjetas (visto en liquidaciones)." },
     amortizaciones: { title: "Cálculo: Amortizaciones", explanation: "Cálculo automático: (Valor de compra del Activo / Meses de vida útil). Toma los datos de cada ítem que diste de alta en la solapa de 'Activos'." },
-    comisiones: { title: "Cálculo: Comisiones", explanation: "Cálculo automático basado en Maxirest: (Total Tarjetas × % Tarjeta) + (Total Otros × % Otros). Los porcentajes se definen en la pestaña de Ajustes. Si el número es alto, revisá los % configurados." }
+    comisiones: { title: "Cálculo: Comisiones", explanation: "Cálculo automático basado en Maxirest: (Total Tarjetas × % Tarjeta) + (Total Otros × % Otros). Los porcentajes se definen en la pestaña de Ajustes. Si el número es alto, revisá los % configurados." },
+    facturas_bc: { title: "Origen: Facturas B/C", explanation: "Suma de todos los comprobantes recibidos (ARCA) que no son Factura A. Incluye facturas de monotributistas y gastos donde el IVA no es discriminado." },
+    margen_contribucion: { title: "Concepto: Margen de Contribución", explanation: "Este valor representa la ganancia que la marca calcula tras contemplar los costos de proveedores. Es el porcentaje que la marca ha deducido que debería quedar como remanente luego de quitarle el costo de mercadería vendida (CMV)." }
   };
 
   // Al cambiar período: cargar borrador local (no mirar dashData, puede ser del mes anterior)
@@ -377,6 +379,10 @@ export default function MarginExpectationView() {
   const cantOps = n(kpis.cant_operaciones);
   const ticketProm = cantOps > 0 ? ventaBruta / cantOps : 0;
 
+  const totalFacturasBC = (arcaData || [])
+    .filter(r => r.tipo_comp && !r.tipo_comp.endsWith(' A') && r.tipo_comp !== '1')
+    .reduce((acc, r) => acc + n(r.total ?? r.importe_total), 0);
+
   const mixCafePct = parseFloat(manual.mix_cafe) || 0;
   const mixProductoPct = parseFloat(manual.mix_producto) || 0;
   const mgnCafePct = parseFloat(manual.mgn_cafe) || 0;
@@ -415,6 +421,7 @@ export default function MarginExpectationView() {
     { key: 'laboral', value: sueldosTotal, label: 'Sueldos y Cargas' },
     { key: 'estructural', value: n(egresos.estructural), label: 'Gastos Fijos Operativos' },
     { key: 'excepcionales_manual', value: excepcionales, label: 'Gastos Excepcionales' },
+    { key: 'facturas_bc', value: totalFacturasBC, label: 'Facturas B / C (ARCA)' },
     { key: 'iibb', value: n(egresos.iibb), label: 'Ingresos Brutos' },
     { key: 'retenciones', value: n(egresos.retenciones), label: 'Retenciones' },
     { key: 'amortizaciones', value: n(egresos.amortizaciones), label: 'Amortizaciones' },
@@ -556,7 +563,17 @@ export default function MarginExpectationView() {
             }
           />
 
-          <div style={S.sectionDivider}>Margen de contribución</div>
+          <div style={{ ...S.sectionDivider, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>Margen de contribución</span>
+            <button 
+                onClick={() => setInfoModal('margen_contribucion')}
+                style={{
+                    width: 16, height: 16, borderRadius: '50%', border: '1px solid var(--border-subtle)',
+                    background: 'none', color: 'var(--text-faint)', fontSize: 9, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}
+            >?</button>
+          </div>
 
           <Row
             label="MGN Cafetería"

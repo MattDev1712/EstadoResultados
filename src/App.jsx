@@ -30,6 +30,23 @@ const App = () => {
         fetchData, fetchMetadata
     } = useFinance();
 
+    // --- Lógica de Sincronización Automática (Tiempo Real) ---
+    // Esto permite que si otro usuario carga datos en otro lugar del mundo,
+    // la información se actualice aquí automáticamente sin tocar el botón de refresco.
+    useEffect(() => {
+        if (!apiUrl) return;
+
+        // Polling cada 30 segundos para chequear cambios en Sheets
+        const interval = setInterval(() => {
+            // Solo disparamos si no estamos ya cargando algo para evitar colisiones
+            if (!loading) {
+                refreshAll(); 
+            }
+        }, 30000); 
+
+        return () => clearInterval(interval);
+    }, [apiUrl, loading, refreshAll]);
+
     // Generar botones de periodos (últimos 9 meses)
     const periodButtons = useMemo(() => {
         const periods = [];
@@ -118,9 +135,9 @@ const App = () => {
             const res = await response.json();
             if (res.status === 'OK') {
                 addLog(`✅ Éxito: ${res.insertados} insertados, ${res.omitidos ?? 0} duplicados omitidos.`);
-                // Forzar una recarga completa de datos y metadatos
-                fetchData(true);
+                // Sincronización total inmediata tras el guardado
                 fetchMetadata();
+                fetchData(true);
                 setPreviewData(null);
             } else {
                 addLog(`❌ El servidor respondió con error: ${res.message || res.status}`);
@@ -538,14 +555,8 @@ const App = () => {
                         { id: 'arca', label: 'Mis Compras', icon: '🧾' },
                         { id: 'ventas', label: 'Mis Ventas', icon: '💰' },
                         { id: 'retenciones', label: 'Retenciones', icon: '🏧' },
-                        { id: 'categorias', label: 'Categorías', icon: '🏷️' },
-                    ]}
-                />
-
-                <NavDropdown 
-                    title="Gastos" icon="💼" activeTab={activeTab} setActiveTab={setActiveTab}
-                    items={[
                         { id: 'estructurales', label: 'Gastos Fijos', icon: '🏢' },
+                        { id: 'categorias', label: 'Categorías', icon: '🏷️' },
                     ]}
                 />
 
