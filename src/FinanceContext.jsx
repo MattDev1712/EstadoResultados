@@ -31,6 +31,7 @@ export const FinanceProvider = ({ children }) => {
     const [arcaData, setArcaData] = useState([]);
     const [ventasData, setVentasData] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [categoriesMap, setCategoriesMap] = useState({});
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState(null);
     const [selectedYear, setSelectedYear] = useState(() => 
@@ -136,12 +137,20 @@ export const FinanceProvider = ({ children }) => {
             const lastDay = new Date(selectedYear, parseInt(selectedMonth), 0).getDate();
             const end = `${selectedYear}-${selectedMonth}-${lastDay}`;
             
-            const response = await fetch(`${finalApiUrl}?action=GET_COMPLETE_DATA&start=${start}&end=${end}&cargasPct=${cargasPct}`);
-            const result = await response.json();
+            const [dataRes, catRes] = await Promise.all([
+                fetch(`${finalApiUrl}?action=GET_COMPLETE_DATA&start=${start}&end=${end}&cargasPct=${cargasPct}`).then(r => r.json()),
+                fetch(`${finalApiUrl}?action=GET_CATEGORIES_MAP`).then(r => r.json())
+            ]);
             
-            if (result.status === 'ERROR') throw new Error(result.message || "Error desconocido en el servidor");
-            if (result.error) throw new Error(result.error);
-            if (!result.dashboard) throw new Error("No se recibieron datos del tablero (dashboard).");
+            if (dataRes.status === 'ERROR') throw new Error(dataRes.message || "Error desconocido en el servidor");
+            if (dataRes.error) throw new Error(dataRes.error);
+            if (!dataRes.dashboard) throw new Error("No se recibieron datos del tablero (dashboard).");
+
+            const catMap = {};
+            (catRes || []).forEach(item => { catMap[item.cuit] = item.categoria; });
+            setCategoriesMap(catMap);
+
+            const result = dataRes;
 
             setDashData(result.dashboard);
             setEmpData(result.employees || []);
@@ -191,6 +200,7 @@ export const FinanceProvider = ({ children }) => {
         apiUrl, setApiUrl, finalApiUrl,
         dashData, setDashData, empData, arcaData, ventasData,
         isRefreshing,
+        categoriesMap,
         loading, setLoading, error,
         selectedYear, setSelectedYear,
         selectedMonth, setSelectedMonth,

@@ -240,7 +240,7 @@ function HistorialLineChart({ metrics, historial, title, isPesos, defaultActive 
 
 export default function MarginExpectationView() {
   const {
-    dashData, setDashData, empData, arcaData, loading, error,
+    dashData, setDashData, empData, arcaData, categoriesMap, loading, error,
     selectedYear, selectedMonth,
     apiUrl, finalApiUrl,
     fetchData, invalidateCache,
@@ -262,7 +262,6 @@ export default function MarginExpectationView() {
     excepcionales_manual: { title: "Origen: Gastos Excepcionales", explanation: "Es el valor numérico que ingresaste manualmente en el campo 'Excepcionales' de esta pantalla. No proviene de ninguna planilla externa." },
     iibb: { title: "Origen: Ingresos Brutos", explanation: "Suma de los movimientos manuales cargados con el rubro 'IIBB' para este período. Si no cargaste el pago del impuesto, este valor será $0." },
     retenciones: { title: "Origen: Retenciones", explanation: "Suma de los montos cargados manualmente en el modal 'Retenciones'. Representan pagos a cuenta de impuestos que te descontaron bancos o tarjetas (visto en liquidaciones)." },
-    amortizaciones: { title: "Cálculo: Amortizaciones", explanation: "Cálculo automático: (Valor de compra del Activo / Meses de vida útil). Toma los datos de cada ítem que diste de alta en la solapa de 'Activos'." },
     comisiones: { title: "Cálculo: Comisiones", explanation: "Cálculo automático basado en Maxirest: (Total Tarjetas × % Tarjeta) + (Total Otros × % Otros). Los porcentajes se definen en la pestaña de Ajustes. Si el número es alto, revisá los % configurados." },
     facturas_bc: { title: "Origen: Facturas B/C", explanation: "Suma de todos los comprobantes recibidos (ARCA) que no son Factura A. Incluye facturas de monotributistas y gastos donde el IVA no es discriminado." },
     margen_contribucion: { title: "Concepto: Margen de Contribución", explanation: "Este valor representa la ganancia que la marca calcula tras contemplar los costos de proveedores. Es el porcentaje que la marca ha deducido que debería quedar como remanente luego de quitarle el costo de mercadería vendida (CMV)." }
@@ -387,6 +386,12 @@ export default function MarginExpectationView() {
 
   const totalFacturasBC = (arcaData || [])
     .filter(r => r.tipo_comp && !r.tipo_comp.endsWith(' A') && r.tipo_comp !== '1')
+    .filter(r => categoriesMap[r.cuit] !== 'GASTO_FIJO') // Evitar duplicidad si se categorizó como fijo
+    .reduce((acc, r) => acc + n(r.total ?? r.importe_total), 0);
+
+  // Sumamos los gastos de ARCA que fueron categorizados manualmente como GASTO_FIJO
+  const arcaGastosFijos = (arcaData || [])
+    .filter(r => categoriesMap[r.cuit] === 'GASTO_FIJO')
     .reduce((acc, r) => acc + n(r.total ?? r.importe_total), 0);
 
   const mixCafePct = parseFloat(manual.mix_cafe) || 0;
@@ -405,7 +410,7 @@ export default function MarginExpectationView() {
   const sueldosTotal = laboralEfectivo + n(egresos.provision_sac) + n(egresos.provision_cargas);
   const cantEmpleados = (empData || []).length;
   const promedioEmp = cantEmpleados > 0 ? laboralEfectivo / cantEmpleados : 0;
-  const operaciones = n(egresos.estructural);
+  const operaciones = n(egresos.estructural) + arcaGastosFijos;
   const excepcionales = parseFloat(manual.excepcionales) || 0;
 
   const totalGastos = sueldosTotal + operaciones + excepcionales;
@@ -425,12 +430,11 @@ export default function MarginExpectationView() {
   let resultadoAjustado = resultadoMargenes;
   const expensesToSubtract = [
     { key: 'laboral', value: sueldosTotal, label: 'Sueldos y Cargas' },
-    { key: 'estructural', value: n(egresos.estructural), label: 'Gastos Fijos Operativos' },
+    { key: 'estructural', value: operaciones, label: 'Gastos Fijos Operativos' },
     { key: 'excepcionales_manual', value: excepcionales, label: 'Gastos Excepcionales' },
     { key: 'facturas_bc', value: totalFacturasBC, label: 'Facturas B / C (ARCA)' },
     { key: 'iibb', value: n(egresos.iibb), label: 'Ingresos Brutos' },
     { key: 'retenciones', value: n(egresos.retenciones), label: 'Retenciones' },
-    { key: 'amortizaciones', value: n(egresos.amortizaciones), label: 'Amortizaciones' },
     { key: 'comisiones', value: n(egresos.comisiones), label: 'Comisiones Bancarias/Apps' },
   ];
 

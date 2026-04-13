@@ -10,6 +10,7 @@ import VentasSistemaView from './VentasSistemaView';
 import GuideView from './GuideView';
 import ConfigView from './ConfigView';
 import AuditView from './AuditView';
+import CargaDatosView from '../CargaDatosView';
 import { CardSkeleton, TableSkeleton } from './Skeleton';
 import MarginExpectationView from './MarginExpectationView';
 import RetentionsModal from './RetentionsModal';
@@ -90,6 +91,7 @@ const App = () => {
     const TAB_TITLES = {
         iva_dashboard: 'Situación IVA',
         margin_dashboard: 'Expectativa de Margen',
+        carga_datos: 'Carga de Datos',
         empleados: 'Mi Equipo',
         arca: 'Mis Compras',
         ventas: 'Mis Ventas',
@@ -474,13 +476,7 @@ const App = () => {
             case 'config': return <ConfigView />;
             case 'audit': return <AuditView />;
             case 'guia': return <GuideView />;
-            default: return <DashboardView 
-                    onDataReady={handleDataReady} 
-                    setShowStructModal={setShowStructModal} 
-                    setShowRetentionsModal={setShowRetentionsModal}
-                    defaultDate={defaultDate}
-                    setDefaultDate={setDefaultDate}
-                />;
+            default: return <DashboardView />;
         }
     };
 
@@ -550,6 +546,7 @@ const App = () => {
                 <NavDropdown 
                     title="Datos" icon="👥" activeTab={activeTab} setActiveTab={setActiveTab}
                     items={[
+                        { id: 'carga_datos', label: 'Carga de Datos', icon: '📥' },
                         { id: 'empleados', label: 'Mi Equipo', icon: '👥' },
                         { id: 'arca', label: 'Mis Compras', icon: '🧾' },
                         { id: 'ventas', label: 'Mis Ventas', icon: '💰' },

@@ -6,7 +6,6 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { CardSkeleton, ChartSkeleton } from './Skeleton';
-import FileCard from './FileCard';
 import Card from './components/Card';
 
 Chart.register(...registerables, ChartDataLabels);
@@ -275,9 +274,9 @@ const AlertsPanel = ({ kpis, egresos, periodo, empData = [], arcaData = [], vent
     );
 };
 
-const DashboardView = ({ onDataReady, setShowStructModal, setShowRetentionsModal, defaultDate, setDefaultDate }) => {
+const DashboardView = () => {
     const {
-        dashData: data, empData, arcaData, ventasData,
+        dashData: data, empData, arcaData, ventasData, categoriesMap,
         loading, error, viewMode, setViewMode,
         localAjustes, setLocalAjustes, updateConfig,
         selectedYear, selectedMonth, cargasPct
@@ -393,13 +392,22 @@ const DashboardView = ({ onDataReady, setShowStructModal, setShowRetentionsModal
         ? Utils.num(egresos.provision_cargas)
         : reciboEfectivo * (parseFloat(cargasPct || 33) / 100);
 
+    // Re-calculamos estructurales y otros basándonos en el mapeo de categorías
+    const arcaGastosFijos = Utils.arr(arcaData)
+        .filter(r => categoriesMap[r.cuit] === 'GASTO_FIJO')
+        .reduce((acc, r) => acc + Utils.num(r.total ?? r.importe_total), 0);
+
+    const gastosEstructuralesReal = getAdj(egresos.estructural || 0) + getAdj(arcaGastosFijos);
+    
+    const proveedoresRestante = getAdj(egresos.otros || 0) - getAdj(arcaGastosFijos);
+
     const egresoTotal =
         getAdj(laboralEfectivo) +
         getAdj(sacEfectivo) +
         getAdj(cargasEfectivo) +
-        getAdj(egresos.estructural || 0) +
+        gastosEstructuralesReal +
         getAdj(egresos.comisiones || 0) +
-        getAdj(egresos.otros || 0);
+        Math.max(0, proveedoresRestante); // Asegurar que no sea negativo por desajustes
 
     // Solo mostrar skeleton si estamos cargando Y NO tenemos datos previos
     if (loading && !data) return (
@@ -423,51 +431,11 @@ const DashboardView = ({ onDataReady, setShowStructModal, setShowRetentionsModal
         </div>
     );
 
-    const renderActionHub = () => (
-        <div className="mb-8 mt-4 p-6 rounded-[2rem] bg-slate-900/40 border border-slate-800 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-emerald-500/5 pointer-events-none"></div>
-            <div className="flex justify-between items-center mb-2 relative z-10">
-                <div>
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 mb-1">Cargar información del mes</h3>
-                    <p className="text-sm text-slate-400">Subí los archivos del mes {selectedMonth}/{selectedYear} para ver el resultado actualizado</p>
-                </div>
-            </div>
-
-            <p className="text-xs text-slate-600 mb-4 relative z-10">Arrastrá o hacé clic en cada bloque para seleccionar el archivo</p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 relative z-10">
-                <FileCard title="Sistema de Ventas (Maxirest PDF)" type="PDF" onDataReady={(d) => onDataReady && onDataReady(d, 'MAXIREST')} />
-                <FileCard title="Facturas de AFIP/ARCA (CSV)" type="CSV" onDataReady={(d) => onDataReady && onDataReady(d, 'ARCA')} />
-                <FileCard title="Planilla de Sueldos (CSV)" type="CSV" parserMode="sueldos" defaultDate={defaultDate} onDataReady={(d) => onDataReady && onDataReady(d, 'SUELDOS')} />
-            </div>
-
-            <p className="text-[10px] text-slate-600 uppercase tracking-widest font-bold mb-3 relative z-10">Carga manual de gastos</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
-                {[
-                    { title: 'Gastos fijos del local', desc: 'Alquiler, luz, gas, expensas', color: 'border-blue-500/30', hover: 'hover:border-blue-500', action: () => setShowStructModal && setShowStructModal(true), icon: '🏢' },
-                    { title: 'Retenciones del mes', desc: 'IVA/Ganancias en tarjetas y apps', color: 'border-amber-500/30', hover: 'hover:border-amber-500', action: () => setShowRetentionsModal && setShowRetentionsModal(true), icon: '🏧' },
-                ].map((card, i) => (
-                    <div key={i} onClick={card.action} className={`p-4 rounded-xl border ${card.color} bg-slate-900/60 backdrop-blur-sm ${card.hover} cursor-pointer transition-all duration-300 group hover:-translate-y-1`}>
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-xl opacity-80">{card.icon}</span>
-                            <span className="text-[8px] font-black px-1.5 py-0.5 bg-slate-800 rounded text-slate-400">+ AGREGAR</span>
-                        </div>
-                        <h3 className="font-bold text-slate-200 group-hover:text-white transition-colors text-sm">{card.title}</h3>
-                        <p className="text-[10px] text-slate-500 mt-1">{card.desc}</p>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-
     if (!data || (Utils.num(kpis.utilidad_neta) === 0 && egresoTotal === 0)) return (
-        <div className="animate-fade-in" style={{ paddingBottom: 40 }}>
-            {renderActionHub()}
-            <div style={{ marginTop: 32, padding: 64, background: 'rgba(15,23,42,0.2)', border: '1px dashed rgba(71,85,105,0.5)', borderRadius: 32, textAlign: 'center' }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>📂</div>
-                <p style={{ color: '#94a3b8', fontSize: 15, fontWeight: 700, marginBottom: 8 }}>No hay datos para este mes todavía</p>
-                <p style={{ color: '#475569', fontSize: 12 }}>Subí los archivos usando la sección de arriba para ver tu posición IVA y el resto de los indicadores.</p>
-            </div>
+        <div className="animate-fade-in flex flex-col items-center justify-center min-h-[60vh] text-center px-4" style={{ paddingBottom: 40 }}>
+            <div className="w-24 h-24 bg-slate-800/50 rounded-full flex items-center justify-center text-4xl mb-6 border border-slate-700 shadow-inner">📂</div>
+            <h2 className="text-xl font-bold text-slate-200 mb-2">No hay datos para este período todavía</h2>
+            <p className="text-slate-500 max-w-md">Seleccioná otro mes arriba o cargá la información necesaria en la pestaña <strong>Carga de Datos</strong> dentro del menú de Datos.</p>
         </div>
     );
 
@@ -776,8 +744,8 @@ const DashboardView = ({ onDataReady, setShowStructModal, setShowRetentionsModal
                                     <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--border-subtle)' }}>
                                         {[
                                             { l: 'Sueldos y cargas', v: getAdj(laboralEfectivo) + getAdj(sacEfectivo) + getAdj(cargasEfectivo) },
-                                            { l: 'Gastos fijos operativos', v: getAdj(egresos.estructural || 0) },
-                                            { l: 'Proveedores (compras)', v: getAdj(egresos.otros || 0) },
+                                            { l: 'Gastos fijos operativos', v: gastosEstructuralesReal },
+                                            { l: 'Proveedores (compras)', v: proveedoresRestante },
                                             { l: 'Comisiones bancos/apps', v: getAdj(egresos.comisiones || 0) },
                                         ].filter(r => r.v > 0).map((row, i) => (
                                             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: i === 0 ? 12 : 0 }}>
@@ -821,12 +789,6 @@ const DashboardView = ({ onDataReady, setShowStructModal, setShowRetentionsModal
                 </Card>
 
             </div> {/* Closes pnl-export-area */}
-
-            {/* ACTION HUB */}
-            <div className="mt-8">
-                {renderActionHub()}
-            </div>
-
         </div>
     );
 };
