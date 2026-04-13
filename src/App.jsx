@@ -29,24 +29,6 @@ const App = () => {
         fetchData, fetchMetadata, refreshAll
     } = useFinance();
 
-    // --- Lógica de Sincronización Automática (Tiempo Real) ---
-    // Esto permite que si otro usuario carga datos en otro lugar del mundo,
-    // la información se actualice aquí automáticamente sin tocar el botón de refresco.
-    useEffect(() => {
-        if (!apiUrl) return;
-
-        // Polling cada 30 segundos para chequear cambios en Sheets
-        const interval = setInterval(() => {
-            // No refrescar si: estamos cargando, hay una previsualización abierta o un modal
-            if (!loading && !previewData && !showStructModal && !showRetentionsModal && apiUrl) {
-                fetchData(true);
-                fetchMetadata();
-            }
-        }, 30000); 
-
-        return () => clearInterval(interval);
-    }, [apiUrl, loading, fetchData, fetchMetadata, previewData, showStructModal, showRetentionsModal]);
-
     // Generar botones de periodos (últimos 9 meses)
     const periodButtons = useMemo(() => {
         const periods = [];
@@ -86,6 +68,24 @@ const App = () => {
     const [defaultDate, setDefaultDate] = useState(new Date().toISOString().split('T')[0]);
     const [logs, setLogs] = useState([]);
     const [showLogs, setShowLogs] = useState(false);
+
+    // --- Lógica de Sincronización Automática (Tiempo Real) ---
+    // Esto permite que si otro usuario carga datos en otro lugar del mundo,
+    // la información se actualice aquí automáticamente sin tocar el botón de refresco.
+    useEffect(() => {
+        if (!apiUrl) return;
+
+        // Polling cada 30 segundos para chequear cambios en Sheets
+        const interval = setInterval(() => {
+            // No refrescar si: estamos cargando, hay una previsualización abierta o un modal
+            if (!loading && !previewData && !showStructModal && !showRetentionsModal && apiUrl) {
+                fetchData(true);
+                fetchMetadata();
+            }
+        }, 30000); 
+
+        return () => clearInterval(interval);
+    }, [apiUrl, loading, fetchData, fetchMetadata, previewData, showStructModal, showRetentionsModal]);
 
     const TAB_TITLES = {
         iva_dashboard: 'Situación IVA',
