@@ -21,12 +21,12 @@ import NavDropdown from './components/NavDropdown';
 
 const App = () => {
     const {
-        apiUrl, setApiUrl, refreshAll, loading, setLoading,
+        apiUrl, setApiUrl, loading, setLoading,
         selectedYear, setSelectedYear,
         selectedMonth, setSelectedMonth,
         availablePeriods, cargasPct, setCargasPct,
         dashData, empData, arcaData, ventasData,
-        fetchData, fetchMetadata
+        fetchData, fetchMetadata, refreshAll
     } = useFinance();
 
     // --- Lógica de Sincronización Automática (Tiempo Real) ---
@@ -38,13 +38,14 @@ const App = () => {
         // Polling cada 30 segundos para chequear cambios en Sheets
         const interval = setInterval(() => {
             // No refrescar si: estamos cargando, hay una previsualización abierta o un modal
-            if (!loading && !previewData && !showStructModal && !showRetentionsModal) {
-                refreshAll(); 
+            if (!loading && !previewData && !showStructModal && !showRetentionsModal && apiUrl) {
+                fetchData(true);
+                fetchMetadata();
             }
         }, 30000); 
 
         return () => clearInterval(interval);
-    }, [apiUrl, loading, refreshAll, previewData, showStructModal, showRetentionsModal]);
+    }, [apiUrl, loading, fetchData, fetchMetadata, previewData, showStructModal, showRetentionsModal]);
 
     // Generar botones de periodos (últimos 9 meses)
     const periodButtons = useMemo(() => {
@@ -464,18 +465,19 @@ const App = () => {
                     setDefaultDate={setDefaultDate}
                 />;
             case 'margin_dashboard': return <MarginExpectationView />;
-            case 'empleados': return (loading && empData.length === 0) ? <TableSkeleton /> : <EmployeesView />;
-            case 'arca': return (loading && arcaData.length === 0) ? <TableSkeleton /> : <ArcaView />;
-            case 'ventas': return (loading && ventasData.length === 0) ? <TableSkeleton /> : <VentasSistemaView />;
+            case 'empleados': return (loading && empData?.length === 0) ? <TableSkeleton /> : <EmployeesView />;
+            case 'arca': return (loading && arcaData?.length === 0) ? <TableSkeleton /> : <ArcaView />;
+            case 'ventas': return (loading && ventasData?.length === 0) ? <TableSkeleton /> : <VentasSistemaView />;
 
-            case 'estructurales': return (loading && arcaData.length === 0) ? <TableSkeleton /> : <StructuralCostsView />;
-            case 'retenciones': return (loading && arcaData.length === 0) ? <TableSkeleton /> : <RetentionsView />;
+            case 'estructurales': return (loading && arcaData?.length === 0) ? <TableSkeleton /> : <StructuralCostsView />;
+            case 'retenciones': return (loading && arcaData?.length === 0) ? <TableSkeleton /> : <RetentionsView />;
             case 'config': return <ConfigView />;
             case 'audit': return <AuditView />;
             case 'guia': return <GuideView />;
             default: return <DashboardView 
                     onDataReady={handleDataReady} 
                     setShowStructModal={setShowStructModal} 
+                    setShowRetentionsModal={setShowRetentionsModal}
                     defaultDate={defaultDate}
                     setDefaultDate={setDefaultDate}
                 />;
@@ -584,7 +586,7 @@ const App = () => {
                 </button>
 
                 <button
-                    onClick={() => refreshAll()}
+                    onClick={() => fetchData(true)}
                     disabled={loading}
                     className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all border ${
                         loading 
