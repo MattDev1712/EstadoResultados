@@ -10,7 +10,7 @@ import VentasSistemaView from './VentasSistemaView';
 import GuideView from './GuideView';
 import ConfigView from './ConfigView';
 import AuditView from './AuditView';
-import CargaDatosView from '../CargaDatosView';
+import CargaDatosView from './CargaDatosView'; // Este ya es correcto si CargaDatosView.jsx está en src/
 import { CardSkeleton, TableSkeleton } from './Skeleton';
 import MarginExpectationView from './MarginExpectationView';
 import RetentionsModal from './RetentionsModal';
