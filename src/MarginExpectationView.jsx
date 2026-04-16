@@ -274,8 +274,9 @@ export default function MarginExpectationView() {
   if (!dashData) return null; // El skeleton de App.jsx está cubriendo este caso
 
   // --- Lógica de Desgloses para los Modales ---
-  // A partir de aquí dashData existe. Usamos encadenamiento opcional para máxima seguridad.
+  // A partir de aquí dashData existe. Extraemos las sub-propiedades con fallbacks para evitar crashes.
   const egresosBase = dashData?.egresos || {};
+  const kpisBase = dashData?.kpis || {};
   
   const laboralBreakdown = [
     { label: 'Sueldos Netos (Recibo + Informal)', val: n(egresosBase.laboral) > 0 ? n(egresosBase.laboral) : (empData || []).reduce((acc, emp) => acc + n(emp.recibo) + n(emp.negro), 0) },
@@ -442,12 +443,10 @@ export default function MarginExpectationView() {
     </div>
   );
 
-  const { kpis, egresos } = dashData;
-
-  const ventaBruta = n(kpis.venta_bruta);
-  const ivaDébito = n(kpis.iva_debito);
-  const ventaNeta = n(kpis.ventas_netas_reales);
-  const cantOps = n(kpis.cant_operaciones);
+  const ventaBruta = n(kpisBase.venta_bruta);
+  const ivaDébito = n(kpisBase.iva_debito);
+  const ventaNeta = n(kpisBase.ventas_netas_reales);
+  const cantOps = n(kpisBase.cant_operaciones);
   const ticketProm = cantOps > 0 ? ventaBruta / cantOps : 0;
 
   const totalFacturasBC = (arcaData || [])
@@ -494,9 +493,9 @@ export default function MarginExpectationView() {
     { key: 'estructural', value: operaciones, label: 'Gastos Fijos Operativos' },
     { key: 'excepcionales_manual', value: excepcionales, label: 'Gastos Excepcionales' },
     { key: 'facturas_bc', value: totalFacturasBC, label: 'Facturas B / C (ARCA)' },
-    { key: 'iibb', value: n(egresos.iibb), label: 'Ingresos Brutos' },
-    { key: 'retenciones', value: n(egresos.retenciones), label: 'Retenciones' },
-    { key: 'comisiones', value: n(egresos.comisiones), label: 'Comisiones Bancarias/Apps' },
+    { key: 'iibb', value: n(egresosBase.iibb), label: 'Ingresos Brutos' },
+    { key: 'retenciones', value: n(egresosBase.retenciones), label: 'Retenciones' },
+    { key: 'comisiones', value: n(egresosBase.comisiones), label: 'Comisiones Bancarias/Apps' },
   ];
 
   expensesToSubtract.forEach(exp => {

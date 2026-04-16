@@ -501,7 +501,7 @@ const App = () => {
                     defaultDate={defaultDate}
                     setDefaultDate={setDefaultDate}
                 />;
-            case 'margin_dashboard': return (loading && !dashData) ? (
+            case 'margin_dashboard': return (!dashData) ? (
                 <div className="animate-fade-in mt-6 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <CardSkeleton /><CardSkeleton /><CardSkeleton />
