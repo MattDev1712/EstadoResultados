@@ -1,5 +1,3 @@
-metadata/
-
 # Logs
 logs
 *.log
@@ -9,13 +7,13 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dependencias y builds
-node_modules/
+# Dependencias y Compilación
+node_modules
 dist
 dist-ssr
 *.local
 
-# Editor (VS Code, IntelliJ, etc)
+# Archivos de configuración de editores (VS Code, JetBrains, etc)
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -26,9 +24,11 @@ dist-ssr
 *.sln
 *.sw?
 
-# Variables de entorno (Seguridad)
+# Variables de Entorno (¡MUY IMPORTANTE!)
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+! .env.example

@@ -61,7 +61,12 @@ const App = () => {
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
     }, [isDark]);
 
-    const [activeTab, setActiveTab] = useState('iva_dashboard');
+    const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeTab') || 'iva_dashboard');
+
+    useEffect(() => {
+        localStorage.setItem('activeTab', activeTab);
+    }, [activeTab]);
+
     const [showStructModal, setShowStructModal] = useState(false);
     const [showRetentionsModal, setShowRetentionsModal] = useState(false);
     const [previewData, setPreviewData] = useState(null);
@@ -467,6 +472,14 @@ const App = () => {
                     setDefaultDate={setDefaultDate}
                 />;
             case 'margin_dashboard': return <MarginExpectationView />;
+            case 'carga_datos': return (
+                <CargaDatosView 
+                    onDataReady={handleDataReady} 
+                    setShowStructModal={setShowStructModal} 
+                    setShowRetentionsModal={setShowRetentionsModal}
+                    defaultDate={defaultDate}
+                />
+            );
             case 'empleados': return (loading && empData?.length === 0) ? <TableSkeleton /> : <EmployeesView />;
             case 'arca': return (loading && arcaData?.length === 0) ? <TableSkeleton /> : <ArcaView />;
             case 'ventas': return (loading && ventasData?.length === 0) ? <TableSkeleton /> : <VentasSistemaView />;

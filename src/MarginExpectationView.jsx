@@ -253,17 +253,64 @@ export default function MarginExpectationView() {
 
   const draftKey = `er_draft_${selectedYear}_${selectedMonth}`;
 
+  const n = Utils.num;
+
+  // --- Lógica de Desgloses para los Modales ---
+  const laboralBreakdown = [
+    { label: 'Sueldos Netos (Recibo + Informal)', val: n(dashData?.egresos?.laboral) > 0 ? n(dashData.egresos.laboral) : (empData || []).reduce((acc, emp) => acc + n(emp.recibo) + n(emp.negro), 0) },
+    { label: 'Provisión SAC (1/12)', val: n(dashData?.egresos?.provision_sac) },
+    { label: 'Cargas Sociales Proyectadas', val: n(dashData?.egresos?.provision_cargas) }
+  ];
+
+  const estructuralBreakdown = [
+    { label: 'Carga Manual (Estructurales)', val: n(dashData?.egresos?.estructural) },
+    { label: 'Detectado en ARCA (Gasto Fijo)', val: (arcaData || []).filter(r => categoriesMap[r.cuit] === 'GASTO_FIJO').reduce((acc, r) => acc + n(r.total ?? r.importe_total), 0) }
+  ];
+
+  const facturasBCBreakdown = (arcaData || [])
+    .filter(r => r.tipo_comp && !r.tipo_comp.endsWith(' A') && r.tipo_comp !== '1')
+    .filter(r => categoriesMap[r.cuit] !== 'GASTO_FIJO')
+    .map(r => ({ label: r.entidad || r.cuit || 'Proveedor S/D', val: Math.abs(n(r.total ?? r.importe_total)) }));
+
+  const iibbBreakdown = (arcaData || [])
+    .filter(r => r.rubro === 'Ingresos Brutos')
+    .map(r => ({ label: r.sub_rubro || 'Pago IIBB', val: Math.abs(n(r.total ?? r.importe_total)) }));
+
+  const retencionesBreakdown = (arcaData || [])
+    .filter(r => r.rubro === 'Retenciones')
+    .map(r => ({ label: r.sub_rubro || 'Retención', val: Math.abs(n(r.total ?? r.importe_total)) }));
+
   const INFO_TOOLTIPS = {
     ventas_card: { title: "Origen: Ventas Netas", explanation: "Se toma el 'Neto ACF' del reporte Maxirest. Cálculo: Total Facturado - Anulaciones - IVA (21% sobre Factura B Electrónica). Es el dinero real que ingresa al local sin impuestos ni devoluciones." },
     gastos_card: { title: "Origen: Egresos Totales", explanation: "Suma de tres fuentes: 1. Nómina (planilla de sueldos + cargas + SAC). 2. Gastos fijos (Alquiler/Servicios detectados en ARCA o cargados a mano). 3. Gastos extraordinarios cargados en esta pantalla." },
     mix_cafe: { title: "Origen: Mix de Cafetería", explanation: "Es un valor de entrada manual. Define qué porcentaje de la 'Venta Neta' total se le atribuye a Cafetería para aplicarle su margen de ganancia específico en el cálculo del resultado." },
-    laboral: { title: "Cálculo: Sueldos y Cargas", explanation: "Suma de: 1. Sueldo neto (Recibo + Negro) de la planilla cargada. 2. Provisión de SAC (Total / 12). 3. Cargas Sociales (Sueldo en Recibo × % definido en la pestaña Ajustes)." },
-    estructural: { title: "Origen: Gastos Fijos", explanation: "Suma de los montos cargados en el modal 'Gastos Fijos' de este mes, más los comprobantes de ARCA que coinciden con las 'Palabras Clave' definidas en la pestaña Ajustes (ej: Alquiler, Luz)." },
+    laboral: { 
+        title: "Sueldos y Cargas", 
+        explanation: "Contempla el pago total a empleados, incluyendo la provisión del aguinaldo (SAC) y las cargas sociales estimadas sobre el sueldo en blanco.",
+        breakdown: laboralBreakdown
+    },
+    estructural: { 
+        title: "Gastos Fijos Operativos", 
+        explanation: "Suma de los costos fijos necesarios para abrir el local: alquileres, servicios y expensas detectados en facturas o cargados manualmente.",
+        breakdown: estructuralBreakdown
+    },
     excepcionales_manual: { title: "Origen: Gastos Excepcionales", explanation: "Es el valor numérico que ingresaste manualmente en el campo 'Excepcionales' de esta pantalla. No proviene de ninguna planilla externa." },
-    iibb: { title: "Origen: Ingresos Brutos", explanation: "Suma de los movimientos manuales cargados con el rubro 'IIBB' para este período. Si no cargaste el pago del impuesto, este valor será $0." },
-    retenciones: { title: "Origen: Retenciones", explanation: "Suma de los montos cargados manualmente en el modal 'Retenciones'. Representan pagos a cuenta de impuestos que te descontaron bancos o tarjetas (visto en liquidaciones)." },
+    iibb: { 
+        title: "Ingresos Brutos", 
+        explanation: "Pagos de IIBB (Local o Convenio) registrados manualmente para este período.",
+        breakdown: iibbBreakdown
+    },
+    retenciones: { 
+        title: "Retenciones", 
+        explanation: "Pagos a cuenta de impuestos realizados a través de bancos, tarjetas o aplicaciones de delivery.",
+        breakdown: retencionesBreakdown
+    },
     comisiones: { title: "Cálculo: Comisiones", explanation: "Cálculo automático basado en Maxirest: (Total Tarjetas × % Tarjeta) + (Total Otros × % Otros). Los porcentajes se definen en la pestaña de Ajustes. Si el número es alto, revisá los % configurados." },
-    facturas_bc: { title: "Origen: Facturas B/C", explanation: "Suma de todos los comprobantes recibidos (ARCA) que no son Factura A. Incluye facturas de monotributistas y gastos donde el IVA no es discriminado." },
+    facturas_bc: { 
+        title: "Facturas B / C (ARCA)", 
+        explanation: "Gastos de proveedores que no discriminan IVA (Monotributistas o Facturas B/C). Son costos directos del período.",
+        breakdown: facturasBCBreakdown
+    },
     margen_contribucion: { title: "Concepto: Margen de Contribución", explanation: "Este valor representa la ganancia que la marca calcula tras contemplar los costos de proveedores. Es el porcentaje que la marca ha deducido que debería quedar como remanente luego de quitarle el costo de mercadería vendida (CMV)." }
   };
 
@@ -376,7 +423,6 @@ export default function MarginExpectationView() {
   );
 
   const { kpis, egresos } = dashData;
-  const n = Utils.num;
 
   const ventaBruta = n(kpis.venta_bruta);
   const ivaDébito = n(kpis.iva_debito);
@@ -717,8 +763,8 @@ export default function MarginExpectationView() {
               <input
                 type="checkbox"
                 checked={activeExpenses[exp.key] || false}
-                onChange={() => toggleExpense(exp.key)} // Keep onChange for accessibility
-                style={{ accentColor: '#3b82f6', transform: 'scale(1.1)' }}
+                readOnly
+                style={{ accentColor: '#3b82f6', transform: 'scale(1.1)', pointerEvents: 'none' }}
               />
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 12, fontWeight: 600, color: activeExpenses[exp.key] ? (isLight ? '#3b82f6' : '#60a5fa') : colors.textMuted }}>
@@ -789,10 +835,10 @@ export default function MarginExpectationView() {
         }} onClick={() => setInfoModal(null)}>
           <div style={{
             background: colors.bgCard, border: `1px solid ${colors.borderCard}`, borderRadius: 24,
-            width: '90%', maxWidth: 400, padding: 24, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
-          }} onClick={e => e.stopPropagation()}>
+            width: '90%', maxWidth: 450, padding: 28, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
+          }} className="animate-pop-in" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 800, color: colors.textPrimary, margin: 0 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 900, color: colors.textPrimary, margin: 0 }}>
                 {INFO_TOOLTIPS[infoModal].title}
               </h3>
               <button 
@@ -800,9 +846,19 @@ export default function MarginExpectationView() {
                 style={{ background: 'none', border: 'none', color: colors.textDim, cursor: 'pointer', fontSize: 20 }}
               >✕</button>
             </div>
-            <p style={{ fontSize: 14, color: colors.textSecondary, lineHeight: 1.6, margin: 0 }}>
+            <p style={{ fontSize: 14, color: colors.textMuted, lineHeight: 1.6, margin: '0 0 24px' }}>
               {INFO_TOOLTIPS[infoModal].explanation}
             </p>
+            {INFO_TOOLTIPS[infoModal].breakdown && INFO_TOOLTIPS[infoModal].breakdown.length > 0 && (
+              <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 16, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+                {INFO_TOOLTIPS[infoModal].breakdown.map((row, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: i < INFO_TOOLTIPS[infoModal].breakdown.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: colors.textDim, textTransform: 'uppercase' }}>{row.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: colors.textPrimary, fontVariantNumeric: 'tabular-nums' }}>{Utils.fmt(row.val)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

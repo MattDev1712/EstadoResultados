@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 const FinanceContext = createContext();
 
@@ -40,6 +40,7 @@ export const FinanceProvider = ({ children }) => {
     const [selectedMonth, setSelectedMonth] = useState(() => 
         localStorage.getItem('selectedMonth') || String(new Date().getMonth() + 1).padStart(2, '0')
     );
+    const isFirstLoad = useRef(true);
     const [cargasPct, setCargasPct] = useState(() => localStorage.getItem('cfg_cargas_pct') || "33");
     const [viewMode, setViewMode] = useState('NOMINAL'); // 'NOMINAL', 'REAL_IPC', 'DOLAR_MEP'
     const [availablePeriods, setAvailablePeriods] = useState([]);
@@ -171,9 +172,10 @@ export const FinanceProvider = ({ children }) => {
         }
     }, [finalApiUrl, selectedYear, selectedMonth, cargasPct]);
 
-    // Auto-fetch al montar y cada vez que cambia período o URL
+    // Auto-fetch al montar (forzando carga fresca) y cuando cambian dependencias (usando cache)
     useEffect(() => {
-        fetchData();
+        fetchData(isFirstLoad.current);
+        isFirstLoad.current = false;
     }, [fetchData]);
 
     const invalidateCache = useCallback((year, month) => {
