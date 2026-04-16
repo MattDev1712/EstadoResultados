@@ -2,6 +2,20 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 
 const FinanceContext = createContext();
 
+// Incrementa esto cada vez que hagas un deploy importante
+const APP_VERSION = '1.2.5'; 
+
+const validatePersistence = () => {
+    const savedVersion = localStorage.getItem('app_version');
+    if (savedVersion !== APP_VERSION) {
+        // Guardamos solo lo vital (la URL de la API) para no molestar al usuario
+        const apiUrl = localStorage.getItem('gas_api_url');
+        localStorage.clear();
+        if (apiUrl) localStorage.setItem('gas_api_url', apiUrl);
+        localStorage.setItem('app_version', APP_VERSION);
+    }
+};
+
 const getInitialApiUrl = () => {
     const stored = localStorage.getItem('gas_api_url');
     if (stored) return stored;
@@ -13,6 +27,9 @@ const getInitialApiUrl = () => {
 };
 
 export const FinanceProvider = ({ children }) => {
+    // Ejecutar validación de versión antes de inicializar estados
+    validatePersistence();
+
     const [apiUrl, setApiUrl] = useState(getInitialApiUrl);
     
     const finalApiUrl = useMemo(() => {
@@ -112,21 +129,16 @@ export const FinanceProvider = ({ children }) => {
 
         const urlHash = btoa(apiUrl).substring(0, 8);
         const cacheKey = `cache_${urlHash}_${selectedYear}_${selectedMonth}`;
+        const cached = localStorage.getItem(cacheKey);
+        let localHash = null;
+        let cachedData = null;
 
-        if (!force) {
-            const cached = localStorage.getItem(cacheKey);
-            if (cached) {
-                try {
-                    const parsed = JSON.parse(cached);
-                    setDashData(parsed.dash);
-                    setEmpData(parsed.emp || []);
-                    setArcaData(parsed.arca);
-                    setVentasData(parsed.ventas);
-                    setLoading(false);
-                    return;
-                } catch (e) {
-                    localStorage.removeItem(cacheKey);
-                }
+        if (cached) {
+            try {
+                cachedData = JSON.parse(cached);
+                localHash = cachedData.hash || null;
+            } catch (e) {
+                localStorage.removeItem(cacheKey);
             }
         }
 
@@ -138,10 +150,22 @@ export const FinanceProvider = ({ children }) => {
             const lastDay = new Date(selectedYear, parseInt(selectedMonth), 0).getDate();
             const end = `${selectedYear}-${selectedMonth}-${lastDay}`;
             
+            // Intentamos una carga optimizada pasando el hash que tenemos guardado
+            const fetchUrl = `${finalApiUrl}?action=GET_COMPLETE_DATA&start=${start}&end=${end}&cargasPct=${cargasPct}${(!force && localHash) ? `&localHash=${localHash}` : ''}`;
+
             const [dataRes, catRes] = await Promise.all([
-                fetch(`${finalApiUrl}?action=GET_COMPLETE_DATA&start=${start}&end=${end}&cargasPct=${cargasPct}`).then(r => r.json()),
+                fetch(fetchUrl).then(r => r.json()),
                 fetch(`${finalApiUrl}?action=GET_CATEGORIES_MAP`).then(r => r.json())
             ]);
+
+            // Si el servidor dice que los datos no han cambiado, usamos lo que hay en cache
+            if (dataRes.status === 'NOT_MODIFIED' && cachedData) {
+                setDashData(cachedData.dash);
+                setEmpData(cachedData.emp || []);
+                setArcaData(cachedData.arca || []);
+                setVentasData(cachedData.ventas || []);
+                return;
+            }
             
             if (dataRes.status === 'ERROR') throw new Error(dataRes.message || "Error desconocido en el servidor");
             if (dataRes.error) throw new Error(dataRes.error);
@@ -162,7 +186,8 @@ export const FinanceProvider = ({ children }) => {
                 dash: result.dashboard,
                 emp: result.employees,
                 arca: result.arca,
-                ventas: result.ventas
+                ventas: result.ventas,
+                hash: result.stateHash // Guardamos el nuevo hash enviado por el servidor
             }));
         } catch (e) {
             setError(e.message);
@@ -172,10 +197,9 @@ export const FinanceProvider = ({ children }) => {
         }
     }, [finalApiUrl, selectedYear, selectedMonth, cargasPct]);
 
-    // Auto-fetch al montar (forzando carga fresca) y cuando cambian dependencias (usando cache)
+    // Auto-fetch al montar y cuando cambian dependencias
     useEffect(() => {
-        fetchData(isFirstLoad.current);
-        isFirstLoad.current = false;
+        fetchData(false); // Ahora siempre es seguro llamar a fetchData, ella decidirá si descargar o usar cache
     }, [fetchData]);
 
     const invalidateCache = useCallback((year, month) => {

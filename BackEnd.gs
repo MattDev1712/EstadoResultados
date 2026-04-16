@@ -687,10 +687,13 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
   _syncConfigFromSheet(ss);
   const busConfig = _getBusinessConfig(ss);
   const catMap = _getCuitCategoryMap(ss);
+  const erMap = _getAllEstadoResultManual();
   
-  const commTarj = parseFloat(busConfig.COMISION_TARJETAS || 0);
-  const commOtros = parseFloat(busConfig.COMISION_OTROS || 0);
-  const commEfvo = parseFloat(busConfig.COMISION_EFECTIVO || 0);
+  // Usar configuración de la hoja 'Empresa' con fallbacks
+  const commTarj = parseFloat(busConfig.COMISION_TARJETAS || 0.018);
+  const commApps = parseFloat(busConfig.COMISION_APPS || 0.25);
+  const commOtros = parseFloat(busConfig.COMISION_OTROS || 0.0);
+  const commEfvo = parseFloat(busConfig.COMISION_EFECTIVO || 0.0);
   const pctCargas = parseFloat(busConfig.PCT_CARGAS_SOCIALES || 0.33);
   
   
@@ -722,6 +725,7 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
   
   if (isNaN(startObj.getTime()) || isNaN(endObj.getTime())) throw new Error("Fecha inválida.");
   
+  // Extendemos a 13 meses para permitir comparativa interanual (YoY)
   const historyStart = new Date(startObj.getFullYear(), startObj.getMonth() - 13, 1, 0, 0, 0);
 
   // 1. PROCESAR MOVIMIENTOS (EGRESOS / MANUALES)
@@ -843,7 +847,6 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
   const currentPeriod = `${startObj.getFullYear()}-${String(startObj.getMonth() + 1).padStart(2, '0')}`;
   const currentIPC = CONST_IPC[currentPeriod] || 1.0;
   const currentMEP = CONST_MEP[currentPeriod] || 1400;
-  const erMap = _getAllEstadoResultManual();
 
   return {
     periodo: `${startDate} al ${endDate}`,
@@ -851,6 +854,7 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
       ipc: currentIPC,
       mep: currentMEP
     },
+    config: busConfig, // Enviamos la config para que el front calcule alertas
     kpis: {
       utilidad_neta: _round(resFinal),
       ventas_netas_reales: _round(totalVentasNeto - totalComisiones),
@@ -911,13 +915,14 @@ function _getBusinessConfig(ss) {
     sheet.appendRow(['Clave', 'Valor']);
     sheet.appendRow(['LOCAL_NOMBRE', 'Mi Negocio']);
     sheet.appendRow(['LOCAL_CUIT', '']);
-    sheet.appendRow(['IIBB_ALICUOTA', '0.035']);
-    sheet.appendRow(['OBJETIVO_MARGEN', '0.15']);
-    sheet.appendRow(['COMISION_TARJETAS', '0.018']);
-    sheet.appendRow(['COMISION_OTROS', '0.0']);
-    sheet.appendRow(['COMISION_EFECTIVO', '0.0']);
+    sheet.appendRow(['IIBB_ALICUOTA', '3.5']);
+    sheet.appendRow(['OBJETIVO_MARGEN', '60']);
+    sheet.appendRow(['COMISION_TARJETAS', '1.8']);
+    sheet.appendRow(['COMISION_APPS', '25']);
+    sheet.appendRow(['COMISION_OTROS', '5']);
+    sheet.appendRow(['COMISION_EFECTIVO', '0']);
     sheet.appendRow(['OBJETIVO_VENTAS', '0']);
-    sheet.appendRow(['PCT_CARGAS_SOCIALES', '0.33']);
+    sheet.appendRow(['PCT_CARGAS_SOCIALES', '33']);
   }
   const data = sheet.getDataRange().getValues();
   const config = {};
@@ -934,6 +939,7 @@ function _saveBusinessConfig(payload) {
     sheet.appendRow([key, payload[key]]);
   });
   _logAudit(ss, 'CONFIG_EMPRESA', 1, 'GLOBAL');
+  _updateStateHash();
   return { status: 'OK' };
 }
 
@@ -982,6 +988,12 @@ function _getEstadoResultManual(periodo) {
   };
 }
 
+function _updateStateHash() {
+  const newHash = Utilities.getUuid();
+  PropertiesService.getScriptProperties().setProperty('STATE_HASH', newHash);
+  return newHash;
+}
+
 function _getAllEstadoResultManual() {
   const ss = SpreadsheetApp.openById(SS_ID);
   const sheet = ss.getSheetByName(ESTADO_RESULT_MANUAL_SHEET_NAME);
@@ -1013,6 +1025,7 @@ function _saveEstadoResultManual(payload) {
     }
   }
   sheet.appendRow([periodo, mix_cafe, mix_producto, mgn_cafe, mgn_producto, excepcionales, new Date()]);
+  _updateStateHash();
   return { status: 'OK', action: 'inserted' };
 }
 
@@ -1081,6 +1094,8 @@ function doPost(e) {
       default:
         throw new Error(`Origen '${origen}' no soportado.`);
     }
+
+    _updateStateHash(); // Forzar cambio de hash al cargar datos
 
     // 4. Retornar respuesta exitosa
     return ContentService.createTextOutput(JSON.stringify(resultado)).setMimeType(ContentService.MimeType.JSON);
@@ -1244,21 +1259,21 @@ function getMaxirestRawData(startStr, endStr) {
 function doGet(e) {
   try {
     const action = e.parameter.action;
+    const serverHash = PropertiesService.getScriptProperties().getProperty('STATE_HASH') || 'initial';
     
-    if (action === 'GET_DASHBOARD') {
-      const start = e.parameter.start;
-      const end = e.parameter.end;
-      const cPct = e.parameter.cargasPct || 33;
-      const data = getFinancialSummary(start, end, cPct);
-      return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
-    }
-
     if (action === 'GET_METADATA') {
       const meta = getDataMetadata();
       return ContentService.createTextOutput(JSON.stringify(meta)).setMimeType(ContentService.MimeType.JSON);
     }
 
     if (action === 'GET_COMPLETE_DATA') {
+      // Lógica de Caché Inteligente (Hash)
+      const localHash = e.parameter.localHash;
+      if (localHash && localHash === serverHash) {
+        return ContentService.createTextOutput(JSON.stringify({ status: 'NOT_MODIFIED' }))
+                             .setMimeType(ContentService.MimeType.JSON);
+      }
+
       const start = e.parameter.start;
       const end = e.parameter.end;
       const cPct = e.parameter.cargasPct || 33;
@@ -1274,6 +1289,7 @@ function doGet(e) {
         employees: employees,
         arca: arca,
         ventas: ventas,
+        stateHash: serverHash
       };
       return ContentService.createTextOutput(JSON.stringify(consolidatedData)).setMimeType(ContentService.MimeType.JSON);
     }
@@ -1370,6 +1386,7 @@ function _saveConfigToSheet(payload) {
   } else {
     // Insertar nueva fila
     sheet.appendRow([periodo, ipc, mep]);
+    _updateStateHash();
     sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).sort({ column: 1, ascending: false });
   }
   

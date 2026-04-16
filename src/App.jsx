@@ -20,9 +20,44 @@ import FileCard from './FileCard';
 import StructuralCostsModal from './StructuralCostsModal';
 import NavDropdown from './components/NavDropdown';
 
+const TAB_TITLES = {
+    iva_dashboard: 'Situación IVA',
+    margin_dashboard: 'Expectativa de Margen',
+    carga_datos: 'Carga de Datos',
+    empleados: 'Mi Equipo',
+    arca: 'Mis Compras',
+    ventas: 'Mis Ventas',
+    estructurales: 'Gastos Fijos',
+    retenciones: 'Retenciones Impositivas',
+    config: 'Ajustes del Sistema',
+    audit: 'Registro de Cambios',
+    guia: 'Ayuda y Guía',
+};
+
+// Componente para la barrita de carga superior y el estado de sincronización
+const SyncStatus = ({ isRefreshing, loading }) => {
+    const active = isRefreshing || loading;
+    return (
+        <>
+            {/* Barrita de carga superior (estilo YouTube/GitHub) */}
+            <div className={`fixed top-0 left-0 right-0 h-[2px] z-[9999] transition-opacity duration-500 ${active ? 'opacity-100' : 'opacity-0'}`}>
+                <div className={`h-full bg-blue-500 shadow-[0_0_10px_#3b82f6] ${active ? 'animate-pulse w-full' : 'w-0'}`} />
+            </div>
+            
+            {/* Badge de estado en el header */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border-card)] backdrop-blur-md shadow-sm transition-all duration-500">
+                <div className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${active ? 'bg-blue-400 animate-pulse' : 'bg-emerald-500'}`} />
+                <span className="text-[8px] font-black uppercase tracking-[0.15em] text-[var(--text-dim)]">
+                    {loading ? 'Cargando Datos' : isRefreshing ? 'Sincronizando' : 'Sistema al día'}
+                </span>
+            </div>
+        </>
+    );
+};
+
 const App = () => {
     const {
-        apiUrl, setApiUrl, loading, setLoading,
+        apiUrl, setApiUrl, loading, setLoading, isRefreshing,
         selectedYear, setSelectedYear,
         selectedMonth, setSelectedMonth,
         availablePeriods, cargasPct, setCargasPct,
@@ -61,7 +96,11 @@ const App = () => {
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
     }, [isDark]);
 
-    const [activeTab, setActiveTab] = useState(() => localStorage.getItem('activeTab') || 'iva_dashboard');
+    const [activeTab, setActiveTab] = useState(() => {
+        const saved = localStorage.getItem('activeTab');
+        // Validamos que la pestaña guardada realmente exista en esta versión del código
+        return TAB_TITLES[saved] ? saved : 'iva_dashboard';
+    });
 
     useEffect(() => {
         localStorage.setItem('activeTab', activeTab);
@@ -85,27 +124,14 @@ const App = () => {
         const interval = setInterval(() => {
             // No refrescar si: estamos cargando, hay una previsualización abierta o un modal
             if (!loading && !previewData && !showStructModal && !showRetentionsModal && apiUrl) {
-                fetchData(true);
+                // Llamada inteligente: no forzamos (usa hash) y es silenciosa (sin spinner principal)
+                fetchData(false, true);
                 fetchMetadata();
             }
         }, 30000); 
 
         return () => clearInterval(interval);
     }, [apiUrl, loading, fetchData, fetchMetadata, previewData, showStructModal, showRetentionsModal]);
-
-    const TAB_TITLES = {
-        iva_dashboard: 'Situación IVA',
-        margin_dashboard: 'Expectativa de Margen',
-        carga_datos: 'Carga de Datos',
-        empleados: 'Mi Equipo',
-        arca: 'Mis Compras',
-        ventas: 'Mis Ventas',
-        estructurales: 'Gastos Fijos',
-        retenciones: 'Retenciones Impositivas',
-        config: 'Ajustes del Sistema',
-        audit: 'Registro de Cambios',
-        guia: 'Ayuda y Guía',
-    };
 
     const addLog = (msg) => {
         const time = new Date().toLocaleTimeString();
@@ -500,9 +526,12 @@ const App = () => {
             {/* Cabecera Centrada y Refinada */}
             <header className="flex flex-col items-center mb-8 animate-fade-in text-center">
                 <div className="mb-6">
-                    <p className="text-[10px] font-black tracking-[0.3em] uppercase mb-1" style={{ color: 'var(--text-dim)' }}>
-                        Sistema de Gestión Administrativa
-                    </p>
+                    <div className="flex flex-col items-center gap-2 mb-2">
+                        <p className="text-[10px] font-black tracking-[0.3em] uppercase" style={{ color: 'var(--text-dim)' }}>
+                            Sistema de Gestión Administrativa
+                        </p>
+                        <SyncStatus isRefreshing={isRefreshing} loading={loading} />
+                    </div>
                     <h1 className="text-2xl font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
                         {TAB_TITLES[activeTab] || 'Panel de Control'}
                     </h1>
@@ -597,14 +626,14 @@ const App = () => {
 
                 <button
                     onClick={() => fetchData(true)}
-                    disabled={loading}
+                    disabled={loading || isRefreshing}
                     className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all border ${
-                        loading 
+                        (loading || isRefreshing)
                         ? 'bg-blue-600/20 text-blue-400 border-blue-500/30' 
                         : 'bg-blue-600/10 text-blue-400 border-blue-500/30 hover:bg-blue-600 hover:text-white'
                     }`}
                 >
-                    {loading ? (
+                    {(loading || isRefreshing) ? (
                         <svg className="animate-spin h-3.5 w-3.5 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
