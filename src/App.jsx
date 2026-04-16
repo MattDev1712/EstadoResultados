@@ -62,7 +62,7 @@ const App = () => {
         selectedMonth, setSelectedMonth,
         availablePeriods, cargasPct, setCargasPct,
         dashData, empData, arcaData, ventasData,
-        fetchData, fetchMetadata, refreshAll
+        fetchData, fetchMetadata, pollForUpdates, manualRefresh
     } = useFinance();
 
     // Generar botones de periodos (últimos 9 meses)
