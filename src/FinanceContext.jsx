@@ -119,6 +119,24 @@ export const FinanceProvider = ({ children }) => {
         }
     }, [apiUrl]);
 
+    // Cargar mapa de categorías (raramente cambia — carga una vez por sesión)
+    const fetchCategoriesMap = useCallback(async () => {
+        if (!finalApiUrl) return;
+        try {
+            const catRes = await fetch(`${finalApiUrl}?action=GET_CATEGORIES_MAP`).then(r => r.json());
+            const catMap = {};
+            (catRes || []).forEach(item => { catMap[item.cuit] = item.categoria; });
+            setCategoriesMap(catMap);
+        } catch (e) {
+            console.warn("Error cargando categorías:", e);
+        }
+    }, [finalApiUrl]);
+
+    // Cargar categorías una sola vez cuando la URL está disponible
+    useEffect(() => {
+        fetchCategoriesMap();
+    }, [fetchCategoriesMap]);
+
     // Persistir configuración de cargas sociales
     useEffect(() => {
         localStorage.setItem('cfg_cargas_pct', cargasPct);
@@ -165,19 +183,12 @@ export const FinanceProvider = ({ children }) => {
             // Intentamos una carga optimizada pasando el hash que tenemos guardado
             const fetchUrl = `${finalApiUrl}?action=GET_COMPLETE_DATA&start=${start}&end=${end}&cargasPct=${cargasPct}${(!force && localHash) ? `&localHash=${localHash}` : ''}`;
 
-            const [dataRes, catRes] = await Promise.all([
-                fetch(fetchUrl).then(r => r.json()),
-                fetch(`${finalApiUrl}?action=GET_CATEGORIES_MAP`).then(r => r.json())
-            ]);
-            
+            const dataRes = await fetch(fetchUrl).then(r => r.json());
+
             if (dataRes.status === 'ERROR') throw new Error(dataRes.message || "Error desconocido en el servidor");
             if (dataRes.error) throw new Error(dataRes.error);
 
-            const catMap = {};
-            (catRes || []).forEach(item => { catMap[item.cuit] = item.categoria; });
-            setCategoriesMap(catMap);
-
-            // Si el servidor dice que los datos no han cambiado, terminamos 
+            // Si el servidor dice que los datos no han cambiado, terminamos
             // (El estado ya fue poblado con el cache al inicio de la función)
             if (dataRes.status === 'NOT_MODIFIED') return;
             
@@ -251,10 +262,11 @@ export const FinanceProvider = ({ children }) => {
         updateConfig,
         fetchData,
         fetchMetadata,
+        fetchCategoriesMap,
         pollForUpdates, // Exponer la función de polling
         manualRefresh,  // Exponer la función de refresco manual
         invalidateCache,
-    }), [apiUrl, dashData, empData, arcaData, ventasData, isRefreshing, loading, error, selectedYear, selectedMonth, cargasPct, viewMode, availablePeriods, localAjustes, fetchData, fetchMetadata, pollForUpdates, manualRefresh, invalidateCache]);
+    }), [apiUrl, dashData, empData, arcaData, ventasData, isRefreshing, loading, error, selectedYear, selectedMonth, cargasPct, viewMode, availablePeriods, localAjustes, fetchData, fetchMetadata, fetchCategoriesMap, pollForUpdates, manualRefresh, invalidateCache]);
 
     return (
         <FinanceContext.Provider value={value}>

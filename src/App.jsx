@@ -144,7 +144,7 @@ const App = () => {
 
     useEffect(() => {
         fetchMetadata();
-    }, [activeTab, fetchMetadata, selectedYear, selectedMonth]);
+    }, [fetchMetadata, selectedYear, selectedMonth]);
 
     useEffect(() => {
         if (selectedYear && selectedMonth) {

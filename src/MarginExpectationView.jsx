@@ -243,13 +243,14 @@ export default function MarginExpectationView() {
     dashData, setDashData, empData, arcaData, categoriesMap, loading, error,
     selectedYear, selectedMonth, isRefreshing,
     apiUrl, finalApiUrl,
-    fetchData, invalidateCache,
+    invalidateCache,
   } = useFinance();
 
   const [manual, setManual] = useState({ mix_cafe: '', mix_producto: '', mgn_cafe: '', mgn_producto: '', excepcionales: '' });
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState(null); // 'ok' | 'error'
   const [infoModal, setInfoModal] = useState(null);
+  const [debugOpen, setDebugOpen] = useState(false);
 
   const draftKey = `er_draft_${selectedYear}_${selectedMonth}`;
 
@@ -261,22 +262,67 @@ export default function MarginExpectationView() {
     setActiveExpenses(prev => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
-  // --- GUARDAS DE CARGA Y ERROR ---
-  // Mantenemos una guarda mínima para evitar crashes, pero el skeleton real lo maneja App.jsx
-  if (!dashData && !loading) {
-      return (
-        <div className="animate-fade-in mt-8 text-center" style={{ color: '#64748b', paddingTop: 60 }}>
-          <p style={{ fontSize: 15 }}>Sin datos para el período seleccionado.</p>
-        </div>
-      );
-  }
+  // Al cambiar período: cargar borrador local (no mirar dashData, puede ser del mes anterior)
+  useEffect(() => {
+    const draft = localStorage.getItem(draftKey);
+    if (draft) {
+      try { setManual(JSON.parse(draft)); return; } catch {}
+    }
+    setManual({ mix_cafe: '', mix_producto: '', mgn_cafe: '', mgn_producto: '', excepcionales: '' });
+  }, [selectedYear, selectedMonth]);
 
-  if (!dashData) return null; // El skeleton de App.jsx está cubriendo este caso
+  // Cuando llegan datos de la BD: solo aplicarlos si no hay borrador local
+  // (el borrador local es la fuente de verdad mientras no se guarde)
+  useEffect(() => {
+    if (!dashData?.estado_result_manual) return;
+    if (localStorage.getItem(draftKey)) return; // borrador local existe — no pisar
+
+    const m = dashData.estado_result_manual;
+    const vals = {
+        mix_cafe: m.mix_cafe ?? '',
+        mix_producto: m.mix_producto ?? '',
+        mgn_cafe: m.mgn_cafe ?? '',
+        mgn_producto: m.mgn_producto ?? '',
+        excepcionales: m.excepcionales ?? '',
+    };
+    setManual(vals);
+    localStorage.setItem(draftKey, JSON.stringify(vals));
+  }, [dashData?.estado_result_manual]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setField = useCallback((field) => (val) => {
+    setManual(prev => {
+      const next = { ...prev, [field]: val };
+      localStorage.setItem(draftKey, JSON.stringify(next));
+      return next;
+    });
+    setSaveStatus(null);
+  }, [draftKey]);
+
+  const setMixCafe = useCallback((val) => {
+    const num = parseFloat(val);
+    const producto = isNaN(num) ? '' : (100 - Math.min(100, Math.max(0, num))).toFixed(1);
+    setManual(prev => {
+      const next = { ...prev, mix_cafe: val, mix_producto: producto };
+      localStorage.setItem(draftKey, JSON.stringify(next));
+      return next;
+    });
+    setSaveStatus(null);
+  }, [draftKey]);
+
+  // --- GUARDAS DE CARGA Y ERROR ---
+  if (!dashData) {
+    if (!loading) return (
+      <div className="animate-fade-in mt-8 text-center" style={{ color: '#64748b', paddingTop: 60 }}>
+        <p style={{ fontSize: 15 }}>Sin datos para el período seleccionado.</p>
+      </div>
+    );
+    return null; // El skeleton de App.jsx cubre este caso
+  }
 
   // --- Lógica de Desgloses para los Modales ---
   // A partir de aquí dashData existe. Extraemos las sub-propiedades con fallbacks para evitar crashes.
-  const egresosBase = dashData?.egresos || {};
-  const kpisBase = dashData?.kpis || {};
+  const egresosBase = dashData.egresos || {};
+  const kpisBase = dashData.kpis || {};
   
   const laboralBreakdown = [
     { label: 'Sueldos Netos (Recibo + Informal)', val: n(egresosBase.laboral) > 0 ? n(egresosBase.laboral) : (empData || []).reduce((acc, emp) => acc + n(emp.recibo) + n(emp.negro), 0) },
@@ -336,54 +382,6 @@ export default function MarginExpectationView() {
     margen_contribucion: { title: "Concepto: Margen de Contribución", explanation: "Este valor representa la ganancia que la marca calcula tras contemplar los costos de proveedores. Es el porcentaje que la marca ha deducido que debería quedar como remanente luego de quitarle el costo de mercadería vendida (CMV)." }
   };
 
-  // Al cambiar período: cargar borrador local (no mirar dashData, puede ser del mes anterior)
-  useEffect(() => {
-    const draft = localStorage.getItem(draftKey);
-    if (draft) {
-      try { setManual(JSON.parse(draft)); return; } catch {}
-    }
-    setManual({ mix_cafe: '', mix_producto: '', mgn_cafe: '', mgn_producto: '', excepcionales: '' });
-  }, [selectedYear, selectedMonth]);
-
-  // Cuando llegan datos de la BD para el período actual: la BD gana
-  useEffect(() => {
-    if (!dashData?.estado_result_manual) return;
-    
-    // Solo sobreescribimos si: 
-    // 1. Acabamos de guardar exitosamente
-    // 2. El estado manual actual está vacío (primera carga tras refresh)
-    const m = dashData.estado_result_manual;
-    const vals = {
-        mix_cafe: m.mix_cafe ?? '',
-        mix_producto: m.mix_producto ?? '',
-        mgn_cafe: m.mgn_cafe ?? '',
-        mgn_producto: m.mgn_producto ?? '',
-        excepcionales: m.excepcionales ?? '',
-    };
-    setManual(vals);
-    localStorage.setItem(draftKey, JSON.stringify(vals));
-  }, [dashData?.estado_result_manual, saveStatus]); // Añadimos dashData como trigger real
-
-  const setField = useCallback((field) => (val) => {
-    setManual(prev => {
-      const next = { ...prev, [field]: val };
-      localStorage.setItem(draftKey, JSON.stringify(next));
-      return next;
-    });
-    setSaveStatus(null);
-  }, [draftKey]);
-
-  const setMixCafe = useCallback((val) => {
-    const num = parseFloat(val);
-    const producto = isNaN(num) ? '' : (100 - Math.min(100, Math.max(0, num))).toFixed(1);
-    setManual(prev => {
-      const next = { ...prev, mix_cafe: val, mix_producto: producto };
-      localStorage.setItem(draftKey, JSON.stringify(next));
-      return next;
-    });
-    setSaveStatus(null);
-  }, [draftKey]);
-
   const handleSave = async () => {
     if (!finalApiUrl) return;
     setSaving(true);
@@ -428,16 +426,7 @@ export default function MarginExpectationView() {
     }
   };
 
-  // Solo mostramos skeletons si NO hay datos. Si hay datos y loading es true, es un refresh silencioso.
-  if (loading && !dashData) return (
-    <div className="animate-fade-in mt-6" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-      {[1,2,3,4].map(i => (
-        <Card key={i} style={{ height: 280, opacity: 0.4 }} className="animate-pulse" />
-      ))}
-    </div>
-  );
-
-  if (error || !dashData) return (
+  if (error) return (
     <div className="animate-fade-in mt-8 text-center" style={{ color: '#64748b', paddingTop: 60 }}>
       <p style={{ fontSize: 15 }}>Sin datos para el período seleccionado.</p>
     </div>
@@ -479,7 +468,6 @@ export default function MarginExpectationView() {
   const excepcionales = parseFloat(manual.excepcionales) || 0;
 
   const totalGastos = sueldosTotal + operaciones + excepcionales;
-  const resultado = ventaNeta - totalGastos;
   const resultadoMargenes = margenCafePesos + margenProductoPesos;
   const margenPct = ventaNeta > 0 ? ((resultadoMargenes / ventaNeta) * 100).toFixed(1) : '0.0';
   const resultadoPositivo = resultadoMargenes >= 0;
@@ -507,7 +495,6 @@ export default function MarginExpectationView() {
   const resultadoAjustadoPositivo = resultadoAjustado >= 0;
   const margenAjustadoPct = ventaNeta > 0 ? ((resultadoAjustado / ventaNeta) * 100).toFixed(1) : '0.0';
 
-  const [debugOpen, setDebugOpen] = useState(false);
   const debugInfo = {
     periodo: `${selectedYear}-${selectedMonth}`,
     apiUrl: finalApiUrl ? finalApiUrl.slice(0, 60) + '...' : '(vacío)',
@@ -557,10 +544,12 @@ export default function MarginExpectationView() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <button onClick={() => setDebugOpen(true)} style={{
-          background: 'var(--bg-surface)', border: '1px solid var(--border-mid)',
-          borderRadius: 8, color: colors.textDim, fontSize: 11, padding: '5px 10px', cursor: 'pointer',
-        }}>debug</button>
+        {import.meta.env.DEV && (
+          <button onClick={() => setDebugOpen(true)} style={{
+            background: 'var(--bg-surface)', border: '1px solid var(--border-mid)',
+            borderRadius: 8, color: colors.textDim, fontSize: 11, padding: '5px 10px', cursor: 'pointer',
+          }}>debug</button>
+        )}
         {saveStatus === 'ok' && (
           <span style={{
             fontSize: 12, fontWeight: 600, color: '#4ade80',
