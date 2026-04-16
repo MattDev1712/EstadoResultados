@@ -501,7 +501,17 @@ const App = () => {
                     defaultDate={defaultDate}
                     setDefaultDate={setDefaultDate}
                 />;
-            case 'margin_dashboard': return <MarginExpectationView />;
+            case 'margin_dashboard': return (loading && !dashData) ? (
+                <div className="animate-fade-in mt-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <CardSkeleton /><CardSkeleton /><CardSkeleton />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="h-72 bg-slate-800/20 rounded-2xl skeleton" />
+                        <div className="h-72 bg-slate-800/20 rounded-2xl skeleton" />
+                    </div>
+                </div>
+            ) : <MarginExpectationView />;
             case 'carga_datos': return (
                 <CargaDatosView 
                     onDataReady={handleDataReady} 

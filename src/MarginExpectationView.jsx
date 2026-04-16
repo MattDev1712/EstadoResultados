@@ -253,17 +253,38 @@ export default function MarginExpectationView() {
 
   const draftKey = `er_draft_${selectedYear}_${selectedMonth}`;
 
-  const n = Utils.num;
+  const n = useCallback((v) => Utils.num(v), []);
+  const isLight = useTheme();
+
+  const [activeExpenses, setActiveExpenses] = useState({});
+  const toggleExpense = useCallback((key) => {
+    setActiveExpenses(prev => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
+  // --- GUARDAS DE CARGA Y ERROR ---
+  // Mantenemos una guarda mínima para evitar crashes, pero el skeleton real lo maneja App.jsx
+  if (!dashData && !loading) {
+      return (
+        <div className="animate-fade-in mt-8 text-center" style={{ color: '#64748b', paddingTop: 60 }}>
+          <p style={{ fontSize: 15 }}>Sin datos para el período seleccionado.</p>
+        </div>
+      );
+  }
+
+  if (!dashData) return null; // El skeleton de App.jsx está cubriendo este caso
 
   // --- Lógica de Desgloses para los Modales ---
+  // A partir de aquí dashData existe. Usamos encadenamiento opcional para máxima seguridad.
+  const egresosBase = dashData?.egresos || {};
+  
   const laboralBreakdown = [
-    { label: 'Sueldos Netos (Recibo + Informal)', val: n(dashData?.egresos?.laboral) > 0 ? n(dashData.egresos.laboral) : (empData || []).reduce((acc, emp) => acc + n(emp.recibo) + n(emp.negro), 0) },
-    { label: 'Provisión SAC (1/12)', val: n(dashData?.egresos?.provision_sac) },
-    { label: 'Cargas Sociales Proyectadas', val: n(dashData?.egresos?.provision_cargas) }
+    { label: 'Sueldos Netos (Recibo + Informal)', val: n(egresosBase.laboral) > 0 ? n(egresosBase.laboral) : (empData || []).reduce((acc, emp) => acc + n(emp.recibo) + n(emp.negro), 0) },
+    { label: 'Provisión SAC (1/12)', val: n(egresosBase.provision_sac) },
+    { label: 'Cargas Sociales Proyectadas', val: n(egresosBase.provision_cargas) }
   ];
 
   const estructuralBreakdown = [
-    { label: 'Carga Manual (Estructurales)', val: n(dashData?.egresos?.estructural) },
+    { label: 'Carga Manual (Estructurales)', val: n(egresosBase.estructural) },
     { label: 'Detectado en ARCA (Gasto Fijo)', val: (arcaData || []).filter(r => categoriesMap[r.cuit] === 'GASTO_FIJO').reduce((acc, r) => acc + n(r.total ?? r.importe_total), 0) }
   ];
 
@@ -324,24 +345,23 @@ export default function MarginExpectationView() {
   }, [selectedYear, selectedMonth]);
 
   // Cuando llegan datos de la BD para el período actual: la BD gana
-  // Pero SOLO si el usuario no tiene cambios sin guardar o el saveStatus es ok
   useEffect(() => {
     if (!dashData?.estado_result_manual) return;
     
-    // Si el usuario está guardando, permitimos la actualización del servidor
-    if (saveStatus === 'ok' || manual.mix_cafe === '') {
+    // Solo sobreescribimos si: 
+    // 1. Acabamos de guardar exitosamente
+    // 2. El estado manual actual está vacío (primera carga tras refresh)
     const m = dashData.estado_result_manual;
     const vals = {
-      mix_cafe: m.mix_cafe ?? '',
-      mix_producto: m.mix_producto ?? '',
-      mgn_cafe: m.mgn_cafe ?? '',
-      mgn_producto: m.mgn_producto ?? '',
-      excepcionales: m.excepcionales ?? '',
+        mix_cafe: m.mix_cafe ?? '',
+        mix_producto: m.mix_producto ?? '',
+        mgn_cafe: m.mgn_cafe ?? '',
+        mgn_producto: m.mgn_producto ?? '',
+        excepcionales: m.excepcionales ?? '',
     };
     setManual(vals);
     localStorage.setItem(draftKey, JSON.stringify(vals));
-    }
-  }, [dashData?.estado_result_manual]);
+  }, [dashData?.estado_result_manual, saveStatus]); // Añadimos dashData como trigger real
 
   const setField = useCallback((field) => (val) => {
     setManual(prev => {
@@ -450,13 +470,13 @@ export default function MarginExpectationView() {
   const margenCafePesos = (mgnCafePct / 100) * ventaCafe;
   const margenProductoPesos = (mgnProductoPct / 100) * ventaProducto;
 
-  const laboralEfectivo = n(egresos.laboral) > 0
-    ? n(egresos.laboral)
+  const laboralEfectivo = n(egresosBase.laboral) > 0
+    ? n(egresosBase.laboral)
     : (empData || []).reduce((acc, emp) => acc + n(emp.recibo) + n(emp.negro), 0);
-  const sueldosTotal = laboralEfectivo + n(egresos.provision_sac) + n(egresos.provision_cargas);
+  const sueldosTotal = laboralEfectivo + n(egresosBase.provision_sac) + n(egresosBase.provision_cargas);
   const cantEmpleados = (empData || []).length;
   const promedioEmp = cantEmpleados > 0 ? laboralEfectivo / cantEmpleados : 0;
-  const operaciones = n(egresos.estructural) + arcaGastosFijos;
+  const operaciones = n(egresosBase.estructural) + arcaGastosFijos;
   const excepcionales = parseFloat(manual.excepcionales) || 0;
 
   const totalGastos = sueldosTotal + operaciones + excepcionales;
@@ -467,11 +487,6 @@ export default function MarginExpectationView() {
 
   const mesNombre = MESES[parseInt(selectedMonth) - 1];
   const periodoLabel = `${mesNombre} ${selectedYear}`;
-
-  const [activeExpenses, setActiveExpenses] = useState({});
-  const toggleExpense = (key) => {
-    setActiveExpenses(prev => ({ ...prev, [key]: !prev[key] }));
-  };
 
   let resultadoAjustado = resultadoMargenes;
   const expensesToSubtract = [
@@ -493,7 +508,6 @@ export default function MarginExpectationView() {
   const resultadoAjustadoPositivo = resultadoAjustado >= 0;
   const margenAjustadoPct = ventaNeta > 0 ? ((resultadoAjustado / ventaNeta) * 100).toFixed(1) : '0.0';
 
-  const isLight = useTheme();
   const [debugOpen, setDebugOpen] = useState(false);
   const debugInfo = {
     periodo: `${selectedYear}-${selectedMonth}`,

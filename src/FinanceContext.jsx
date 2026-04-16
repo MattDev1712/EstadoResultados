@@ -137,13 +137,25 @@ export const FinanceProvider = ({ children }) => {
             try {
                 cachedData = JSON.parse(cached);
                 localHash = cachedData.hash || null;
+
+                // UX: Si tenemos cache y no estamos forzando, lo mostramos ya mismo
+                // Esto elimina la latencia visual al cambiar de mes
+                if (!force) {
+                    setDashData(cachedData.dash);
+                    setEmpData(cachedData.emp || []);
+                    setArcaData(cachedData.arca || []);
+                    setVentasData(cachedData.ventas || []);
+                }
             } catch (e) {
                 localStorage.removeItem(cacheKey);
             }
         }
 
-        setLoading(!silent); // Activa 'loading' si no es silencioso
-        setIsRefreshing(silent); // Activa 'isRefreshing' si es silencioso
+        // Solo mostramos el loader principal si NO hay cache o si estamos forzando (↻)
+        const isBackgroundCheck = !!cachedData && !force;
+        setLoading(!silent && !isBackgroundCheck);
+        setIsRefreshing(silent || isBackgroundCheck);
+
         setError(null);
         try {
             const start = `${selectedYear}-${selectedMonth}-01`;
@@ -157,23 +169,19 @@ export const FinanceProvider = ({ children }) => {
                 fetch(fetchUrl).then(r => r.json()),
                 fetch(`${finalApiUrl}?action=GET_CATEGORIES_MAP`).then(r => r.json())
             ]);
-
-            // Si el servidor dice que los datos no han cambiado, usamos lo que hay en cache
-            if (dataRes.status === 'NOT_MODIFIED' && cachedData) {
-                setDashData(cachedData.dash);
-                setEmpData(cachedData.emp || []);
-                setArcaData(cachedData.arca || []);
-                setVentasData(cachedData.ventas || []);
-                return;
-            }
             
             if (dataRes.status === 'ERROR') throw new Error(dataRes.message || "Error desconocido en el servidor");
             if (dataRes.error) throw new Error(dataRes.error);
-            if (!dataRes.dashboard) throw new Error("No se recibieron datos del tablero (dashboard).");
 
             const catMap = {};
             (catRes || []).forEach(item => { catMap[item.cuit] = item.categoria; });
             setCategoriesMap(catMap);
+
+            // Si el servidor dice que los datos no han cambiado, terminamos 
+            // (El estado ya fue poblado con el cache al inicio de la función)
+            if (dataRes.status === 'NOT_MODIFIED') return;
+            
+            if (!dataRes.dashboard) throw new Error("No se recibieron datos del tablero (dashboard).");
 
             const result = dataRes;
 
