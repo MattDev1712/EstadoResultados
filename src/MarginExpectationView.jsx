@@ -241,7 +241,7 @@ function HistorialLineChart({ metrics, historial, title, isPesos, defaultActive 
 export default function MarginExpectationView() {
   const {
     dashData, setDashData, empData, arcaData, categoriesMap, loading, error,
-    selectedYear, selectedMonth,
+    selectedYear, selectedMonth, isRefreshing,
     apiUrl, finalApiUrl,
     fetchData, invalidateCache,
   } = useFinance();
@@ -506,7 +506,10 @@ export default function MarginExpectationView() {
   };
 
   return (
-    <div className="animate-fade-in mt-6" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="animate-fade-in mt-6" style={{ display: 'flex', flexDirection: 'column', gap: 16,
+      opacity: isRefreshing ? 0.7 : 1, // Atenuar sutilmente durante la sincronización en segundo plano
+      transition: 'opacity 0.3s ease-in-out'
+    }}>
 
       {/* Debug overlay */}
       {debugOpen && (

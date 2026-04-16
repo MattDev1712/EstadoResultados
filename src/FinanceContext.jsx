@@ -142,8 +142,8 @@ export const FinanceProvider = ({ children }) => {
             }
         }
 
-        if (!silent) setLoading(true);
-        else setIsRefreshing(true);
+        setLoading(!silent); // Activa 'loading' si no es silencioso
+        setIsRefreshing(silent); // Activa 'isRefreshing' si es silencioso
         setError(null);
         try {
             const start = `${selectedYear}-${selectedMonth}-01`;
@@ -192,14 +192,14 @@ export const FinanceProvider = ({ children }) => {
         } catch (e) {
             setError(e.message);
         } finally {
-            setLoading(false);
-            setIsRefreshing(false);
+            setLoading(false); // Siempre resetear loading
+            setIsRefreshing(false); // Siempre resetear isRefreshing
         }
     }, [finalApiUrl, selectedYear, selectedMonth, cargasPct]);
 
     // Auto-fetch al montar y cuando cambian dependencias
     useEffect(() => {
-        fetchData(false); // Ahora siempre es seguro llamar a fetchData, ella decidirá si descargar o usar cache
+        fetchData(false, false); // No forzar, no silencioso (usa loading)
     }, [fetchData]);
 
     const invalidateCache = useCallback((year, month) => {
@@ -207,19 +207,25 @@ export const FinanceProvider = ({ children }) => {
         localStorage.removeItem(`cache_${urlHash}_${year}_${month}`);
     }, [apiUrl]);
 
-    // Función robusta para refrescar todo secuencialmente
-    const refreshAll = useCallback(async () => {
+    // Función para polling automático (silencioso)
+    const pollForUpdates = useCallback(async () => {
         try {
             setError(null);
-            // Usamos silent: true para el polling automático
-            await fetchData(true, true); 
+            await fetchData(false, true); // No forzar, pero silencioso (usa isRefreshing)
             await fetchMetadata(); 
         } catch (e) {
             setError("Error al sincronizar con Google Sheets. Intente nuevamente.");
             console.error(e);
-        } finally {
-            setLoading(false);
         }
+    }, [fetchData, fetchMetadata]);
+
+    // Función para refresco manual (forzado y con spinner principal)
+    const manualRefresh = useCallback(async () => {
+        setLoading(true); // Activa el spinner principal
+        try {
+            await fetchData(true, false); // Forzar, no silencioso (usa loading)
+            await fetchMetadata();
+        } catch (e) { /* El error ya es manejado por fetchData */ }
     }, [fetchData, fetchMetadata]);
 
     const value = useMemo(() => ({
@@ -237,9 +243,10 @@ export const FinanceProvider = ({ children }) => {
         updateConfig,
         fetchData,
         fetchMetadata,
-        refreshAll,
+        pollForUpdates, // Exponer la función de polling
+        manualRefresh,  // Exponer la función de refresco manual
         invalidateCache,
-    }), [apiUrl, dashData, empData, arcaData, ventasData, isRefreshing, loading, error, selectedYear, selectedMonth, cargasPct, viewMode, availablePeriods, localAjustes, fetchData, fetchMetadata, refreshAll, invalidateCache]);
+    }), [apiUrl, dashData, empData, arcaData, ventasData, isRefreshing, loading, error, selectedYear, selectedMonth, cargasPct, viewMode, availablePeriods, localAjustes, fetchData, fetchMetadata, pollForUpdates, manualRefresh, invalidateCache]);
 
     return (
         <FinanceContext.Provider value={value}>

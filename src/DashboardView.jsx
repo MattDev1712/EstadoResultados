@@ -277,7 +277,7 @@ const AlertsPanel = ({ kpis, egresos, periodo, empData = [], arcaData = [], vent
 const DashboardView = () => {
     const {
         dashData: data, empData, arcaData, ventasData, categoriesMap,
-        loading, error, viewMode, setViewMode,
+        loading, error, viewMode, setViewMode, isRefreshing,
         localAjustes, setLocalAjustes, updateConfig,
         selectedYear, selectedMonth, cargasPct
     } = useFinance();
@@ -485,7 +485,10 @@ const DashboardView = () => {
     const ivaProveedoresVisible = ivaShowAll ? ivaGrouped : ivaGrouped.slice(0, 10);
 
     return (
-        <div className="animate-fade-in" style={{ paddingBottom: 40 }}>
+        <div className="animate-fade-in" style={{ paddingBottom: 40,
+            opacity: isRefreshing ? 0.7 : 1, // Atenuar sutilmente durante la sincronización en segundo plano
+            transition: 'opacity 0.3s ease-in-out'
+        }}>
 
             <InfoModal
                 isOpen={!!infoModalKey}

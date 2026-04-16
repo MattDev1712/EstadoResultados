@@ -120,18 +120,22 @@ const App = () => {
     useEffect(() => {
         if (!apiUrl) return;
 
+        // Solo hacer polling en las pestañas de dashboard donde los datos son críticos
+        const dataDependentTabs = ['iva_dashboard', 'margin_dashboard', 'arca', 'ventas', 'empleados', 'estructurales', 'retenciones'];
+        if (!dataDependentTabs.includes(activeTab)) return;
+
         // Polling cada 30 segundos para chequear cambios en Sheets
         const interval = setInterval(() => {
             // No refrescar si: estamos cargando, hay una previsualización abierta o un modal
             if (!loading && !previewData && !showStructModal && !showRetentionsModal && apiUrl) {
-                // Llamada inteligente: no forzamos (usa hash) y es silenciosa (sin spinner principal)
-                fetchData(false, true);
+                // Llamada inteligente: usa el hash y es silenciosa (usa isRefreshing)
+                pollForUpdates();
                 fetchMetadata();
             }
         }, 30000); 
 
-        return () => clearInterval(interval);
-    }, [apiUrl, loading, fetchData, fetchMetadata, previewData, showStructModal, showRetentionsModal]);
+        return () => clearInterval(interval); // Limpiar el intervalo al desmontar o cambiar dependencias
+    }, [apiUrl, loading, fetchData, fetchMetadata, previewData, showStructModal, showRetentionsModal, activeTab, pollForUpdates]); // activeTab y pollForUpdates a dependencias
 
     const addLog = (msg) => {
         const time = new Date().toLocaleTimeString();
@@ -625,7 +629,7 @@ const App = () => {
                 </button>
 
                 <button
-                    onClick={() => fetchData(true)}
+                    onClick={manualRefresh}
                     disabled={loading || isRefreshing}
                     className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all border ${
                         (loading || isRefreshing)
