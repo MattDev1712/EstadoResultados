@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { formatters as Utils } from './formatters';
 import { useFinance } from './FinanceContext';
 import CategoriesView from './CategoriesView';
+import { CAT_CONFIG } from './catConfig';
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
 
@@ -31,12 +32,7 @@ const ivaBadgeClass = (pct) => {
 
 const ivaBadgeLabel = (pct) => pct === 0 ? 'Exento' : `${pct}%`;
 
-// Colores por categoría (compartido entre ArcaTable y CategoriesView)
-export const CAT_CONFIG = {
-    PROVEEDOR:  { color: '#10b981', bg: 'rgba(16,185,129,0.15)', label: 'CMV' },
-    GASTO_FIJO: { color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', label: 'Fijo' },
-    NO_APTO:    { color: '#f43f5e', bg: 'rgba(244,63,94,0.15)',  label: 'N/A' },
-};
+export { CAT_CONFIG } from './catConfig';
 
 // ─── Tabla agrupada por proveedor ───────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useFinance } from './FinanceContext';
-import { CAT_CONFIG } from './ArcaView';
+import { CAT_CONFIG } from './catConfig';
 
 const CATEGORIES = [
     { id: 'PROVEEDOR',  label: 'CMV',       ...CAT_CONFIG.PROVEEDOR  },
