@@ -158,8 +158,7 @@ const App = () => {
             const res = await response.json();
             if (res.status === 'OK') {
                 addLog(`✅ Éxito: ${res.insertados} insertados, ${res.omitidos ?? 0} duplicados omitidos.`);
-                // Sincronización total inmediata tras el guardado
-                fetchMetadata();
+                // Forzar refresh — trae datos + metadata actualizados en una sola llamada
                 fetchData(true);
                 setPreviewData(null);
             } else {
