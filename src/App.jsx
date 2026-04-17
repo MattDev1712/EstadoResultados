@@ -62,7 +62,8 @@ const App = () => {
         selectedMonth, setSelectedMonth,
         availablePeriods, cargasPct, setCargasPct,
         dashData, empData, arcaData, ventasData,
-        fetchData, manualRefresh
+        fetchData, manualRefresh,
+        checkHash, prefetchVisiblePeriods, newDataAvailable, setNewDataAvailable
     } = useFinance();
 
     // Generar botones de periodos (últimos 9 meses)
@@ -124,7 +125,22 @@ const App = () => {
     const [logs, setLogs] = useState([]);
     const [showLogs, setShowLogs] = useState(false);
 
-    // Polling removido: los datos se actualizan solo con ↻ o tras cargar datos nuevos.
+    // Prefetch silencioso de todos los periodos visibles — se dispara una vez al iniciar
+    const prefetchDone = useRef(false);
+    useEffect(() => {
+        if (!apiUrl || prefetchDone.current || loading) return;
+        if (dashData) { // Solo arrancar cuando el periodo actual ya cargó
+            prefetchDone.current = true;
+            prefetchVisiblePeriods();
+        }
+    }, [apiUrl, dashData, loading, prefetchVisiblePeriods]);
+
+    // Hash polling cada 5 minutos — detecta cambios sin traer datos
+    useEffect(() => {
+        if (!apiUrl) return;
+        const interval = setInterval(checkHash, 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [apiUrl, checkHash]);
 
     const addLog = (msg) => {
         const time = new Date().toLocaleTimeString();
@@ -623,22 +639,30 @@ const App = () => {
                     )}
                 </button>
 
-                <button
-                    onClick={manualRefresh}
-                    disabled={loading || isRefreshing}
-                    className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all border ${
-                        (loading || isRefreshing)
-                        ? 'bg-blue-600/20 text-blue-400 border-blue-500/30' 
-                        : 'bg-blue-600/10 text-blue-400 border-blue-500/30 hover:bg-blue-600 hover:text-white'
-                    }`}
-                >
-                    {(loading || isRefreshing) ? (
-                        <svg className="animate-spin h-3.5 w-3.5 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    ) : '↻'}
-                </button>
+                <div className="relative">
+                    <button
+                        onClick={manualRefresh}
+                        disabled={loading || isRefreshing}
+                        title={newDataAvailable ? 'Hay datos nuevos — actualizá' : 'Actualizar datos'}
+                        className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all border ${
+                            newDataAvailable
+                            ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-600 hover:text-white animate-pulse'
+                            : (loading || isRefreshing)
+                                ? 'bg-blue-600/20 text-blue-400 border-blue-500/30'
+                                : 'bg-blue-600/10 text-blue-400 border-blue-500/30 hover:bg-blue-600 hover:text-white'
+                        }`}
+                    >
+                        {(loading || isRefreshing) ? (
+                            <svg className="animate-spin h-3.5 w-3.5 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        ) : '↻'}
+                    </button>
+                    {newDataAvailable && !loading && !isRefreshing && (
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-slate-950 animate-pulse" />
+                    )}
+                </div>
             </nav>
 
             <main>

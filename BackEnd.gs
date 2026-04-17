@@ -1266,6 +1266,10 @@ function doGet(e) {
     const action = e.parameter.action;
     const serverHash = PropertiesService.getScriptProperties().getProperty('STATE_HASH') || 'initial';
     
+    if (action === 'GET_HASH') {
+      return ContentService.createTextOutput(JSON.stringify({ hash: serverHash })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (action === 'GET_METADATA') {
       const meta = getDataMetadata();
       return ContentService.createTextOutput(JSON.stringify(meta)).setMimeType(ContentService.MimeType.JSON);

@@ -2,13 +2,11 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 
 const FinanceContext = createContext();
 
-// Incrementa esto cada vez que hagas un deploy importante
-const APP_VERSION = '1.2.5'; 
+const APP_VERSION = '1.2.5';
 
 const validatePersistence = () => {
     const savedVersion = localStorage.getItem('app_version');
     if (savedVersion !== APP_VERSION) {
-        // Guardamos solo lo vital (la URL de la API) para no molestar al usuario
         const apiUrl = localStorage.getItem('gas_api_url');
         localStorage.clear();
         if (apiUrl) localStorage.setItem('gas_api_url', apiUrl);
@@ -26,58 +24,239 @@ const getInitialApiUrl = () => {
     return '';
 };
 
+// Compute the 9 visible period keys shown in the UI
+const getVisiblePeriods = () => {
+    const now = new Date();
+    const periods = [];
+    for (let i = 8; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        periods.push({
+            y: String(d.getFullYear()),
+            m: String(d.getMonth() + 1).padStart(2, '0')
+        });
+    }
+    return periods;
+};
+
 export const FinanceProvider = ({ children }) => {
-    // Ejecutar validación de versión antes de inicializar estados
     validatePersistence();
 
     const [apiUrl, setApiUrl] = useState(getInitialApiUrl);
-    
+
     const finalApiUrl = useMemo(() => {
         if (!apiUrl) return '';
-        if (apiUrl.startsWith('AKfy')) {
-            return `https://script.google.com/macros/s/${apiUrl}/exec`;
-        }
-        if (!apiUrl.startsWith('http')) {
-            return `https://${apiUrl}`;
-        }
+        if (apiUrl.startsWith('AKfy')) return `https://script.google.com/macros/s/${apiUrl}/exec`;
+        if (!apiUrl.startsWith('http')) return `https://${apiUrl}`;
         return apiUrl;
     }, [apiUrl]);
 
-    const [dashData, setDashData] = useState(null);
-    const [empData, setEmpData] = useState([]);
-    const [arcaData, setArcaData] = useState([]);
-    const [ventasData, setVentasData] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [dashData, setDashData]       = useState(null);
+    const [empData, setEmpData]         = useState([]);
+    const [arcaData, setArcaData]       = useState([]);
+    const [ventasData, setVentasData]   = useState([]);
+    const [loading, setLoading]         = useState(false);
     const [categoriesMap, setCategoriesMap] = useState({});
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [error, setError] = useState(null);
-    const [selectedYear, setSelectedYear] = useState(() => 
+    const [isRefreshing, setIsRefreshing]   = useState(false);
+    const [error, setError]             = useState(null);
+    const [availablePeriods, setAvailablePeriods] = useState([]);
+    const [newDataAvailable, setNewDataAvailable] = useState(false);
+
+    const [selectedYear, setSelectedYear] = useState(() =>
         localStorage.getItem('selectedYear') || String(new Date().getFullYear())
     );
-    const [selectedMonth, setSelectedMonth] = useState(() => 
+    const [selectedMonth, setSelectedMonth] = useState(() =>
         localStorage.getItem('selectedMonth') || String(new Date().getMonth() + 1).padStart(2, '0')
     );
-    const isFirstLoad = useRef(true);
     const [cargasPct, setCargasPct] = useState(() => localStorage.getItem('cfg_cargas_pct') || "33");
-    const [viewMode, setViewMode] = useState('NOMINAL'); // 'NOMINAL', 'REAL_IPC', 'DOLAR_MEP'
-    const [availablePeriods, setAvailablePeriods] = useState([]);
-
-    // Estado local para los ajustes del periodo actual (IPC y MEP)
+    const [viewMode, setViewMode] = useState('NOMINAL');
     const [localAjustes, setLocalAjustes] = useState({ ipc: 1, mep: 1000 });
 
-    // Guardar cambios en localStorage
+    // In-memory cache — más rápido que localStorage para switching de meses
+    const memCache = useRef({});
+    // Hash del servidor conocido — para detectar cambios
+    const lastKnownHash = useRef(localStorage.getItem('last_server_hash') || null);
+
     useEffect(() => {
         localStorage.setItem('selectedYear', selectedYear);
         localStorage.setItem('selectedMonth', selectedMonth);
     }, [selectedYear, selectedMonth]);
 
-    // Sincronizar ajustes locales cuando cambian los datos del dashboard
     useEffect(() => {
-        if (dashData?.ajustes) {
-            setLocalAjustes(dashData.ajustes);
-        }
+        localStorage.setItem('cfg_cargas_pct', cargasPct);
+    }, [cargasPct]);
+
+    useEffect(() => {
+        if (dashData?.ajustes) setLocalAjustes(dashData.ajustes);
     }, [dashData]);
 
+    // ── Helpers ────────────────────────────────────────────────────────────────
+
+    const getCacheKey = useCallback((year, month) => {
+        return `cache_${btoa(apiUrl).substring(0, 8)}_${year}_${month}`;
+    }, [apiUrl]);
+
+    const applyPeriodData = useCallback((data) => {
+        setDashData(data.dash);
+        setEmpData(data.emp || []);
+        setArcaData(data.arca || []);
+        setVentasData(data.ventas || []);
+        if (data.metadata?.periods) setAvailablePeriods(data.metadata.periods);
+        if (data.categoriesMap) {
+            const catMap = {};
+            data.categoriesMap.forEach(i => { catMap[i.cuit] = i.categoria; });
+            setCategoriesMap(catMap);
+        }
+    }, []);
+
+    // ── Fetch de bajo nivel — sin tocar loading/error state ───────────────────
+    // Retorna los datos del periodo. Usa memCache → localStorage → red, en ese orden.
+    const fetchPeriodData = useCallback(async (year, month) => {
+        const periodKey = `${year}-${month}`;
+
+        // 1. Memoria (instantáneo)
+        if (memCache.current[periodKey]) return memCache.current[periodKey];
+
+        // 2. localStorage
+        const cacheKey = getCacheKey(year, month);
+        try {
+            const raw = localStorage.getItem(cacheKey);
+            if (raw) {
+                const data = JSON.parse(raw);
+                memCache.current[periodKey] = data;
+                return data;
+            }
+        } catch (e) {
+            localStorage.removeItem(cacheKey);
+        }
+
+        // 3. Red
+        const start = `${year}-${month}-01`;
+        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+        const end = `${year}-${month}-${lastDay}`;
+        const url = `${finalApiUrl}?action=GET_COMPLETE_DATA&start=${start}&end=${end}&cargasPct=${cargasPct}`;
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 45000);
+        try {
+            const res = await fetch(url, { signal: controller.signal }).then(r => r.json());
+            clearTimeout(timer);
+
+            if (res.status === 'ERROR' || !res.dashboard) return null;
+
+            // Actualizar hash conocido
+            if (res.stateHash) {
+                lastKnownHash.current = res.stateHash;
+                localStorage.setItem('last_server_hash', res.stateHash);
+            }
+
+            const data = {
+                dash: res.dashboard,
+                emp: res.employees || [],
+                arca: res.arca || [],
+                ventas: res.ventas || [],
+                metadata: res.metadata,
+                categoriesMap: res.categoriesMap,
+                hash: res.stateHash
+            };
+            memCache.current[periodKey] = data;
+            localStorage.setItem(cacheKey, JSON.stringify(data));
+            return data;
+        } catch (e) {
+            clearTimeout(timer);
+            if (e.name === 'AbortError') throw new Error('Timeout: el servidor tardó demasiado. Intentá de nuevo con ↻.');
+            throw e;
+        }
+    }, [finalApiUrl, cargasPct, getCacheKey]);
+
+    // ── fetchData — carga el periodo seleccionado en el estado UI ─────────────
+    const fetchData = useCallback(async (force = false) => {
+        if (!apiUrl) return;
+
+        if (force) {
+            // Invalidar caches del periodo actual
+            const periodKey = `${selectedYear}-${selectedMonth}`;
+            delete memCache.current[periodKey];
+            localStorage.removeItem(getCacheKey(selectedYear, selectedMonth));
+        }
+
+        // Verificar si hay datos en cache antes de mostrar spinner
+        const periodKey = `${selectedYear}-${selectedMonth}`;
+        const hasCache = !force && (
+            memCache.current[periodKey] ||
+            localStorage.getItem(getCacheKey(selectedYear, selectedMonth))
+        );
+
+        if (!hasCache) {
+            setLoading(true);
+            setError(null);
+        }
+
+        try {
+            const data = await fetchPeriodData(selectedYear, selectedMonth);
+            if (!data) throw new Error('No se recibieron datos del tablero.');
+            applyPeriodData(data);
+            if (force) setNewDataAvailable(false);
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setLoading(false);
+            setIsRefreshing(false);
+        }
+    }, [apiUrl, selectedYear, selectedMonth, fetchPeriodData, applyPeriodData, getCacheKey]);
+
+    // Auto-fetch al montar y cuando cambia el periodo seleccionado
+    useEffect(() => {
+        fetchData(false);
+    }, [fetchData]);
+
+    // ── Prefetch silencioso de todos los periodos visibles ────────────────────
+    // Se llama una vez después de la carga inicial. Sin loading indicators.
+    const prefetchVisiblePeriods = useCallback(async () => {
+        if (!finalApiUrl) return;
+        const periods = getVisiblePeriods();
+        for (const { y, m } of periods) {
+            if (y === selectedYear && m === selectedMonth) continue; // Ya cargado
+            try {
+                await fetchPeriodData(y, m); // Lee cache si existe, va a red si no
+            } catch (e) { /* Silent — no bloquear por un periodo fallido */ }
+            // Pausa entre requests para no saturar GAS
+            await new Promise(r => setTimeout(r, 800));
+        }
+    }, [finalApiUrl, selectedYear, selectedMonth, fetchPeriodData]);
+
+    // ── Hash check liviano — detecta cambios sin traer datos ─────────────────
+    const checkHash = useCallback(async () => {
+        if (!finalApiUrl) return;
+        try {
+            const res = await fetch(`${finalApiUrl}?action=GET_HASH`).then(r => r.json());
+            if (!res.hash) return;
+            if (lastKnownHash.current && res.hash !== lastKnownHash.current) {
+                setNewDataAvailable(true);
+            }
+            // Inicializar referencia si no había hash previo
+            if (!lastKnownHash.current) {
+                lastKnownHash.current = res.hash;
+                localStorage.setItem('last_server_hash', res.hash);
+            }
+        } catch (e) { /* Silent */ }
+    }, [finalApiUrl]);
+
+    // ── manualRefresh ─────────────────────────────────────────────────────────
+    const manualRefresh = useCallback(async () => {
+        setLoading(true);
+        try {
+            await fetchData(true);
+        } catch (e) { /* Error manejado por fetchData */ }
+    }, [fetchData]);
+
+    // ── invalidateCache ───────────────────────────────────────────────────────
+    const invalidateCache = useCallback((year, month) => {
+        const periodKey = `${year}-${month}`;
+        delete memCache.current[periodKey];
+        localStorage.removeItem(getCacheKey(year, month));
+    }, [getCacheKey]);
+
+    // ── updateConfig ──────────────────────────────────────────────────────────
     const updateConfig = async (periodo, ipc, mep) => {
         if (!finalApiUrl) return;
         try {
@@ -92,161 +271,12 @@ export const FinanceProvider = ({ children }) => {
             });
             const data = await res.json();
             if (data.status === 'OK') {
-                // Actualizar metadatos locales para reflejar el cambio inmediato
-                setDashData(prev => ({
-                    ...prev,
-                    ajustes: { ipc: parseFloat(ipc), mep: parseFloat(mep) }
-                }));
+                setDashData(prev => ({ ...prev, ajustes: { ipc: parseFloat(ipc), mep: parseFloat(mep) } }));
                 return true;
             }
-        } catch (e) {
-            console.error("Error guardando config:", e);
-        }
+        } catch (e) { console.error("Error guardando config:", e); }
         return false;
     };
-
-    // Cargar metadatos (periodos disponibles)
-    const fetchMetadata = useCallback(async () => {
-        if (!finalApiUrl) return;
-        try {
-            const res = await fetch(`${finalApiUrl}?action=GET_METADATA`);
-            const meta = await res.json();
-            if (meta.periods) {
-                setAvailablePeriods(meta.periods);
-            }
-        } catch (e) {
-            console.warn("Error cargando metadatos:", e);
-        }
-    }, [apiUrl]);
-
-    // Cargar mapa de categorías (raramente cambia — carga una vez por sesión)
-    const fetchCategoriesMap = useCallback(async () => {
-        if (!finalApiUrl) return;
-        try {
-            const catRes = await fetch(`${finalApiUrl}?action=GET_CATEGORIES_MAP`).then(r => r.json());
-            const catMap = {};
-            (catRes || []).forEach(item => { catMap[item.cuit] = item.categoria; });
-            setCategoriesMap(catMap);
-        } catch (e) {
-            console.warn("Error cargando categorías:", e);
-        }
-    }, [finalApiUrl]);
-
-    // fetchCategoriesMap ya viene embebido en GET_COMPLETE_DATA — no necesita llamada separada
-
-    // Persistir configuración de cargas sociales
-    useEffect(() => {
-        localStorage.setItem('cfg_cargas_pct', cargasPct);
-    }, [cargasPct]);
-
-    const fetchData = useCallback(async (force = false, silent = false) => {
-        if (!apiUrl) return;
-
-        const urlHash = btoa(apiUrl).substring(0, 8);
-        const cacheKey = `cache_${urlHash}_${selectedYear}_${selectedMonth}`;
-        const cached = localStorage.getItem(cacheKey);
-
-        // Cache hit y no forzado → servir directo, sin red
-        if (cached && !force) {
-            try {
-                const cachedData = JSON.parse(cached);
-                setDashData(cachedData.dash);
-                setEmpData(cachedData.emp || []);
-                setArcaData(cachedData.arca || []);
-                setVentasData(cachedData.ventas || []);
-                if (cachedData.metadata?.periods) setAvailablePeriods(cachedData.metadata.periods);
-                if (cachedData.categoriesMap) {
-                    const catMap = {};
-                    (cachedData.categoriesMap || []).forEach(item => { catMap[item.cuit] = item.categoria; });
-                    setCategoriesMap(catMap);
-                }
-                return; // Sin llamada de red
-            } catch (e) {
-                localStorage.removeItem(cacheKey); // Cache corrupto → continuar a red
-            }
-        }
-
-        // Sin cache o forzado → ir al backend
-        setLoading(true);
-        setIsRefreshing(false);
-        setError(null);
-        try {
-            const start = `${selectedYear}-${selectedMonth}-01`;
-            const lastDay = new Date(selectedYear, parseInt(selectedMonth), 0).getDate();
-            const end = `${selectedYear}-${selectedMonth}-${lastDay}`;
-
-            const fetchUrl = `${finalApiUrl}?action=GET_COMPLETE_DATA&start=${start}&end=${end}&cargasPct=${cargasPct}`;
-
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 45000);
-            let dataRes;
-            try {
-                dataRes = await fetch(fetchUrl, { signal: controller.signal }).then(r => r.json());
-            } finally {
-                clearTimeout(timeout);
-            }
-
-            if (dataRes.status === 'ERROR') throw new Error(dataRes.message || "Error desconocido en el servidor");
-            if (dataRes.error) throw new Error(dataRes.error);
-            if (!dataRes.dashboard) throw new Error("No se recibieron datos del tablero (dashboard).");
-
-            setDashData(dataRes.dashboard);
-            setEmpData(dataRes.employees || []);
-            setArcaData(dataRes.arca || []);
-            setVentasData(dataRes.ventas || []);
-
-            if (dataRes.metadata?.periods) setAvailablePeriods(dataRes.metadata.periods);
-            if (dataRes.categoriesMap) {
-                const catMap = {};
-                (dataRes.categoriesMap || []).forEach(item => { catMap[item.cuit] = item.categoria; });
-                setCategoriesMap(catMap);
-            }
-
-            localStorage.setItem(cacheKey, JSON.stringify({
-                dash: dataRes.dashboard,
-                emp: dataRes.employees,
-                arca: dataRes.arca,
-                ventas: dataRes.ventas,
-                hash: dataRes.stateHash,
-                metadata: dataRes.metadata,
-                categoriesMap: dataRes.categoriesMap
-            }));
-        } catch (e) {
-            setError(e.name === 'AbortError' ? 'Timeout: el servidor tardó demasiado. Intentá de nuevo con ↻.' : e.message);
-        } finally {
-            setLoading(false);
-            setIsRefreshing(false);
-        }
-    }, [finalApiUrl, selectedYear, selectedMonth, cargasPct]);
-
-    // Auto-fetch al montar y cuando cambian dependencias
-    useEffect(() => {
-        fetchData(false, false); // No forzar, no silencioso (usa loading)
-    }, [fetchData]);
-
-    const invalidateCache = useCallback((year, month) => {
-        const urlHash = btoa(apiUrl).substring(0, 8);
-        localStorage.removeItem(`cache_${urlHash}_${year}_${month}`);
-    }, [apiUrl]);
-
-    // Función para polling automático (silencioso)
-    const pollForUpdates = useCallback(async () => {
-        try {
-            setError(null);
-            await fetchData(false, true); // Silencioso — metadata y categoriesMap vienen en el response
-        } catch (e) {
-            setError("Error al sincronizar con Google Sheets. Intente nuevamente.");
-            console.error(e);
-        }
-    }, [fetchData]);
-
-    // Función para refresco manual (forzado y con spinner principal)
-    const manualRefresh = useCallback(async () => {
-        setLoading(true); // Activa el spinner principal
-        try {
-            await fetchData(true, false); // Forzar — metadata y categoriesMap vienen en el response
-        } catch (e) { /* El error ya es manejado por fetchData */ }
-    }, [fetchData]);
 
     const value = useMemo(() => ({
         apiUrl, setApiUrl, finalApiUrl,
@@ -260,14 +290,21 @@ export const FinanceProvider = ({ children }) => {
         viewMode, setViewMode,
         availablePeriods,
         localAjustes, setLocalAjustes,
+        newDataAvailable, setNewDataAvailable,
         updateConfig,
         fetchData,
-        fetchMetadata,
-        fetchCategoriesMap,
-        pollForUpdates, // Exponer la función de polling
-        manualRefresh,  // Exponer la función de refresco manual
+        checkHash,
+        prefetchVisiblePeriods,
+        manualRefresh,
         invalidateCache,
-    }), [apiUrl, dashData, empData, arcaData, ventasData, isRefreshing, loading, error, selectedYear, selectedMonth, cargasPct, viewMode, availablePeriods, localAjustes, fetchData, fetchMetadata, fetchCategoriesMap, pollForUpdates, manualRefresh, invalidateCache]);
+    }), [
+        apiUrl, dashData, empData, arcaData, ventasData,
+        isRefreshing, loading, error,
+        selectedYear, selectedMonth, cargasPct, viewMode,
+        availablePeriods, localAjustes, categoriesMap,
+        newDataAvailable,
+        fetchData, checkHash, prefetchVisiblePeriods, manualRefresh, invalidateCache
+    ]);
 
     return (
         <FinanceContext.Provider value={value}>
@@ -278,8 +315,6 @@ export const FinanceProvider = ({ children }) => {
 
 export const useFinance = () => {
     const context = useContext(FinanceContext);
-    if (!context) {
-        throw new Error('useFinance debe usarse dentro de un FinanceProvider');
-    }
+    if (!context) throw new Error('useFinance debe usarse dentro de un FinanceProvider');
     return context;
 };
