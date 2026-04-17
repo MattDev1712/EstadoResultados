@@ -1294,7 +1294,9 @@ function doGet(e) {
         employees: employees,
         arca: arca,
         ventas: ventas,
-        stateHash: serverHash
+        stateHash: serverHash,
+        metadata: getDataMetadata(),
+        categoriesMap: getCategoriesMap()
       };
       return ContentService.createTextOutput(JSON.stringify(consolidatedData)).setMimeType(ContentService.MimeType.JSON);
     }

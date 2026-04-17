@@ -132,10 +132,7 @@ export const FinanceProvider = ({ children }) => {
         }
     }, [finalApiUrl]);
 
-    // Cargar categorías una sola vez cuando la URL está disponible
-    useEffect(() => {
-        fetchCategoriesMap();
-    }, [fetchCategoriesMap]);
+    // fetchCategoriesMap ya viene embebido en GET_COMPLETE_DATA — no necesita llamada separada
 
     // Persistir configuración de cargas sociales
     useEffect(() => {
@@ -163,6 +160,12 @@ export const FinanceProvider = ({ children }) => {
                     setEmpData(cachedData.emp || []);
                     setArcaData(cachedData.arca || []);
                     setVentasData(cachedData.ventas || []);
+                    if (cachedData.metadata?.periods) setAvailablePeriods(cachedData.metadata.periods);
+                    if (cachedData.categoriesMap) {
+                        const catMap = {};
+                        (cachedData.categoriesMap || []).forEach(item => { catMap[item.cuit] = item.categoria; });
+                        setCategoriesMap(catMap);
+                    }
                 }
             } catch (e) {
                 localStorage.removeItem(cacheKey);
@@ -183,7 +186,14 @@ export const FinanceProvider = ({ children }) => {
             // Intentamos una carga optimizada pasando el hash que tenemos guardado
             const fetchUrl = `${finalApiUrl}?action=GET_COMPLETE_DATA&start=${start}&end=${end}&cargasPct=${cargasPct}${(!force && localHash) ? `&localHash=${localHash}` : ''}`;
 
-            const dataRes = await fetch(fetchUrl).then(r => r.json());
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 45000);
+            let dataRes;
+            try {
+                dataRes = await fetch(fetchUrl, { signal: controller.signal }).then(r => r.json());
+            } finally {
+                clearTimeout(timeout);
+            }
 
             if (dataRes.status === 'ERROR') throw new Error(dataRes.message || "Error desconocido en el servidor");
             if (dataRes.error) throw new Error(dataRes.error);
@@ -201,15 +211,24 @@ export const FinanceProvider = ({ children }) => {
             setArcaData(result.arca || []);
             setVentasData(result.ventas || []);
 
+            if (result.metadata?.periods) setAvailablePeriods(result.metadata.periods);
+            if (result.categoriesMap) {
+                const catMap = {};
+                (result.categoriesMap || []).forEach(item => { catMap[item.cuit] = item.categoria; });
+                setCategoriesMap(catMap);
+            }
+
             localStorage.setItem(cacheKey, JSON.stringify({
                 dash: result.dashboard,
                 emp: result.employees,
                 arca: result.arca,
                 ventas: result.ventas,
-                hash: result.stateHash // Guardamos el nuevo hash enviado por el servidor
+                hash: result.stateHash,
+                metadata: result.metadata,
+                categoriesMap: result.categoriesMap
             }));
         } catch (e) {
-            setError(e.message);
+            setError(e.name === 'AbortError' ? 'Timeout: el servidor tardó demasiado. Intentá de nuevo con ↻.' : e.message);
         } finally {
             setLoading(false); // Siempre resetear loading
             setIsRefreshing(false); // Siempre resetear isRefreshing
@@ -230,22 +249,20 @@ export const FinanceProvider = ({ children }) => {
     const pollForUpdates = useCallback(async () => {
         try {
             setError(null);
-            await fetchData(false, true); // No forzar, pero silencioso (usa isRefreshing)
-            await fetchMetadata(); 
+            await fetchData(false, true); // Silencioso — metadata y categoriesMap vienen en el response
         } catch (e) {
             setError("Error al sincronizar con Google Sheets. Intente nuevamente.");
             console.error(e);
         }
-    }, [fetchData, fetchMetadata]);
+    }, [fetchData]);
 
     // Función para refresco manual (forzado y con spinner principal)
     const manualRefresh = useCallback(async () => {
         setLoading(true); // Activa el spinner principal
         try {
-            await fetchData(true, false); // Forzar, no silencioso (usa loading)
-            await fetchMetadata();
+            await fetchData(true, false); // Forzar — metadata y categoriesMap vienen en el response
         } catch (e) { /* El error ya es manejado por fetchData */ }
-    }, [fetchData, fetchMetadata]);
+    }, [fetchData]);
 
     const value = useMemo(() => ({
         apiUrl, setApiUrl, finalApiUrl,

@@ -152,9 +152,7 @@ const App = () => {
         setLogs(prev => [`[${time}] ${msg}`, ...prev]);
     };
 
-    useEffect(() => {
-        fetchMetadata();
-    }, [fetchMetadata, selectedYear, selectedMonth]);
+    // fetchMetadata ya viene embebido en GET_COMPLETE_DATA — no necesita llamada separada
 
     useEffect(() => {
         if (selectedYear && selectedMonth) {
