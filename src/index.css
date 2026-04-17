@@ -336,3 +336,12 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 [data-theme="light"] .text-blue-200      { color: #1e40af !important; }
 [data-theme="light"] .text-blue-300      { color: #1d4ed8 !important; }
 [data-theme="light"] .text-rose-300      { color: #be123c !important; }
+
+/* Texto -100 (casi blanco) — cuerpo de alertas y inputs en modales */
+[data-theme="light"] .text-amber-100     { color: #78350f !important; }
+[data-theme="light"] .text-rose-100      { color: #881337 !important; }
+[data-theme="light"] .text-blue-100      { color: #1e3a8a !important; }
+[data-theme="light"] .text-slate-100     { color: #1C2537 !important; }
+
+/* Botón ✕ de alerta: hover:text-white invisible en light */
+[data-theme="light"] .hover\:text-white:hover { color: #1C2537 !important; }
