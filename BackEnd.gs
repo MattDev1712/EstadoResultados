@@ -689,11 +689,11 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
   const catMap = _getCuitCategoryMap(ss);
   const erMap = _getAllEstadoResultManual();
   
-  // Usar configuración de la hoja 'Empresa' con fallbacks
-  const commTarj = parseFloat(busConfig.COMISION_TARJETAS || 0.018);
-  const commApps = parseFloat(busConfig.COMISION_APPS || 0.25);
-  const commOtros = parseFloat(busConfig.COMISION_OTROS || 0.0);
-  const commEfvo = parseFloat(busConfig.COMISION_EFECTIVO || 0.0);
+  // Usar configuración de la hoja 'Empresa' — sin fallback: si no está configurado, no se calculan comisiones
+  const commTarj = parseFloat(busConfig.COMISION_TARJETAS || 0);
+  const commApps = parseFloat(busConfig.COMISION_APPS || 0);
+  const commOtros = parseFloat(busConfig.COMISION_OTROS || 0);
+  const commEfvo = parseFloat(busConfig.COMISION_EFECTIVO || 0);
   const pctCargas = parseFloat(busConfig.PCT_CARGAS_SOCIALES || 0.33);
   
   

@@ -11,7 +11,6 @@ const NC_NAMES = new Set([
 
 const COMMON_RATES = [2.5, 5, 10.5, 21, 27];
 
-// Para datos ya guardados (sin iva_pct original), snappea al rate estándar más cercano
 const inferIvaPct = (neto, iva) => {
     const absIva  = Math.abs(Utils.num(iva));
     const absNeto = Math.abs(Utils.num(neto));
@@ -32,108 +31,164 @@ const ivaBadgeClass = (pct) => {
 
 const ivaBadgeLabel = (pct) => pct === 0 ? 'Exento' : `${pct}%`;
 
-// ─── Tabla genérica ─────────────────────────────────────────────────────────────
+// Colores por categoría (compartido entre ArcaTable y CategoriesView)
+export const CAT_CONFIG = {
+    PROVEEDOR:  { color: '#10b981', bg: 'rgba(16,185,129,0.15)', label: 'CMV' },
+    GASTO_FIJO: { color: '#3b82f6', bg: 'rgba(59,130,246,0.15)', label: 'Fijo' },
+    NO_APTO:    { color: '#f43f5e', bg: 'rgba(244,63,94,0.15)',  label: 'N/A' },
+};
 
-const ArcaTable = ({ data, aliasMap = {}, isNC = false }) => {
-    const totals = useMemo(() => Utils.arr(data).reduce((acc, r) => {
-        acc.neto  += Utils.num(r.neto  ?? r.importe_neto);
-        acc.iva   += Utils.num(r.iva   ?? r.importe_iva);
-        acc.total += Utils.num(r.total ?? r.importe_total);
+// ─── Tabla agrupada por proveedor ───────────────────────────────────────────────
+
+const ArcaTable = ({ data, aliasMap = {}, isNC = false, categoriesMap = {} }) => {
+    const [expanded, setExpanded] = useState(new Set());
+
+    const grouped = useMemo(() => {
+        const map = {};
+        Utils.arr(data).forEach(r => {
+            const key = r.cuit || r.entidad || 'S/D';
+            if (!map[key]) {
+                map[key] = {
+                    cuit:     r.cuit || '',
+                    entidad:  r.entidad || 'S/D',
+                    neto:  0, iva: 0, total: 0,
+                    facturas: [],
+                };
+            }
+            const alias = aliasMap[r.entidad] || aliasMap[r.cuit];
+            if (alias) map[key].alias = alias;
+
+            const neto  = Utils.num(r.neto  ?? r.importe_neto);
+            const iva   = Utils.num(r.iva   ?? r.importe_iva);
+            const total = Utils.num(r.total ?? r.importe_total);
+            map[key].neto  += neto;
+            map[key].iva   += iva;
+            map[key].total += total;
+            map[key].facturas.push({
+                fecha:     r.fecha,
+                tipo_comp: r.tipo_comp,
+                nro_comp:  r.nro_comp,
+                neto, iva, total,
+                iva_pct:   r.iva_pct,
+            });
+        });
+        return Object.values(map).sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+    }, [data, aliasMap]);
+
+    const totals = useMemo(() => grouped.reduce((acc, g) => {
+        acc.neto  += g.neto;
+        acc.iva   += g.iva;
+        acc.total += g.total;
         return acc;
-    }, { neto: 0, iva: 0, total: 0 }), [data]);
+    }, { neto: 0, iva: 0, total: 0 }), [grouped]);
+
+    const toggle = (key) => setExpanded(prev => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key); else next.add(key);
+        return next;
+    });
 
     return (
         <div>
+            {/* Totales */}
             <div className="grid grid-cols-3 gap-4 mb-6">
-                <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700">
-                    <p className="section-label !mb-1.5">Monto sin IVA</p>
-                    <h2 className="text-2xl font-black text-slate-200 mt-1">{Utils.fmt(Math.abs(totals.neto))}</h2>
-                </div>
-                <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700">
-                    <p className="section-label !mb-1.5">IVA</p>
-                    <h2 className={`text-2xl font-black mt-1 ${isNC ? 'text-rose-400' : 'text-emerald-400'}`}>
-                        {Utils.fmt(Math.abs(totals.iva))}
-                    </h2>
-                </div>
-                <div className="bg-slate-800 p-5 rounded-2xl border border-slate-700">
-                    <p className="section-label !mb-1.5">Total</p>
-                    <h2 className={`text-2xl font-black mt-1 ${isNC ? 'text-rose-300' : 'text-white'}`}>
-                        {Utils.fmt(Math.abs(totals.total))}
-                        {isNC && <span className="text-xs font-normal text-slate-500 ml-2">a favor</span>}
-                    </h2>
-                </div>
+                {[
+                    { label: 'Monto sin IVA', val: totals.neto, color: 'text-slate-200' },
+                    { label: 'IVA',           val: totals.iva,  color: isNC ? 'text-rose-400' : 'text-emerald-400' },
+                    { label: 'Total',         val: totals.total, color: isNC ? 'text-rose-300' : 'text-white' },
+                ].map(({ label, val, color }) => (
+                    <div key={label} className="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                        <p className="section-label !mb-1.5">{label}</p>
+                        <h2 className={`text-2xl font-black mt-1 ${color}`}>{Utils.fmt(Math.abs(val))}</h2>
+                    </div>
+                ))}
             </div>
 
+            {/* Lista agrupada */}
             <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
-                <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-900 text-slate-400 uppercase font-bold">
-                        <tr>
-                            <th className="px-4 py-3">Fecha</th>
-                            <th className="px-4 py-3">Proveedor</th>
-                            <th className="px-4 py-3">Comprobante</th>
-                            <th className="px-4 py-3">IVA %</th>
-                            <th className="px-4 py-3 text-right">Sin IVA</th>
-                            <th className="px-4 py-3 text-right">IVA</th>
-                            <th className="px-4 py-3 text-right">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700">
-                        {Utils.arr(data).length === 0 ? (
-                            <tr>
-                                <td colSpan="7" className="px-6 py-10 text-center text-slate-500 italic">
-                                    Sin registros para este período.
-                                </td>
-                            </tr>
-                        ) : Utils.arr(data).map((row, i) => {
-                            const neto  = row.neto  ?? row.importe_neto;
-                            const iva   = row.iva   ?? row.importe_iva;
-                            const total = row.total ?? row.importe_total;
+                {/* Header */}
+                <div className="grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 bg-slate-900 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                    <span>Proveedor</span>
+                    <span className="text-right">Sin IVA</span>
+                    <span className="text-right">IVA</span>
+                    <span className="text-right w-28">Total</span>
+                </div>
 
-                            const ivaPct = row.iva_pct != null
-                                ? row.iva_pct
-                                : inferIvaPct(neto, iva);
+                {grouped.length === 0 ? (
+                    <div className="px-6 py-10 text-center text-slate-500 italic text-xs">
+                        Sin registros para este período.
+                    </div>
+                ) : grouped.map((g) => {
+                    const key   = g.cuit || g.entidad;
+                    const open  = expanded.has(key);
+                    const cat   = categoriesMap[g.cuit];
+                    const catCfg = cat ? CAT_CONFIG[cat] : null;
+                    const displayName = g.alias || g.entidad;
 
-                            const alias = aliasMap[row.entidad] || aliasMap[row.cuit];
-                            const displayName = alias || row.entidad;
-                            const dateStr = row.fecha
-                                ? new Date(row.fecha).toLocaleDateString('es-AR')
-                                : 'S/D';
-
-                            return (
-                                <tr key={i} className={`hover:bg-slate-700/30 transition ${isNC ? 'bg-rose-950/10' : ''}`}>
-                                    <td className="px-4 py-3 text-slate-400 font-mono whitespace-nowrap">{dateStr}</td>
-                                    <td className="px-4 py-3">
-                                        <span className="font-bold text-slate-200 block">{displayName}</span>
-                                        {alias && (
-                                            <span className="text-[10px] text-slate-500 block">{row.entidad}</span>
+                    return (
+                        <div key={key} className="border-t border-slate-700">
+                            {/* Fila de proveedor */}
+                            <button
+                                onClick={() => toggle(key)}
+                                className="w-full grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3.5 text-left hover:bg-slate-700/30 transition items-center"
+                            >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <span className="text-slate-400 text-[10px] shrink-0">{open ? '▼' : '▶'}</span>
+                                    <div className="min-w-0">
+                                        <span className="font-bold text-slate-200 block truncate">{displayName}</span>
+                                        {g.alias && (
+                                            <span className="text-[10px] text-slate-500 block truncate">{g.entidad}</span>
                                         )}
-                                        <span className="text-[10px] text-slate-600 font-mono block">{row.cuit}</span>
-                                    </td>
-                                    <td className="px-4 py-3 text-slate-400">
-                                        <span className="block">{row.tipo_comp}</span>
-                                        <span className="font-mono text-slate-500">{row.nro_comp}</span>
-                                    </td>
-                                    <td className="px-4 py-3 text-center">
-                                        {ivaPct !== null && (
-                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${ivaBadgeClass(ivaPct)}`}>
-                                                {ivaBadgeLabel(ivaPct)}
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 text-right text-slate-300 font-mono">
-                                        {Utils.fmt(Math.abs(Utils.num(neto)))}
-                                    </td>
-                                    <td className={`px-4 py-3 text-right font-mono ${isNC ? 'text-rose-400/70' : 'text-emerald-500/70'}`}>
-                                        {Utils.fmt(Math.abs(Utils.num(iva)))}
-                                    </td>
-                                    <td className={`px-4 py-3 text-right font-bold font-mono ${isNC ? 'text-rose-300' : 'text-white'}`}>
-                                        {Utils.fmt(Math.abs(Utils.num(total)))}
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+                                        <span className="text-[10px] text-slate-600 font-mono">{g.cuit}</span>
+                                    </div>
+                                    {catCfg && (
+                                        <span
+                                            className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded border"
+                                            style={{ color: catCfg.color, background: catCfg.bg, borderColor: catCfg.color + '50' }}
+                                        >
+                                            {catCfg.label}
+                                        </span>
+                                    )}
+                                    <span className="shrink-0 text-[10px] text-slate-600 ml-1">{g.facturas.length} fact.</span>
+                                </div>
+                                <span className="text-right font-mono text-slate-300 text-xs">{Utils.fmt(Math.abs(g.neto))}</span>
+                                <span className={`text-right font-mono text-xs ${isNC ? 'text-rose-400/70' : 'text-emerald-500/70'}`}>{Utils.fmt(Math.abs(g.iva))}</span>
+                                <span className={`text-right font-bold font-mono text-xs w-28 ${isNC ? 'text-rose-300' : 'text-white'}`}>{Utils.fmt(Math.abs(g.total))}</span>
+                            </button>
+
+                            {/* Detalle de facturas */}
+                            {open && (
+                                <div className="bg-slate-900/50 border-t border-slate-700/50">
+                                    {g.facturas.map((f, i) => {
+                                        const ivaPct = f.iva_pct != null ? f.iva_pct : inferIvaPct(f.neto, f.iva);
+                                        const dateStr = f.fecha ? new Date(f.fecha).toLocaleDateString('es-AR') : 'S/D';
+                                        return (
+                                            <div
+                                                key={i}
+                                                className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-3 px-8 py-2.5 text-[11px] items-center border-b border-slate-700/30 last:border-0"
+                                            >
+                                                <span className="text-slate-600">↳</span>
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <span className="text-slate-400 font-mono whitespace-nowrap">{dateStr}</span>
+                                                    <span className="text-slate-500">{f.tipo_comp}</span>
+                                                    {f.nro_comp && <span className="text-slate-600 font-mono text-[10px]">{f.nro_comp}</span>}
+                                                    {ivaPct !== null && (
+                                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${ivaBadgeClass(ivaPct)}`}>
+                                                            {ivaBadgeLabel(ivaPct)}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span className="text-right font-mono text-slate-400">{Utils.fmt(Math.abs(f.neto))}</span>
+                                                <span className={`text-right font-mono ${isNC ? 'text-rose-400/60' : 'text-emerald-500/60'}`}>{Utils.fmt(Math.abs(f.iva))}</span>
+                                                <span className={`text-right font-bold font-mono w-28 ${isNC ? 'text-rose-300/80' : 'text-slate-200'}`}>{Utils.fmt(Math.abs(f.total))}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
@@ -141,11 +196,9 @@ const ArcaTable = ({ data, aliasMap = {}, isNC = false }) => {
 
 // ─── Tab Proveedores ────────────────────────────────────────────────────────────
 
-const ProvidersTab = ({ arcaData, providers, onSaveAlias }) => {
+const ProvidersTab = ({ arcaData, providers, categoriesMap = {}, onSaveAlias }) => {
     const [editingCuit, setEditingCuit] = useState(null);
     const [aliasInput, setAliasInput]   = useState('');
-
-    // Mapa nombre → alias (desde el backend, editable localmente)
     const [localAliases, setLocalAliases] = useState({});
 
     useEffect(() => {
@@ -154,71 +207,43 @@ const ProvidersTab = ({ arcaData, providers, onSaveAlias }) => {
         setLocalAliases(map);
     }, [providers]);
 
-    // Agrupar arcaData por CUIT (excluye NC del total de compras)
     const grouped = useMemo(() => {
         const map = {};
         Utils.arr(arcaData).forEach(r => {
             const key = r.cuit || r.entidad || 'S/D';
             if (!map[key]) {
-                map[key] = {
-                    cuit:      r.cuit || '',
-                    nombres:   new Set(),
-                    total:     0,
-                    neto:      0,
-                    iva:       0,
-                    ivaRates:  {},   // { rate: count }
-                    esNC:      false
-                };
+                map[key] = { cuit: r.cuit || '', nombres: new Set(), total: 0, neto: 0, iva: 0, ivaRates: {}, esNC: false };
             }
             map[key].nombres.add(r.entidad || 'S/D');
-
             const isNC = NC_NAMES.has(r.tipo_comp);
-            const signo = isNC ? -1 : 1;   // NC reduce el total del proveedor
-
+            const signo = isNC ? -1 : 1;
             map[key].total += Math.abs(Utils.num(r.total ?? r.importe_total)) * signo;
             map[key].neto  += Math.abs(Utils.num(r.neto  ?? r.importe_neto))  * signo;
             map[key].iva   += Math.abs(Utils.num(r.iva   ?? r.importe_iva))   * signo;
-
             if (!isNC) {
-                const rate = r.iva_pct != null
-                    ? r.iva_pct
-                    : inferIvaPct(r.neto ?? r.importe_neto, r.iva ?? r.importe_iva);
-                if (rate !== null && rate > 0) {
-                    map[key].ivaRates[rate] = (map[key].ivaRates[rate] || 0) + 1;
-                }
+                const rate = r.iva_pct != null ? r.iva_pct : inferIvaPct(r.neto ?? r.importe_neto, r.iva ?? r.importe_iva);
+                if (rate !== null && rate > 0) map[key].ivaRates[rate] = (map[key].ivaRates[rate] || 0) + 1;
             }
         });
         return Object.values(map).sort((a, b) => b.total - a.total);
     }, [arcaData]);
 
-    const getAlias = (nombres) =>
-        [...nombres].map(n => localAliases[n]).find(a => a) || null;
-
-    const getDisplayName = (cuit, nombres) =>
-        getAlias(nombres) || [...nombres][0] || cuit;
-
+    const getAlias = (nombres) => [...nombres].map(n => localAliases[n]).find(a => a) || null;
+    const getDisplayName = (cuit, nombres) => getAlias(nombres) || [...nombres][0] || cuit;
     const getDominantRate = (ivaRates) => {
         const entries = Object.entries(ivaRates);
         if (entries.length === 0) return null;
         return parseFloat(entries.sort((a, b) => b[1] - a[1])[0][0]);
     };
 
-    const handleEdit = (cuit, nombres) => {
-        setEditingCuit(cuit);
-        setAliasInput(getAlias(nombres) || '');
-    };
-
+    const handleEdit = (cuit, nombres) => { setEditingCuit(cuit); setAliasInput(getAlias(nombres) || ''); };
     const handleSave = async (nombres) => {
         const updated = { ...localAliases };
-        [...nombres].forEach(n => {
-            if (aliasInput.trim()) updated[n] = aliasInput.trim();
-            else delete updated[n];
-        });
+        [...nombres].forEach(n => { if (aliasInput.trim()) updated[n] = aliasInput.trim(); else delete updated[n]; });
         setLocalAliases(updated);
         setEditingCuit(null);
         await onSaveAlias(updated);
     };
-
     const handleKeyDown = (e, nombres) => {
         if (e.key === 'Enter')  handleSave(nombres);
         if (e.key === 'Escape') setEditingCuit(null);
@@ -231,46 +256,35 @@ const ProvidersTab = ({ arcaData, providers, onSaveAlias }) => {
                     <tr>
                         <th className="px-5 py-4">Proveedor</th>
                         <th className="px-5 py-4">CUIT</th>
-                        <th className="px-5 py-4 text-center">¿Cuánto IVA paga?</th>
-                        <th className="px-5 py-4 text-right">Monto sin IVA</th>
+                        <th className="px-5 py-4 text-center">Categoría</th>
+                        <th className="px-5 py-4 text-center">IVA %</th>
+                        <th className="px-5 py-4 text-right">Sin IVA</th>
                         <th className="px-5 py-4 text-right">Total gastado</th>
                         <th className="px-5 py-4 w-24"></th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700">
                     {grouped.length === 0 ? (
-                        <tr>
-                            <td colSpan="6" className="px-6 py-10 text-center text-slate-500 italic">
-                                Sin datos de proveedores.
-                            </td>
-                        </tr>
+                        <tr><td colSpan="7" className="px-6 py-10 text-center text-slate-500 italic">Sin datos de proveedores.</td></tr>
                     ) : grouped.map((prov) => {
                         const alias        = getAlias(prov.nombres);
                         const displayName  = getDisplayName(prov.cuit, prov.nombres);
                         const dominantRate = getDominantRate(prov.ivaRates);
                         const isEditing    = editingCuit === prov.cuit;
+                        const cat          = categoriesMap[prov.cuit];
+                        const catCfg       = cat ? CAT_CONFIG[cat] : null;
 
                         return (
                             <tr key={prov.cuit || displayName} className="hover:bg-slate-700/30 transition">
                                 <td className="px-5 py-3">
                                     {isEditing ? (
                                         <div className="flex gap-2 items-center">
-                                            <input
-                                                autoFocus
-                                                value={aliasInput}
-                                                onChange={e => setAliasInput(e.target.value)}
+                                            <input autoFocus value={aliasInput} onChange={e => setAliasInput(e.target.value)}
                                                 onKeyDown={e => handleKeyDown(e, prov.nombres)}
                                                 placeholder="Alias del proveedor..."
-                                                className="bg-slate-900 border border-blue-500 rounded px-2 py-1 text-white outline-none text-xs w-44"
-                                            />
-                                            <button
-                                                onClick={() => handleSave(prov.nombres)}
-                                                className="text-emerald-400 hover:text-emerald-300 font-bold px-1"
-                                            >✓</button>
-                                            <button
-                                                onClick={() => setEditingCuit(null)}
-                                                className="text-slate-500 hover:text-slate-300 px-1"
-                                            >✕</button>
+                                                className="bg-slate-900 border border-blue-500 rounded px-2 py-1 text-white outline-none text-xs w-44" />
+                                            <button onClick={() => handleSave(prov.nombres)} className="text-emerald-400 hover:text-emerald-300 font-bold px-1">✓</button>
+                                            <button onClick={() => setEditingCuit(null)} className="text-slate-500 hover:text-slate-300 px-1">✕</button>
                                         </div>
                                     ) : (
                                         <>
@@ -283,26 +297,26 @@ const ProvidersTab = ({ arcaData, providers, onSaveAlias }) => {
                                 </td>
                                 <td className="px-5 py-3 font-mono text-slate-400">{prov.cuit}</td>
                                 <td className="px-5 py-3 text-center">
+                                    {catCfg ? (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded border"
+                                            style={{ color: catCfg.color, background: catCfg.bg, borderColor: catCfg.color + '50' }}>
+                                            {catCfg.label}
+                                        </span>
+                                    ) : <span className="text-[10px] text-slate-600">—</span>}
+                                </td>
+                                <td className="px-5 py-3 text-center">
                                     {dominantRate !== null ? (
                                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${ivaBadgeClass(dominantRate)}`}>
                                             {ivaBadgeLabel(dominantRate)}
                                         </span>
-                                    ) : (
-                                        <span className="text-[10px] text-slate-600">—</span>
-                                    )}
+                                    ) : <span className="text-[10px] text-slate-600">—</span>}
                                 </td>
-                                <td className="px-5 py-3 text-right font-mono text-slate-300">
-                                    {Utils.fmt(prov.neto)}
-                                </td>
-                                <td className="px-5 py-3 text-right font-bold text-white font-mono">
-                                    {Utils.fmt(prov.total)}
-                                </td>
+                                <td className="px-5 py-3 text-right font-mono text-slate-300">{Utils.fmt(prov.neto)}</td>
+                                <td className="px-5 py-3 text-right font-bold text-white font-mono">{Utils.fmt(prov.total)}</td>
                                 <td className="px-5 py-3 text-right">
                                     {!isEditing && (
-                                        <button
-                                            onClick={() => handleEdit(prov.cuit, prov.nombres)}
-                                            className="text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-blue-400 transition"
-                                        >
+                                        <button onClick={() => handleEdit(prov.cuit, prov.nombres)}
+                                            className="text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-blue-400 transition">
                                             {alias ? 'editar' : '+ alias'}
                                         </button>
                                     )}
@@ -319,13 +333,12 @@ const ProvidersTab = ({ arcaData, providers, onSaveAlias }) => {
 // ─── Vista principal con tabs ───────────────────────────────────────────────────
 
 const ArcaView = ({ data: dataProp }) => {
-    const { arcaData, apiUrl } = useFinance();
+    const { arcaData, apiUrl, categoriesMap } = useFinance();
     const data = dataProp ?? arcaData;
 
     const [activeTab, setActiveTab] = useState('a');
     const [providers, setProviders] = useState([]);
 
-    // Mapa nombre/cuit → alias para mostrar en las tablas
     const aliasMap = useMemo(() => {
         const map = {};
         providers.forEach(p => {
@@ -361,7 +374,6 @@ const ArcaView = ({ data: dataProp }) => {
         } catch (e) { console.warn('saveAliases:', e); }
     }, [apiUrl, fetchProviders]);
 
-    // Segmentar datos
     const facturasA = useMemo(() =>
         Utils.arr(data).filter(r => r.tipo_comp === 'Factura A' || r.tipo_comp === '1'), [data]);
 
@@ -373,25 +385,21 @@ const ArcaView = ({ data: dataProp }) => {
     const nc = useMemo(() =>
         Utils.arr(data).filter(r => NC_NAMES.has(r.tipo_comp)), [data]);
 
-if (dataProp !== undefined) {
+    if (dataProp !== undefined) {
         return (
             <div className="animate-fade-in mt-4">
-                <ArcaTable data={data} aliasMap={aliasMap} />
+                <ArcaTable data={data} aliasMap={aliasMap} categoriesMap={categoriesMap} />
             </div>
         );
     }
 
     const TABS = [
-        { key: 'a',    label: 'Facturas con IVA',    count: facturasA.length },
-        { key: 'otros',label: 'Otros gastos',       count: otros.length    },
-        { key: 'nc',   label: 'Devoluciones',        count: nc.length       },
-        { key: 'prov', label: 'Proveedores',          count: null            },
-        { key: 'cat',  label: '🏷️ Categorías',       count: null            },
+        { key: 'a',    label: 'Facturas con IVA', count: facturasA.length },
+        { key: 'otros',label: 'Otros gastos',      count: otros.length    },
+        { key: 'nc',   label: 'Devoluciones',      count: nc.length       },
+        { key: 'prov', label: 'Proveedores',        count: null            },
+        { key: 'cat',  label: '🏷️ Categorías',     count: null            },
     ];
-
-    const ncBadge = nc.length > 0
-        ? <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] bg-rose-800/60 text-rose-300">{nc.length}</span>
-        : null;
 
     return (
         <div className="animate-fade-in mt-4">
@@ -424,27 +432,21 @@ if (dataProp !== undefined) {
 
             {/* Contenido */}
             {activeTab === 'cat' ? (
-                <CategoriesView />
+                <CategoriesView initialProviders={providers} onProvidersChange={setProviders} />
             ) : activeTab === 'prov' ? (
-                <ProvidersTab
-                    arcaData={data}
-                    providers={providers}
-                    onSaveAlias={saveAliases}
-                />
+                <ProvidersTab arcaData={data} providers={providers} categoriesMap={categoriesMap} onSaveAlias={saveAliases} />
             ) : activeTab === 'nc' ? (
-                <ArcaTable data={nc} aliasMap={aliasMap} isNC={true} />
+                <ArcaTable data={nc} aliasMap={aliasMap} categoriesMap={categoriesMap} isNC={true} />
             ) : activeTab === 'otros' ? (
-                <ArcaTable data={otros} aliasMap={aliasMap} />
+                <ArcaTable data={otros} aliasMap={aliasMap} categoriesMap={categoriesMap} />
             ) : (
-                <ArcaTable data={facturasA} aliasMap={aliasMap} />
+                <ArcaTable data={facturasA} aliasMap={aliasMap} categoriesMap={categoriesMap} />
             )}
         </div>
     );
 };
 
-// ─── Vistas derivadas (sin cambios en su interfaz) ──────────────────────────────
-
-
+// ─── Vistas derivadas ───────────────────────────────────────────────────────────
 
 export const StructuralCostsView = ({ data: dataProp }) => {
     const { arcaData } = useFinance();
