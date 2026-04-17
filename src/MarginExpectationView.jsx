@@ -431,8 +431,9 @@ export default function MarginExpectationView() {
   };
 
   if (error) return (
-    <div className="animate-fade-in mt-8 text-center" style={{ color: '#64748b', paddingTop: 60 }}>
-      <p style={{ fontSize: 15 }}>Sin datos para el período seleccionado.</p>
+    <div className="animate-fade-in mt-8 text-center" style={{ paddingTop: 60 }}>
+      <p style={{ fontSize: 15, color: '#f87171', fontWeight: 600 }}>Error al cargar datos</p>
+      <p style={{ fontSize: 13, color: '#64748b', marginTop: 8 }}>{error}</p>
     </div>
   );
 
@@ -843,7 +844,7 @@ export default function MarginExpectationView() {
       {infoModal && INFO_TOOLTIPS[infoModal] && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(0,0,0,0.5)', backdropBlur: '4px'
+          background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)'
         }} onClick={() => setInfoModal(null)}>
           <div style={{
             background: colors.bgCard, border: `1px solid ${colors.borderCard}`, borderRadius: 24,

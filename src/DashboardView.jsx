@@ -426,7 +426,7 @@ const DashboardView = () => {
         </div>
     );
 
-    if (!data || (Utils.num(kpis.utilidad_neta) === 0 && egresoTotal === 0)) return (
+    if (!data || (Utils.num(kpis.venta_bruta) === 0 && egresoTotal === 0)) return (
         <div className="animate-fade-in flex flex-col items-center justify-center min-h-[60vh] text-center px-4" style={{ paddingBottom: 40 }}>
             <div className="w-24 h-24 bg-slate-800/50 rounded-full flex items-center justify-center text-4xl mb-6 border border-slate-700 shadow-inner">📂</div>
             <h2 className="text-xl font-bold text-slate-200 mb-2">No hay datos para este período todavía</h2>
