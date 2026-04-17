@@ -332,7 +332,7 @@ export default function MarginExpectationView() {
 
   const estructuralBreakdown = [
     { label: 'Carga Manual (Estructurales)', val: n(egresosBase.estructural) },
-    { label: 'Detectado en ARCA (Gasto Fijo)', val: (arcaData || []).filter(r => categoriesMap[r.cuit] === 'GASTO_FIJO').reduce((acc, r) => acc + n(r.total ?? r.importe_total), 0) }
+    { label: 'Detectado en ARCA (Gasto Fijo)', val: arcaGastosFijos }
   ];
 
   const facturasBCBreakdown = (arcaData || [])
@@ -441,12 +441,20 @@ export default function MarginExpectationView() {
   const totalFacturasBC = (arcaData || [])
     .filter(r => r.tipo_comp && !r.tipo_comp.endsWith(' A') && r.tipo_comp !== '1')
     .filter(r => categoriesMap[r.cuit] !== 'GASTO_FIJO') // Evitar duplicidad si se categorizó como fijo
-    .reduce((acc, r) => acc + n(r.total ?? r.importe_total), 0);
+    .reduce((acc, r) => acc + Math.abs(n(r.total ?? r.importe_total)), 0);
 
-  // Sumamos los gastos de ARCA que fueron categorizados manualmente como GASTO_FIJO
+  // arcaData totals se almacenan en negativo (EGRESO). Math.abs para operar con valores positivos.
   const arcaGastosFijos = (arcaData || [])
     .filter(r => categoriesMap[r.cuit] === 'GASTO_FIJO')
-    .reduce((acc, r) => acc + n(r.total ?? r.importe_total), 0);
+    .reduce((acc, r) => acc + Math.abs(n(r.total ?? r.importe_total)), 0);
+
+  const iibbTotal = (arcaData || [])
+    .filter(r => r.rubro === 'Ingresos Brutos')
+    .reduce((acc, r) => acc + Math.abs(n(r.total ?? r.importe_total)), 0);
+
+  const retencionesTotal = (arcaData || [])
+    .filter(r => r.rubro === 'Retenciones')
+    .reduce((acc, r) => acc + Math.abs(n(r.total ?? r.importe_total)), 0);
 
   const mixCafePct = parseFloat(manual.mix_cafe) || 0;
   const mixProductoPct = parseFloat(manual.mix_producto) || 0;
@@ -464,7 +472,7 @@ export default function MarginExpectationView() {
   const sueldosTotal = laboralEfectivo + n(egresosBase.provision_sac) + n(egresosBase.provision_cargas);
   const cantEmpleados = (empData || []).length;
   const promedioEmp = cantEmpleados > 0 ? laboralEfectivo / cantEmpleados : 0;
-  const operaciones = n(egresosBase.estructural) + arcaGastosFijos;
+  const operaciones = n(egresosBase.estructural); // backend ya incluye ARCA GASTO_FIJO en este total
   const excepcionales = parseFloat(manual.excepcionales) || 0;
 
   const totalGastos = sueldosTotal + operaciones + excepcionales;
@@ -481,8 +489,8 @@ export default function MarginExpectationView() {
     { key: 'estructural', value: operaciones, label: 'Gastos Fijos Operativos' },
     { key: 'excepcionales_manual', value: excepcionales, label: 'Gastos Excepcionales' },
     { key: 'facturas_bc', value: totalFacturasBC, label: 'Facturas B / C (ARCA)' },
-    { key: 'iibb', value: n(egresosBase.iibb), label: 'Ingresos Brutos' },
-    { key: 'retenciones', value: n(egresosBase.retenciones), label: 'Retenciones' },
+    { key: 'iibb', value: iibbTotal, label: 'Ingresos Brutos' },
+    { key: 'retenciones', value: retencionesTotal, label: 'Retenciones' },
     { key: 'comisiones', value: n(egresosBase.comisiones), label: 'Comisiones Bancarias/Apps' },
   ];
 

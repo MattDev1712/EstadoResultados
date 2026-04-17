@@ -17,6 +17,20 @@ const ConfigView = () => {
         KW_CMV: ''
     });
     const [saving, setSaving] = useState(false);
+    const [saveMsg, setSaveMsg] = useState(null);   // { type: 'ok'|'error', text: string }
+    const [urlMsg, setUrlMsg] = useState(null);     // { type: 'ok'|'error', text: string }
+
+    useEffect(() => {
+        if (!saveMsg) return;
+        const t = setTimeout(() => setSaveMsg(null), 4000);
+        return () => clearTimeout(t);
+    }, [saveMsg]);
+
+    useEffect(() => {
+        if (!urlMsg) return;
+        const t = setTimeout(() => setUrlMsg(null), 4000);
+        return () => clearTimeout(t);
+    }, [urlMsg]);
 
     useEffect(() => {
         const fetchConfig = async () => {
@@ -35,15 +49,17 @@ const ConfigView = () => {
     }, [apiUrl]);
 
     const handleCopyShareLink = () => {
-        if (!apiUrl) return alert("Primero vinculá la URL del backend.");
+        if (!apiUrl) { setUrlMsg({ type: 'error', text: 'Vinculá la URL del backend primero.' }); return; }
         const base = window.location.origin + window.location.pathname;
         const link = `${base}?apiUrl=${encodeURIComponent(apiUrl)}`;
-        navigator.clipboard.writeText(link).then(() => alert("✅ Link copiado. Compartilo y el backend se configura automáticamente."));
+        navigator.clipboard.writeText(link).then(() =>
+            setUrlMsg({ type: 'ok', text: 'Link copiado. Compartilo y el backend se configura automáticamente.' })
+        );
     };
 
     const handleSave = async (e) => {
         e.preventDefault();
-        if (!finalApiUrl) return alert("API no configurada");
+        if (!finalApiUrl) { setSaveMsg({ type: 'error', text: 'API no configurada.' }); return; }
         setSaving(true);
         try {
             const res = await fetch(finalApiUrl, {
@@ -53,12 +69,12 @@ const ConfigView = () => {
             });
             const data = await res.json();
             if (data.status === 'OK') {
-                alert("✅ Configuración guardada con éxito en Google Sheets.");
+                setSaveMsg({ type: 'ok', text: 'Configuración guardada con éxito.' });
             } else {
-                alert("❌ Error: " + (data.message || "Desconocido"));
+                setSaveMsg({ type: 'error', text: 'Error: ' + (data.message || 'Desconocido') });
             }
         } catch (err) {
-            alert("❌ Error de red: " + err.message);
+            setSaveMsg({ type: 'error', text: 'Error de red: ' + err.message });
         } finally {
             setSaving(false);
         }
@@ -185,7 +201,7 @@ const ConfigView = () => {
                                         onClick={() => {
                                             localStorage.setItem('gas_api_url', urlInput);
                                             setApiUrl(urlInput);
-                                            alert("✅ URL de Despliegue actualizada correctamente.");
+                                            setUrlMsg({ type: 'ok', text: 'URL vinculada correctamente.' });
                                         }}
                                         className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition border border-slate-700"
                                     >
@@ -217,6 +233,12 @@ const ConfigView = () => {
                                     );
                                 })()}
                                 <p className="text-[9px] text-slate-500 leading-relaxed italic px-1 mt-1">Pegá la URL completa que termina en <span className="text-slate-400 font-mono">/exec</span>. Usá <span className="text-blue-400">Copiar link</span> para compartir la app — el receptor se conecta automáticamente sin configuración.</p>
+                                {urlMsg && (
+                                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold mt-2 ${urlMsg.type === 'ok' ? 'bg-emerald-500/10 border border-emerald-500/25 text-emerald-400' : 'bg-red-500/10 border border-red-500/25 text-red-400'}`}>
+                                        <span>{urlMsg.type === 'ok' ? '✓' : '✗'}</span>
+                                        <span>{urlMsg.text}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -232,13 +254,20 @@ const ConfigView = () => {
                         >
                             Limpiar caché
                         </button>
-                        <button
-                            type="submit"
-                            disabled={saving}
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-emerald-900/40 transition disabled:opacity-50"
-                        >
-                            {saving ? 'Guardando...' : 'Guardar Configuración'}
-                        </button>
+                        <div className="flex items-center gap-3">
+                            {saveMsg && (
+                                <span className={`text-xs font-semibold px-3 py-1.5 rounded-lg border ${saveMsg.type === 'ok' ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400' : 'bg-red-500/10 border-red-500/25 text-red-400'}`}>
+                                    {saveMsg.type === 'ok' ? '✓' : '✗'} {saveMsg.text}
+                                </span>
+                            )}
+                            <button
+                                type="submit"
+                                disabled={saving}
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-emerald-900/40 transition disabled:opacity-50"
+                            >
+                                {saving ? 'Guardando...' : 'Guardar Configuración'}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>

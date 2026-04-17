@@ -184,7 +184,7 @@ const AlertsPanel = ({ kpis, egresos, periodo, empData = [], arcaData = [], vent
             if (Utils.num(kpis.utilidad_neta) < 0) {
                 list.push({ id: 'loss', type: 'critical', msg: 'Este mes los gastos superaron a las ventas. El negocio está en pérdida operativa.' });
             }
-            if (Utils.num(kpis.margen_contribuccion) / ventasNetas < 0.50) {
+            if (Utils.num(kpis.ventas_netas_reales) / ventasNetas < 0.50) {
                 list.push({ id: 'low_margin', type: 'critical', msg: 'Menos del 50% de tus ventas quedan disponibles después de las comisiones. Revisá los medios de pago.' });
             }
             if (ventasNetas < Utils.num(kpis.break_even_mensual)) {

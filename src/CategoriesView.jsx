@@ -4,10 +4,18 @@ import { formatters as Utils } from './formatters';
 import Card from './components/Card';
 
 const CategoriesView = () => {
-    const { apiUrl, loading, setLoading, fetchData } = useFinance();
+    const { apiUrl, loading, setLoading, categoriesMap: contextCategoriesMap, fetchCategoriesMap } = useFinance();
     const [providers, setProviders] = useState([]);
-    const [categoriesMap, setCategoriesMap] = useState({});
+    const [categoriesMap, setCategoriesMap] = useState(contextCategoriesMap);
     const [filter, setFilter] = useState('');
+    const [saveMsg, setSaveMsg] = useState(null); // { type: 'ok'|'error', text: string }
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        if (!saveMsg) return;
+        const t = setTimeout(() => setSaveMsg(null), 4000);
+        return () => clearTimeout(t);
+    }, [saveMsg]);
 
     const CATEGORIES = [
         { id: 'PROVEEDOR', label: 'Proveedor (CMV)', color: '#10b981' },
@@ -15,25 +23,24 @@ const CategoriesView = () => {
         { id: 'NO_APTO', label: 'Gasto No Apto (Personal)', color: '#f43f5e' },
     ];
 
+    // Sincronizar con el mapa del context (ej: al cambiar de período)
     useEffect(() => {
-        const loadData = async () => {
+        setCategoriesMap(contextCategoriesMap);
+    }, [contextCategoriesMap]);
+
+    useEffect(() => {
+        const loadProviders = async () => {
             setLoading(true);
             try {
-                const [pRes, cRes] = await Promise.all([
-                    fetch(`${apiUrl}?action=GET_PROVIDERS`).then(r => r.json()),
-                    fetch(`${apiUrl}?action=GET_CATEGORIES_MAP`).then(r => r.json())
-                ]);
+                const pRes = await fetch(`${apiUrl}?action=GET_PROVIDERS`).then(r => r.json());
                 setProviders(pRes);
-                const map = {};
-                cRes.forEach(item => { map[item.cuit] = item.categoria; });
-                setCategoriesMap(map);
             } catch (e) {
-                console.error("Error loading categories:", e);
+                console.error("Error loading providers:", e);
             } finally {
                 setLoading(false);
             }
         };
-        if (apiUrl) loadData();
+        if (apiUrl) loadProviders();
     }, [apiUrl]);
 
     const handleCategoryChange = (cuit, categoria) => {
@@ -41,7 +48,7 @@ const CategoriesView = () => {
     };
 
     const saveCategories = async () => {
-        setLoading(true);
+        setSaving(true);
         const payload = Object.entries(categoriesMap).map(([cuit, categoria]) => ({ cuit, categoria }));
         try {
             const response = await fetch(apiUrl, {
@@ -51,13 +58,15 @@ const CategoriesView = () => {
             });
             const res = await response.json();
             if (res.status === 'OK') {
-                alert("Categorías guardadas correctamente.");
-                fetchData(true);
+                setSaveMsg({ type: 'ok', text: 'Categorías guardadas correctamente.' });
+                fetchCategoriesMap();
+            } else {
+                setSaveMsg({ type: 'error', text: 'Error al guardar.' });
             }
         } catch (e) {
-            alert("Error al guardar: " + e.message);
+            setSaveMsg({ type: 'error', text: 'Error al guardar: ' + e.message });
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
@@ -75,13 +84,20 @@ const CategoriesView = () => {
                     <h2 className="text-xl font-bold text-[var(--text-primary)]">Categorización de Proveedores</h2>
                     <p className="text-sm text-[var(--text-dim)]">Asigna cada proveedor a una categoría para el análisis del P&L.</p>
                 </div>
-                <button
-                    onClick={saveCategories}
-                    disabled={loading}
-                    className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg transition-all"
-                >
-                    {loading ? 'Guardando...' : 'Guardar Cambios'}
-                </button>
+                <div className="flex items-center gap-3">
+                    {saveMsg && (
+                        <span className={`text-xs font-semibold px-3 py-1.5 rounded-lg border ${saveMsg.type === 'ok' ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400' : 'bg-red-500/10 border-red-500/25 text-red-400'}`}>
+                            {saveMsg.type === 'ok' ? '✓' : '✗'} {saveMsg.text}
+                        </span>
+                    )}
+                    <button
+                        onClick={saveCategories}
+                        disabled={saving}
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg transition-all"
+                    >
+                        {saving ? 'Guardando...' : 'Guardar Cambios'}
+                    </button>
+                </div>
             </div>
 
             <Card className="p-4">

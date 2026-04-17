@@ -102,6 +102,16 @@ const App = () => {
         return TAB_TITLES[saved] ? saved : 'iva_dashboard';
     });
 
+    // Lazy mount: cada tab se monta la primera vez que se visita y permanece en el DOM
+    const [mountedTabs, setMountedTabs] = useState(() => new Set([
+        TAB_TITLES[localStorage.getItem('activeTab')] ? localStorage.getItem('activeTab') : 'iva_dashboard'
+    ]));
+
+    const navigateTo = useCallback((tab) => {
+        setActiveTab(tab);
+        setMountedTabs(prev => prev.has(tab) ? prev : new Set([...prev, tab]));
+    }, []);
+
     useEffect(() => {
         localStorage.setItem('activeTab', activeTab);
     }, [activeTab]);
@@ -135,7 +145,7 @@ const App = () => {
         }, 30000); 
 
         return () => clearInterval(interval); // Limpiar el intervalo al desmontar o cambiar dependencias
-    }, [apiUrl, loading, fetchData, fetchMetadata, previewData, showStructModal, showRetentionsModal, activeTab, pollForUpdates]); // activeTab y pollForUpdates a dependencias
+    }, [apiUrl, loading, fetchMetadata, previewData, showStructModal, showRetentionsModal, activeTab, pollForUpdates]);
 
     const addLog = (msg) => {
         const time = new Date().toLocaleTimeString();
@@ -159,7 +169,7 @@ const App = () => {
     };
 
     const sendToBackend = async (data, origen) => {
-        if (!apiUrl) return alert("Configura la URL");
+        if (!apiUrl) { addLog("❌ Configura la URL del backend en Ajustes del Sistema."); return; }
         setLoading(true);
         addLog(`Enviando ${data.length} registros de ${origen}...`);
         try {
@@ -482,8 +492,8 @@ const App = () => {
         );
     };
 
-    const renderTabContent = () => {
-        switch (activeTab) {
+    const getTabView = (tab) => {
+        switch (tab) {
             case 'iva_dashboard':
             case 'dashboard': return (loading && !dashData) ? (
                 <div className="animate-fade-in space-y-6">
@@ -494,9 +504,9 @@ const App = () => {
                         <CardSkeleton />
                     </div>
                 </div>
-            ) : <DashboardView 
-                    onDataReady={handleDataReady} 
-                    setShowStructModal={setShowStructModal} 
+            ) : <DashboardView
+                    onDataReady={handleDataReady}
+                    setShowStructModal={setShowStructModal}
                     setShowRetentionsModal={setShowRetentionsModal}
                     defaultDate={defaultDate}
                     setDefaultDate={setDefaultDate}
@@ -513,9 +523,9 @@ const App = () => {
                 </div>
             ) : <MarginExpectationView />;
             case 'carga_datos': return (
-                <CargaDatosView 
-                    onDataReady={handleDataReady} 
-                    setShowStructModal={setShowStructModal} 
+                <CargaDatosView
+                    onDataReady={handleDataReady}
+                    setShowStructModal={setShowStructModal}
                     setShowRetentionsModal={setShowRetentionsModal}
                     defaultDate={defaultDate}
                 />
@@ -523,7 +533,6 @@ const App = () => {
             case 'empleados': return (loading && empData?.length === 0) ? <TableSkeleton /> : <EmployeesView />;
             case 'arca': return (loading && arcaData?.length === 0) ? <TableSkeleton /> : <ArcaView />;
             case 'ventas': return (loading && ventasData?.length === 0) ? <TableSkeleton /> : <VentasSistemaView />;
-
             case 'estructurales': return (loading && arcaData?.length === 0) ? <TableSkeleton /> : <StructuralCostsView />;
             case 'retenciones': return (loading && arcaData?.length === 0) ? <TableSkeleton /> : <RetentionsView />;
             case 'config': return <ConfigView />;
@@ -591,16 +600,16 @@ const App = () => {
 
             {/* NAVEGACIÓN POR DESPLEGABLES (CENTRADA) */}
             <nav className="flex flex-wrap items-center justify-center gap-3 mb-12 animate-fade-in">
-                <NavDropdown 
-                    title="Tableros" icon="📊" activeTab={activeTab} setActiveTab={setActiveTab}
+                <NavDropdown
+                    title="Tableros" icon="📊" activeTab={activeTab} setActiveTab={navigateTo}
                     items={[
                         { id: 'iva_dashboard', label: 'Situación IVA', icon: '📊' },
                         { id: 'margin_dashboard', label: 'Expectativa Margen', icon: '📈' },
                     ]}
                 />
 
-                <NavDropdown 
-                    title="Datos" icon="👥" activeTab={activeTab} setActiveTab={setActiveTab}
+                <NavDropdown
+                    title="Datos" icon="👥" activeTab={activeTab} setActiveTab={navigateTo}
                     items={[
                         { id: 'carga_datos', label: 'Carga de Datos', icon: '📥' },
                         { id: 'empleados', label: 'Mi Equipo', icon: '👥' },
@@ -611,8 +620,8 @@ const App = () => {
                     ]}
                 />
 
-                <NavDropdown 
-                    title="Admin" icon="⚙️" activeTab={activeTab} setActiveTab={setActiveTab}
+                <NavDropdown
+                    title="Admin" icon="⚙️" activeTab={activeTab} setActiveTab={navigateTo}
                     items={[
                         { id: 'audit', label: 'Registro de Cambios', icon: '📋' },
                         { id: 'config', label: 'Ajustes de Sistema', icon: '⚙️' },
@@ -656,7 +665,13 @@ const App = () => {
                 </button>
             </nav>
 
-            <main>{renderTabContent()}</main>
+            <main>
+                {[...mountedTabs].map(tab => (
+                    <div key={tab} className={activeTab === tab ? '' : 'hidden'}>
+                        {getTabView(tab)}
+                    </div>
+                ))}
+            </main>
 
             {/* PREVIEW MODAL */}
             {renderPreviewModal()}

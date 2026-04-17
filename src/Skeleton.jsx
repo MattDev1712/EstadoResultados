@@ -8,7 +8,7 @@ const Skeleton = ({ className = "", style = {} }) => (
 );
 
 export const CardSkeleton = () => (
-    <div className="bg-slate-900/40 border border-slate-800/40 rounded-2xl p-6 h-32 flex flex-col justify-between">
+    <div className="bg-[var(--bg-card)] border border-[var(--border-card)] rounded-2xl p-6 h-32 flex flex-col justify-between">
         <Skeleton className="w-1/3 h-4" />
         <Skeleton className="w-2/3 h-8" />
         <div className="space-y-2">
@@ -19,7 +19,7 @@ export const CardSkeleton = () => (
 );
 
 export const ChartSkeleton = () => (
-    <div className="bg-slate-900/40 border border-slate-800/40 rounded-2xl p-6 h-80 flex flex-col">
+    <div className="bg-[var(--bg-card)] border border-[var(--border-card)] rounded-2xl p-6 h-80 flex flex-col">
         <div className="flex justify-between mb-8">
             <Skeleton className="w-1/4 h-6" />
             <div className="flex gap-2">
@@ -45,7 +45,7 @@ export const TableSkeleton = ({ rows = 5 }) => (
             <Skeleton className="w-24 h-10" />
         </div>
         {[...Array(rows)].map((_, i) => (
-            <div key={i} className="flex items-center gap-4 py-3 border-b border-slate-800/40">
+            <div key={i} className="flex items-center gap-4 py-3 border-b border-[var(--border-subtle)]">
                 <Skeleton className="w-12 h-12 rounded-full" />
                 <div className="flex-1 space-y-2">
                     <Skeleton className="w-1/4 h-4" />

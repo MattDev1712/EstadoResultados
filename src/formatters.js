@@ -18,11 +18,8 @@ export const formatters = {
     num: (val) => {
         if (val === undefined || val === null || val === '') return 0;
         const n = parseFloat(val);
-        if (!Number.isFinite(n)) {
-            console.warn("Fallo de integridad: Valor no numérico detectado ->", val);
-            return 0;
-        }
-        return isNaN(n) ? 0 : n;
+        if (!Number.isFinite(n)) return 0;
+        return n;
     },
     // Acceso seguro a arrays
     arr: (arr) => Array.isArray(arr) ? arr : []

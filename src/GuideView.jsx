@@ -302,19 +302,19 @@ const GuideView = () => {
                         <p style={{ marginTop: 10 }}><Highlight>¿Para qué sirve?</Highlight> Cada factura que cargás es un egreso (gasto) del negocio. La app los resta a las ventas para calcular la ganancia, y usa el IVA de esas facturas para calcular tu posición fiscal.</p>
                         <p style={{ marginTop: 14 }}><Highlight>¿Qué pestañas veo cuando abro la sección ARCA?</Highlight></p>
                         <div style={{ margin: '10px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}>
+                            <div style={{ background: colors.bgSurface, borderRadius: 10, padding: '10px 14px', border: `1px solid ${colors.borderSubtle}` }}>
                                 <p style={{ margin: 0, fontWeight: 800, color: colors.textSecondary }}>📄 Facturas con IVA</p>
                                 <p style={{ margin: '4px 0 0', color: colors.textMuted }}>Son las <strong>Facturas A</strong>: te las emite un proveedor que está inscripto en IVA. El IVA de estas facturas se descuenta de lo que le debés a AFIP (es tu crédito fiscal).</p>
                             </div>
-                            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}>
+                            <div style={{ background: colors.bgSurface, borderRadius: 10, padding: '10px 14px', border: `1px solid ${colors.borderSubtle}` }}>
                                 <p style={{ margin: 0, fontWeight: 800, color: colors.textSecondary }}>📋 Otros gastos</p>
                                 <p style={{ margin: '4px 0 0', color: colors.textMuted }}>Facturas B, C y otros tipos. Son compras válidas que suman al gasto total, pero el IVA ya está incluido en el precio y no se puede desglosar para descontar de AFIP.</p>
                             </div>
-                            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}>
+                            <div style={{ background: colors.bgSurface, borderRadius: 10, padding: '10px 14px', border: `1px solid ${colors.borderSubtle}` }}>
                                 <p style={{ margin: 0, fontWeight: 800, color: '#fda4af' }}>↩️ Devoluciones (en rojo)</p>
                                 <p style={{ margin: '4px 0 0', color: colors.textMuted }}>Son <strong>Notas de Crédito</strong>: el proveedor te devolvió dinero o corrigió una factura anterior. Aparecen en rojo porque reducen el total que gastaste con ese proveedor ese mes.</p>
                             </div>
-                            <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px' }}>
+                            <div style={{ background: colors.bgSurface, borderRadius: 10, padding: '10px 14px', border: `1px solid ${colors.borderSubtle}` }}>
                                 <p style={{ margin: 0, fontWeight: 800, color: colors.textSecondary }}>🏢 Proveedores</p>
                                 <p style={{ margin: '4px 0 0', color: colors.textMuted }}>Un resumen de cuánto le compraste a cada proveedor en el mes. Acá también podés asignarle un alias (nombre fácil) a cada uno para que aparezca mejor en los reportes.</p>
                             </div>
@@ -325,7 +325,7 @@ const GuideView = () => {
                     <Accordion icon="👥" title="Planilla de Sueldos CSV — Nómina del mes">
                         <p><Highlight>¿Qué es esto?</Highlight> Un archivo de Excel/CSV con la lista de tus empleados y lo que le pagaste a cada uno en el mes.</p>
                         <p style={{ marginTop: 10 }}><Highlight>¿Qué columnas necesita?</Highlight> La app espera estas columnas en orden:</p>
-                        <div style={{ margin: '10px 0', background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: '10px 14px', fontFamily: 'monospace', fontSize: 11, color: '#94a3b8', lineHeight: 2 }}>
+                        <div style={{ margin: '10px 0', background: colors.bgSurface, border: `1px solid ${colors.borderSubtle}`, borderRadius: 10, padding: '10px 14px', fontFamily: 'monospace', fontSize: 11, color: colors.textMuted, lineHeight: 2 }}>
                             Legajo | Nombre | Tarea | — | DNI | — | — | — | — | Horas | — | Costo Total | Recibo | — | Negro
                         </div> {/* Este color #94a3b8 se mapea a textMuted */}
                         <p style={{ marginTop: 4, fontSize: 11, color: '#475569' }}>Las columnas vacías (—) pueden quedar en cero. El campo <em>Costo Total</em> es el más importante: es lo que salió del local por cada empleado ese mes, incluyendo cargas sociales.</p>

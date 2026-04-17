@@ -863,7 +863,6 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
       iva_credito: _round(creditoFiscal),
       cant_operaciones: cantidadVentas,
       iva_posicion: _round(debitoFiscal - creditoFiscal),
-      margen_contribuccion: _round(totalVentasNeto - totalComisiones),
       ticket_promedio: _round(cantidadVentas > 0 ? totalVentasNeto / cantidadVentas : 0),
       break_even_mensual: _round(breakEven),
     },
