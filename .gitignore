@@ -13,8 +13,9 @@ dist
 dist-ssr
 *.local
 
-# Bases de trabajo (no se suben a git)
+# Bases y planes de trabajo (no se suben a git)
 bases/
+planes/
 
 # Archivos de configuración de editores (VS Code, JetBrains, etc)
 .vscode/*
