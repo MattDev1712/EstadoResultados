@@ -330,6 +330,10 @@ export default function MarginExpectationView() {
     { label: 'Cargas Sociales Proyectadas', val: n(egresosBase.provision_cargas) }
   ];
 
+  const arcaGastosFijos = (arcaData || [])
+    .filter(r => categoriesMap[r.cuit] === 'GASTO_FIJO')
+    .reduce((acc, r) => acc + Math.abs(n(r.total ?? r.importe_total)), 0);
+
   const estructuralBreakdown = [
     { label: 'Carga Manual (Estructurales)', val: n(egresosBase.estructural) },
     { label: 'Detectado en ARCA (Gasto Fijo)', val: arcaGastosFijos }
@@ -441,11 +445,6 @@ export default function MarginExpectationView() {
   const totalFacturasBC = (arcaData || [])
     .filter(r => r.tipo_comp && !r.tipo_comp.endsWith(' A') && r.tipo_comp !== '1')
     .filter(r => categoriesMap[r.cuit] !== 'GASTO_FIJO') // Evitar duplicidad si se categorizó como fijo
-    .reduce((acc, r) => acc + Math.abs(n(r.total ?? r.importe_total)), 0);
-
-  // arcaData totals se almacenan en negativo (EGRESO). Math.abs para operar con valores positivos.
-  const arcaGastosFijos = (arcaData || [])
-    .filter(r => categoriesMap[r.cuit] === 'GASTO_FIJO')
     .reduce((acc, r) => acc + Math.abs(n(r.total ?? r.importe_total)), 0);
 
   const iibbTotal = (arcaData || [])

@@ -735,7 +735,7 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
     data.forEach(row => {
       const rowDate = new Date(row[1]);
       if (isNaN(rowDate.getTime())) return; // Saltar filas con fechas corruptas
-      const tipo = row[3], neto = parseFloat(row[11] || 0), iva = parseFloat(row[12] || 0), total = parseFloat(row[14] || 0);
+      const tipo = row[3], neto = parseFloat(row[11] || 0), iva = parseFloat(row[12] || 0), otrosTrib = parseFloat(row[13] || 0), total = parseFloat(row[14] || 0);
       const k = `${rowDate.getFullYear()}-${String(rowDate.getMonth() + 1).padStart(2, '0')}`;
       
       const cuitRow = String(row[8] || '').trim();
@@ -751,9 +751,9 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
         if (tipo === 'INGRESO') {
           historyMap[k].ventas += neto;
           historyMap[k].ventas_real += (neto * ipc);
-        } else {
-          historyMap[k].gastos += (-neto);
-          historyMap[k].gastos_real += ((-neto) * ipc);
+        } else if (categoria !== 'CMV') {
+          historyMap[k].gastos += (-neto - otrosTrib);
+          historyMap[k].gastos_real += ((-neto - otrosTrib) * ipc);
         }
       }
 
@@ -763,16 +763,22 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
       if (tipo === 'INGRESO') {
         utilidadNeta += neto;
       } else if (tipo === 'EGRESO') {
-        utilidadNeta += neto; // neto es negativo
-        const efectivoNeto = -neto;
-        const efectivoIva  = -iva;
-        creditoFiscal += efectivoIva;
+        const efectivoNeto  = -neto;
+        const efectivoOtros = -otrosTrib;
+        const efectivoIva   = -iva;
 
-        if (categoria === 'GASTO_FIJO') {
-          egresoEstructural += efectivoNeto;
+        // CMV: solo IVA Crédito — márgenes ya contemplan el costo de mercaderías
+        if (categoria === 'CMV') {
+          creditoFiscal += efectivoIva;
         } else {
-          // PROVEEDOR o sin clasificar (categoria === 'PROVEEDOR' o undefined)
-          egresoOtros += efectivoNeto;
+          utilidadNeta += neto + otrosTrib;
+          creditoFiscal += efectivoIva;
+
+          if (categoria === 'GASTO_FIJO') {
+            egresoEstructural += efectivoNeto + efectivoOtros;
+          } else {
+            egresoOtros += efectivoNeto + efectivoOtros;
+          }
         }
 
         let entidad = String(row[7] || 'Varios');
@@ -857,7 +863,7 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
     config: busConfig, // Enviamos la config para que el front calcule alertas
     kpis: {
       utilidad_neta: _round(resFinal),
-      ventas_netas_reales: _round(totalVentasNeto - totalComisiones),
+      ventas_netas_reales: _round(totalVentasNeto),
       venta_bruta: _round(totalVentasBruto),
       iva_debito: _round(debitoFiscal),
       iva_credito: _round(creditoFiscal),
@@ -997,9 +1003,9 @@ function _getAllEstadoResultManual() {
   const ss = SpreadsheetApp.openById(SS_ID);
   const sheet = ss.getSheetByName(ESTADO_RESULT_MANUAL_SHEET_NAME);
   if (!sheet || sheet.getLastRow() < 2) return {};
-  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 5).getValues();
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 6).getValues();
   return data.reduce((map, r) => {
-    if (r[0]) map[r[0]] = { mix_cafe: r[1], mix_producto: r[2], mgn_cafe: r[3], mgn_producto: r[4] };
+    if (r[0]) map[r[0]] = { mix_cafe: r[1], mix_producto: r[2], mgn_cafe: r[3], mgn_producto: r[4], excepcionales: r[5] };
     return map;
   }, {});
 }

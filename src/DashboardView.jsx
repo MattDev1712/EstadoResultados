@@ -393,13 +393,8 @@ const DashboardView = () => {
         : reciboEfectivo * (parseFloat(cargasPct || 33) / 100);
 
     // Re-calculamos estructurales y otros basándonos en el mapeo de categorías
-    const arcaGastosFijos = Utils.arr(arcaData)
-        .filter(r => categoriesMap[r.cuit] === 'GASTO_FIJO')
-        .reduce((acc, r) => acc + Utils.num(r.total ?? r.importe_total), 0);
-
-    const gastosEstructuralesReal = getAdj(egresos.estructural || 0) + getAdj(arcaGastosFijos);
-    
-    const proveedoresRestante = getAdj(egresos.otros || 0) - getAdj(arcaGastosFijos);
+    const gastosEstructuralesReal = getAdj(egresos.estructural || 0);
+    const proveedoresRestante = getAdj(egresos.otros || 0);
 
     const egresoTotal =
         getAdj(laboralEfectivo) +
