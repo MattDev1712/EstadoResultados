@@ -145,46 +145,37 @@ export const FinanceProvider = ({ children }) => {
         const urlHash = btoa(apiUrl).substring(0, 8);
         const cacheKey = `cache_${urlHash}_${selectedYear}_${selectedMonth}`;
         const cached = localStorage.getItem(cacheKey);
-        let localHash = null;
-        let cachedData = null;
 
-        if (cached) {
+        // Cache hit y no forzado → servir directo, sin red
+        if (cached && !force) {
             try {
-                cachedData = JSON.parse(cached);
-                localHash = cachedData.hash || null;
-
-                // UX: Si tenemos cache y no estamos forzando, lo mostramos ya mismo
-                // Esto elimina la latencia visual al cambiar de mes
-                if (!force) {
-                    setDashData(cachedData.dash);
-                    setEmpData(cachedData.emp || []);
-                    setArcaData(cachedData.arca || []);
-                    setVentasData(cachedData.ventas || []);
-                    if (cachedData.metadata?.periods) setAvailablePeriods(cachedData.metadata.periods);
-                    if (cachedData.categoriesMap) {
-                        const catMap = {};
-                        (cachedData.categoriesMap || []).forEach(item => { catMap[item.cuit] = item.categoria; });
-                        setCategoriesMap(catMap);
-                    }
+                const cachedData = JSON.parse(cached);
+                setDashData(cachedData.dash);
+                setEmpData(cachedData.emp || []);
+                setArcaData(cachedData.arca || []);
+                setVentasData(cachedData.ventas || []);
+                if (cachedData.metadata?.periods) setAvailablePeriods(cachedData.metadata.periods);
+                if (cachedData.categoriesMap) {
+                    const catMap = {};
+                    (cachedData.categoriesMap || []).forEach(item => { catMap[item.cuit] = item.categoria; });
+                    setCategoriesMap(catMap);
                 }
+                return; // Sin llamada de red
             } catch (e) {
-                localStorage.removeItem(cacheKey);
+                localStorage.removeItem(cacheKey); // Cache corrupto → continuar a red
             }
         }
 
-        // Solo mostramos el loader principal si NO hay cache o si estamos forzando (↻)
-        const isBackgroundCheck = !!cachedData && !force;
-        setLoading(!silent && !isBackgroundCheck);
-        setIsRefreshing(silent || isBackgroundCheck);
-
+        // Sin cache o forzado → ir al backend
+        setLoading(true);
+        setIsRefreshing(false);
         setError(null);
         try {
             const start = `${selectedYear}-${selectedMonth}-01`;
             const lastDay = new Date(selectedYear, parseInt(selectedMonth), 0).getDate();
             const end = `${selectedYear}-${selectedMonth}-${lastDay}`;
-            
-            // Intentamos una carga optimizada pasando el hash que tenemos guardado
-            const fetchUrl = `${finalApiUrl}?action=GET_COMPLETE_DATA&start=${start}&end=${end}&cargasPct=${cargasPct}${(!force && localHash) ? `&localHash=${localHash}` : ''}`;
+
+            const fetchUrl = `${finalApiUrl}?action=GET_COMPLETE_DATA&start=${start}&end=${end}&cargasPct=${cargasPct}`;
 
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 45000);
@@ -197,41 +188,34 @@ export const FinanceProvider = ({ children }) => {
 
             if (dataRes.status === 'ERROR') throw new Error(dataRes.message || "Error desconocido en el servidor");
             if (dataRes.error) throw new Error(dataRes.error);
-
-            // Si el servidor dice que los datos no han cambiado, terminamos
-            // (El estado ya fue poblado con el cache al inicio de la función)
-            if (dataRes.status === 'NOT_MODIFIED') return;
-            
             if (!dataRes.dashboard) throw new Error("No se recibieron datos del tablero (dashboard).");
 
-            const result = dataRes;
+            setDashData(dataRes.dashboard);
+            setEmpData(dataRes.employees || []);
+            setArcaData(dataRes.arca || []);
+            setVentasData(dataRes.ventas || []);
 
-            setDashData(result.dashboard);
-            setEmpData(result.employees || []);
-            setArcaData(result.arca || []);
-            setVentasData(result.ventas || []);
-
-            if (result.metadata?.periods) setAvailablePeriods(result.metadata.periods);
-            if (result.categoriesMap) {
+            if (dataRes.metadata?.periods) setAvailablePeriods(dataRes.metadata.periods);
+            if (dataRes.categoriesMap) {
                 const catMap = {};
-                (result.categoriesMap || []).forEach(item => { catMap[item.cuit] = item.categoria; });
+                (dataRes.categoriesMap || []).forEach(item => { catMap[item.cuit] = item.categoria; });
                 setCategoriesMap(catMap);
             }
 
             localStorage.setItem(cacheKey, JSON.stringify({
-                dash: result.dashboard,
-                emp: result.employees,
-                arca: result.arca,
-                ventas: result.ventas,
-                hash: result.stateHash,
-                metadata: result.metadata,
-                categoriesMap: result.categoriesMap
+                dash: dataRes.dashboard,
+                emp: dataRes.employees,
+                arca: dataRes.arca,
+                ventas: dataRes.ventas,
+                hash: dataRes.stateHash,
+                metadata: dataRes.metadata,
+                categoriesMap: dataRes.categoriesMap
             }));
         } catch (e) {
             setError(e.name === 'AbortError' ? 'Timeout: el servidor tardó demasiado. Intentá de nuevo con ↻.' : e.message);
         } finally {
-            setLoading(false); // Siempre resetear loading
-            setIsRefreshing(false); // Siempre resetear isRefreshing
+            setLoading(false);
+            setIsRefreshing(false);
         }
     }, [finalApiUrl, selectedYear, selectedMonth, cargasPct]);
 

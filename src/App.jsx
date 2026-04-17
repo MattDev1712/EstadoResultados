@@ -62,7 +62,7 @@ const App = () => {
         selectedMonth, setSelectedMonth,
         availablePeriods, cargasPct, setCargasPct,
         dashData, empData, arcaData, ventasData,
-        fetchData, fetchMetadata, pollForUpdates, manualRefresh
+        fetchData, manualRefresh
     } = useFinance();
 
     // Generar botones de periodos (últimos 9 meses)
@@ -124,28 +124,7 @@ const App = () => {
     const [logs, setLogs] = useState([]);
     const [showLogs, setShowLogs] = useState(false);
 
-    // --- Lógica de Sincronización Automática (Tiempo Real) ---
-    // Esto permite que si otro usuario carga datos en otro lugar del mundo,
-    // la información se actualice aquí automáticamente sin tocar el botón de refresco.
-    useEffect(() => {
-        if (!apiUrl) return;
-
-        // Solo hacer polling en las pestañas de dashboard donde los datos son críticos
-        const dataDependentTabs = ['iva_dashboard', 'margin_dashboard', 'arca', 'ventas', 'empleados', 'estructurales', 'retenciones'];
-        if (!dataDependentTabs.includes(activeTab)) return;
-
-        // Polling cada 30 segundos para chequear cambios en Sheets
-        const interval = setInterval(() => {
-            // No refrescar si: estamos cargando, hay una previsualización abierta o un modal
-            if (!loading && !previewData && !showStructModal && !showRetentionsModal && apiUrl) {
-                // Llamada inteligente: usa el hash y es silenciosa (usa isRefreshing)
-                pollForUpdates();
-                fetchMetadata();
-            }
-        }, 30000); 
-
-        return () => clearInterval(interval); // Limpiar el intervalo al desmontar o cambiar dependencias
-    }, [apiUrl, loading, fetchMetadata, previewData, showStructModal, showRetentionsModal, activeTab, pollForUpdates]);
+    // Polling removido: los datos se actualizan solo con ↻ o tras cargar datos nuevos.
 
     const addLog = (msg) => {
         const time = new Date().toLocaleTimeString();
