@@ -289,6 +289,7 @@ const DashboardView = () => {
     const [ivaCobradoExpanded, setIvaCobradoExpanded] = useState(false);
     const [ivaProveedoresExpanded, setIvaProveedoresExpanded] = useState(false);
     const [detalleExpanded, setDetalleExpanded] = useState(false);
+    const [resultadoBaseExpanded, setResultadoBaseExpanded] = useState(false);
     const [activeExpenses, setActiveExpenses] = useState({});
 
     const toggleExpense = (key) => {
@@ -732,6 +733,12 @@ const DashboardView = () => {
                                         : (isLight ? '#dc2626' : '#f87171'),
                                     fontVariantNumeric: 'tabular-nums', letterSpacing: '-1px',
                                 }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(resultadoAjustado)}</p>
+                                <button
+                                    onClick={() => setResultadoBaseExpanded(v => !v)}
+                                    style={{ marginTop: 8, fontSize: 10, fontWeight: 700, color: isLight ? '#059669' : '#4ade80', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                >
+                                    {resultadoBaseExpanded ? '▲ Ocultar ingresos base' : '▼ Ver ingresos base'}
+                                </button>
                             </div>
                             <div style={{ textAlign: 'right' }}>
                                 <p style={{
@@ -743,6 +750,25 @@ const DashboardView = () => {
                                 <p style={{ fontSize: 11, color: isLight ? '#6B7A90' : '#8B949E', marginTop: 2 }}>margen operativo</p>
                             </div>
                         </div>
+
+                        {resultadoBaseExpanded && (
+                            <div style={{ padding: '0 28px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {[
+                                    { l: 'Factura A Electrónica', v: getAdj(ivaCobradoBreakdown.totalAElec) },
+                                    { l: 'IVA Factura A (−)', v: getAdj(ivaCobradoBreakdown.ivaA), neg: true },
+                                    { l: 'Factura B Electrónica', v: getAdj(ivaCobradoBreakdown.totalBElec) },
+                                    { l: 'IVA Factura B (−)', v: getAdj(ivaCobradoBreakdown.ivaB), neg: true },
+                                    { l: 'Factura B Manual', v: getAdj(ivaCobradoBreakdown.totalB) },
+                                ].filter(r => r.v > 0).map((row, i) => (
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontSize: 11, color: isLight ? '#475569' : '#94a3b8' }}>{row.l}</span>
+                                        <span style={{ fontSize: 12, fontWeight: 600, color: row.neg ? (isLight ? '#dc2626' : '#f43f5e') : (isLight ? '#059669' : '#10b981'), fontVariantNumeric: 'tabular-nums' }}>
+                                            {row.neg ? '− ' : ''}{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(row.v)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Expense Toggles */}
                         <div style={{
