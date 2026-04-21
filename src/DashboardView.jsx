@@ -289,6 +289,11 @@ const DashboardView = () => {
     const [ivaCobradoExpanded, setIvaCobradoExpanded] = useState(false);
     const [ivaProveedoresExpanded, setIvaProveedoresExpanded] = useState(false);
     const [detalleExpanded, setDetalleExpanded] = useState(false);
+    const [activeExpenses, setActiveExpenses] = useState({});
+
+    const toggleExpense = (key) => {
+        setActiveExpenses(prev => ({ ...prev, [key]: !prev[key] }));
+    };
 
     const ivaGrouped = useMemo(() => {
         const map = {};
@@ -307,10 +312,11 @@ const DashboardView = () => {
             const manual = Utils.num(v.val_factura_b);
             acc.totalBElec += b;
             acc.ivaB += b - (b / 1.21);
+            acc.totalAElec += a;
             acc.ivaA += a - (a / 1.21);
             acc.totalB += manual;
             return acc;
-        }, { ivaB: 0, ivaA: 0, totalB: 0, totalBElec: 0 });
+        }, { ivaB: 0, ivaA: 0, totalB: 0, totalBElec: 0, totalAElec: 0 });
     }, [ventasData]);
 
     const { kpis, egresos, historial, mixPagos } = useMemo(() => ({
@@ -404,6 +410,31 @@ const DashboardView = () => {
         getAdj(egresos.comisiones || 0) +
         Math.max(0, proveedoresRestante); // Asegurar que no sea negativo por desajustes
 
+    const sueldosTotal = getAdj(laboralEfectivo) + getAdj(sacEfectivo) + getAdj(cargasEfectivo);
+
+    const expensesToSubtract = [
+        { key: 'laboral', value: sueldosTotal, label: 'Sueldos y Cargas' },
+        { key: 'estructural', value: gastosEstructuralesReal, label: 'Gastos Fijos Operativos' },
+        { key: 'proveedores', value: Math.max(0, proveedoresRestante), label: 'Proveedores (compras)' },
+        { key: 'comisiones', value: getAdj(egresos.comisiones || 0), label: 'Comisiones Bancarias/Apps' },
+    ];
+
+    const baseDineroFacturado = getAdj(
+        (ivaCobradoBreakdown.totalAElec - ivaCobradoBreakdown.ivaA) + 
+        (ivaCobradoBreakdown.totalBElec - ivaCobradoBreakdown.ivaB) + 
+        ivaCobradoBreakdown.totalB
+    );
+
+    let resultadoAjustado = baseDineroFacturado;
+    expensesToSubtract.forEach(exp => {
+        if (activeExpenses[exp.key]) {
+            resultadoAjustado -= exp.value;
+        }
+    });
+
+    const resultadoAjustadoPositivo = resultadoAjustado >= 0;
+    const margenAjustadoPct = baseDineroFacturado !== 0 ? ((resultadoAjustado / baseDineroFacturado) * 100).toFixed(1) : '0.0';
+
     // Solo mostrar skeleton si estamos cargando Y NO tenemos datos previos
     if (loading && !data) return (
         <div className="animate-fade-in space-y-6" style={{ marginTop: 32 }}>
@@ -436,12 +467,12 @@ const DashboardView = () => {
 
     const infoData = {
         'resultado': {
-            title: 'Resultado del Período',
-            explanation: 'Es la diferencia entre lo que ingresó (ventas netas) y lo que salió (todos los gastos). Si es positivo, el negocio tuvo excedente ese mes; si es negativo, los gastos superaron los ingresos.',
+            title: 'Resultado del Período (Interactivo)',
+            explanation: 'Muestra un estimado del margen sobre el dinero facturado (Neto de Factura A y B Electrónica + Factura B Manual). Puedes ir descontando diferentes egresos para ver el resultado operativo.',
             breakdown: [
-                { label: 'Ventas Netas (sin IVA)', val: ventasNetas, color: 'text-emerald-400' },
-                { label: 'Total Gastos', val: -egresoTotal, color: 'text-rose-400' },
-                { label: 'Resultado Final', val: utilidad, total: true, color: utilidad >= 0 ? 'text-emerald-400' : 'text-rose-400' }
+                { label: 'Ingresos Facturados (Base)', val: baseDineroFacturado, color: 'text-emerald-400' },
+                { label: 'Egresos Descontados', val: -(baseDineroFacturado - resultadoAjustado), color: 'text-rose-400' },
+                { label: 'Resultado del Mes', val: resultadoAjustado, total: true, color: resultadoAjustadoPositivo ? 'text-emerald-400' : 'text-rose-400' }
             ]
         },
         'iva': {
@@ -673,89 +704,90 @@ const DashboardView = () => {
 
                 {/* ── RESULTADO DEL MES ───────────────────────────── */}
                 <div style={{ marginBottom: 16 }}>
-                    <Card style={{ padding: 28, borderLeft: '4px solid #10b981', background: isLight ? 'linear-gradient(135deg, rgba(16,185,129,0.06) 0%, #F8F9FB 100%)' : 'linear-gradient(135deg, rgba(16,185,129,0.04) 0%, rgba(15,23,42,0.6) 100%)' }}>
-                        <CardTitle title="Resultado del mes" onInfo={() => setInfoModalKey('resultado')} />
-
-                        {/* Full row: resultado neto + margen */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+                    <Card style={{
+                        background: resultadoAjustadoPositivo
+                        ? (isLight ? 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)' : 'linear-gradient(135deg, rgba(5,46,22,0.8) 0%, rgba(7,12,24,0.95) 100%)')
+                        : (isLight ? 'linear-gradient(135deg, #fff1f2 0%, #fff5f5 100%)' : 'linear-gradient(135deg, rgba(45,10,10,0.8) 0%, rgba(7,12,24,0.95) 100%)'),
+                        border: `1px solid ${resultadoAjustadoPositivo
+                        ? (isLight ? 'rgba(16,185,129,0.35)' : 'rgba(74,222,128,0.2)')
+                        : (isLight ? 'rgba(244,63,94,0.35)' : 'rgba(248,113,113,0.2)')}`,
+                        padding: 0,
+                    }}>
+                        <div style={{ padding: '24px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div>
-                                <p className="text-4xl font-black font-mono tracking-tighter" style={{ color: utilidad >= 0 ? '#10b981' : '#f43f5e', fontVariantNumeric: 'tabular-nums', margin: 0 }}>
-                                    {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(utilidad)}
-                                </p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <p style={{
+                                        fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px',
+                                        color: resultadoAjustadoPositivo
+                                            ? (isLight ? '#059669' : '#6ee7b7')
+                                            : (isLight ? '#dc2626' : '#fca5a5'),
+                                        margin: 0,
+                                    }}>Resultado del Mes</p>
+                                    <button onClick={() => setInfoModalKey('resultado')} className="w-5 h-5 rounded-full border border-current opacity-50 hover:opacity-100 flex items-center justify-center text-[10px] font-bold transition-all" style={{ color: resultadoAjustadoPositivo ? (isLight ? '#059669' : '#4ade80') : (isLight ? '#dc2626' : '#f87171') }}>?</button>
+                                </div>
+                                <p style={{
+                                    fontSize: 32, fontWeight: 800, margin: '4px 0 0',
+                                    color: resultadoAjustadoPositivo
+                                        ? (isLight ? '#059669' : '#4ade80')
+                                        : (isLight ? '#dc2626' : '#f87171'),
+                                    fontVariantNumeric: 'tabular-nums', letterSpacing: '-1px',
+                                }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(resultadoAjustado)}</p>
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                                <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.15em', margin: '0 0 4px' }}>Margen operativo</p>
-                                <p className="text-3xl font-black" style={{ color: +margen > 15 ? '#10b981' : +margen > 5 ? '#f59e0b' : '#f43f5e', margin: 0 }}>{margen}%</p>
+                                <p style={{
+                                    fontSize: 24, fontWeight: 700, margin: 0,
+                                    color: +margenAjustadoPct > 15 ? '#10b981' : +margenAjustadoPct > 5 ? '#f59e0b' : '#f43f5e',
+                                }}>
+                                    {margenAjustadoPct}%
+                                </p>
+                                <p style={{ fontSize: 11, color: isLight ? '#6B7A90' : '#8B949E', marginTop: 2 }}>margen operativo</p>
                             </div>
                         </div>
 
-                        {/* Dos columnas con dropdown sincronizado */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-
-                            {/* Columna Ventas */}
-                            <div style={{ background: 'rgba(16,185,129,0.04)', borderRadius: 14, border: '1px solid rgba(16,185,129,0.12)', overflow: 'hidden' }}>
-                                <button
-                                    onClick={() => setDetalleExpanded(v => !v)}
-                                    style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer' }}
+                        {/* Expense Toggles */}
+                        <div style={{
+                            borderTop: `1px solid ${isLight ? 'rgba(28,37,55,0.07)' : 'rgba(255,255,255,0.05)'}`,
+                            padding: '16px 28px',
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                            gap: 12,
+                        }}>
+                            {expensesToSubtract.map(exp => (
+                                <div
+                                    key={exp.key}
+                                    onClick={() => toggleExpense(exp.key)}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        cursor: 'pointer',
+                                        padding: '8px 12px',
+                                        borderRadius: 8,
+                                        background: activeExpenses[exp.key]
+                                            ? (isLight ? 'rgba(59,130,246,0.1)' : 'rgba(59,130,246,0.15)')
+                                            : (isLight ? 'rgba(28,37,55,0.03)' : 'rgba(255,255,255,0.03)'),
+                                        border: `1px solid ${activeExpenses[exp.key]
+                                            ? (isLight ? 'rgba(59,130,246,0.3)' : 'rgba(59,130,246,0.4)')
+                                            : (isLight ? 'rgba(28,37,55,0.07)' : 'rgba(255,255,255,0.05)')}`,
+                                        transition: 'all 0.2s ease-in-out',
+                                    }}
                                 >
-                                    <div style={{ textAlign: 'left' }}>
-                                        <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>Ventas</p>
-                                        <p className="text-2xl font-black font-mono" style={{ color: '#10b981', fontVariantNumeric: 'tabular-nums', margin: '4px 0 0' }}>
-                                            {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(ventasNetas)}
-                                        </p>
+                                    <input
+                                        type="checkbox"
+                                        checked={activeExpenses[exp.key] || false}
+                                        readOnly
+                                        style={{ accentColor: '#3b82f6', transform: 'scale(1.1)', pointerEvents: 'none' }}
+                                    />
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span style={{ fontSize: 12, fontWeight: 600, color: activeExpenses[exp.key] ? (isLight ? '#3b82f6' : '#60a5fa') : (isLight ? '#475569' : '#94A3B8') }}>
+                                            {exp.label}
+                                        </span>
                                     </div>
-                                    <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{detalleExpanded ? '▲' : '▼'}</span>
-                                </button>
-                                {detalleExpanded && (
-                                    <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--border-subtle)' }}>
-                                        {[
-                                            { l: 'Venta bruta (sistema)', v: getAdj(kpis.venta_bruta) },
-                                            { l: 'IVA cobrado (−)', v: -getAdj(kpis.iva_debito), neg: true },
-                                            { l: 'Venta neta s/IVA', v: ventasNetas, bold: true },
-                                        ].map((row, i) => (
-                                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: i === 0 ? 12 : 0 }}>
-                                                <span style={{ fontSize: 11, color: row.bold ? 'var(--text-muted)' : 'var(--text-dim)', fontWeight: row.bold ? 700 : 400 }}>{row.l}</span>
-                                                <span style={{ fontSize: 12, fontWeight: row.bold ? 800 : 600, color: row.neg ? '#f43f5e' : '#10b981', fontVariantNumeric: 'tabular-nums' }}>
-                                                    {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(row.v)}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Columna Compras */}
-                            <div style={{ background: 'rgba(244,63,94,0.03)', borderRadius: 14, border: '1px solid rgba(244,63,94,0.1)', overflow: 'hidden' }}>
-                                <button
-                                    onClick={() => setDetalleExpanded(v => !v)}
-                                    style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: 'none', border: 'none', cursor: 'pointer' }}
-                                >
-                                    <div style={{ textAlign: 'left' }}>
-                                        <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0 }}>Compras y gastos</p>
-                                        <p className="text-2xl font-black font-mono" style={{ color: '#f43f5e', fontVariantNumeric: 'tabular-nums', margin: '4px 0 0' }}>
-                                            {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(egresoTotal)}
-                                        </p>
-                                    </div>
-                                    <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{detalleExpanded ? '▲' : '▼'}</span>
-                                </button>
-                                {detalleExpanded && (
-                                    <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--border-subtle)' }}>
-                                        {[
-                                            { l: 'Sueldos y cargas', v: getAdj(laboralEfectivo) + getAdj(sacEfectivo) + getAdj(cargasEfectivo) },
-                                            { l: 'Gastos fijos operativos', v: gastosEstructuralesReal },
-                                            { l: 'Proveedores (compras)', v: proveedoresRestante },
-                                            { l: 'Comisiones bancos/apps', v: getAdj(egresos.comisiones || 0) },
-                                        ].filter(r => r.v > 0).map((row, i) => (
-                                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: i === 0 ? 12 : 0 }}>
-                                                <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{row.l}</span>
-                                                <span style={{ fontSize: 12, fontWeight: 600, color: '#f43f5e', fontVariantNumeric: 'tabular-nums' }}>
-                                                    {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(row.v)}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: activeExpenses[exp.key] ? (isLight ? '#3b82f6' : '#60a5fa') : (isLight ? '#1C2537' : '#E2E8F0'), marginLeft: 'auto' }}>
+                                        {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(exp.value)}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
                     </Card>
                 </div>
