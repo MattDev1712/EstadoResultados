@@ -423,11 +423,11 @@ const DashboardView = () => {
             if (cat === 'GASTO_FIJO') return;
 
             const total = Utils.num(item.total);
-            const isBC = tipo.includes(' B ') || tipo.includes(' C ') || tipo === 'B' || tipo === 'C' || tipo.startsWith('FACTURA B') || tipo.startsWith('FACTURA C') || tipo.includes('TIQUE B') || tipo.includes('TIQUE C');
+            const isBC = /(?:FACTURA|TIQUE|RECIBO|CREDITO|DEBITO|TIQUET)\s+[BC]\b/i.test(tipo) || tipo === 'B' || tipo === 'C';
             
-            if (cat === 'PROVEEDOR') cmv += total;
+            if (isBC) tipoBC += total;
+            else if (cat === 'PROVEEDOR') cmv += total;
             else if (cat === 'NO_APTO') noApto += total;
-            else if (isBC) tipoBC += total;
             else sA += total;
         });
 
