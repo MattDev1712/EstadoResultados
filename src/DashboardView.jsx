@@ -413,12 +413,43 @@ const DashboardView = () => {
 
     const sueldosTotal = getAdj(laboralEfectivo) + getAdj(sacEfectivo) + getAdj(cargasEfectivo);
 
+    const comprasBreakdown = useMemo(() => {
+        let cmv = 0, tipoBC = 0, noApto = 0, sA = 0;
+        Utils.arr(arcaData).forEach(item => {
+            const cuit = item.doc_nro || item.cuit;
+            const cat = categoriesMap[cuit] || '';
+            const tipo = (item.tipo || '').toUpperCase();
+            
+            if (cat === 'GASTO_FIJO') return;
+
+            const total = Utils.num(item.total);
+            const isBC = tipo.includes(' B ') || tipo.includes(' C ') || tipo === 'B' || tipo === 'C' || tipo.startsWith('FACTURA B') || tipo.startsWith('FACTURA C') || tipo.includes('TIQUE B') || tipo.includes('TIQUE C');
+            
+            if (cat === 'PROVEEDOR') cmv += total;
+            else if (cat === 'NO_APTO') noApto += total;
+            else if (isBC) tipoBC += total;
+            else sA += total;
+        });
+
+        // Aseguramos que la suma total sea exactamente igual al remanente de egresos calculados por el sistema
+        const totalCalculado = cmv + tipoBC + noApto + sA;
+        const totalLineal = Utils.num(egresos.otros || 0);
+        if (Math.abs(totalLineal - totalCalculado) > 1) {
+            sA += (totalLineal - totalCalculado); // Ajuste al remanente Sin Asignar
+        }
+
+        return { cmv: getAdj(cmv), tipoBC: getAdj(tipoBC), noApto: getAdj(noApto), sA: getAdj(sA) };
+    }, [arcaData, categoriesMap, egresos.otros, viewMode, localAjustes]);
+
     const expensesToSubtract = [
         { key: 'laboral', value: sueldosTotal, label: 'Sueldos y Cargas' },
         { key: 'estructural', value: gastosEstructuralesReal, label: 'Gastos Fijos Operativos' },
-        { key: 'proveedores', value: Math.max(0, proveedoresRestante), label: 'Proveedores (compras)' },
+        { key: 'cmv', value: comprasBreakdown.cmv, label: 'Proveedores CMV' },
+        { key: 'tipo_bc', value: comprasBreakdown.tipoBC, label: 'Proveedores Tipo B/C' },
+        { key: 'no_apto', value: comprasBreakdown.noApto, label: 'Proveedores N/A' },
+        { key: 'sin_asignar', value: comprasBreakdown.sA, label: 'Proveedores S/A' },
         { key: 'comisiones', value: getAdj(egresos.comisiones || 0), label: 'Comisiones Bancarias/Apps' },
-    ];
+    ].filter(r => r.value > 0);
 
     const baseDineroFacturado = getAdj(
         (ivaCobradoBreakdown.totalAElec - ivaCobradoBreakdown.ivaA) + 
