@@ -13,6 +13,7 @@ const CategoriesView = ({ initialProviders, onProvidersChange }) => {
     const [providers, setProviders] = useState(initialProviders || []);
     const [categoriesMap, setCategoriesMap] = useState(contextCategoriesMap);
     const [filter, setFilter] = useState('');
+    const [activeTab, setActiveTab] = useState(''); // '' es 'Sin Asignar'
     const [saveMsg, setSaveMsg] = useState(null);
     const [saving, setSaving] = useState(false);
 
@@ -75,11 +76,26 @@ const CategoriesView = ({ initialProviders, onProvidersChange }) => {
         }
     };
 
-    const filteredProviders = useMemo(() =>
-        providers.filter(p =>
-            p.nombre.toLowerCase().includes(filter.toLowerCase()) ||
-            p.cuit.includes(filter)
-        ), [providers, filter]);
+    const TABS = [
+        { id: '', label: 'Sin Asignar', color: '#64748b', bg: '#f1f5f9' },
+        ...CATEGORIES
+    ];
+
+    const tabsData = useMemo(() => {
+        return TABS.map(tab => {
+            const count = providers.filter(p => (categoriesMap[p.cuit] || '') === tab.id).length;
+            return { ...tab, count };
+        });
+    }, [providers, categoriesMap]);
+
+    const filteredProviders = useMemo(() => {
+        return providers.filter(p => {
+            const matchesFilter = p.nombre.toLowerCase().includes(filter.toLowerCase()) || p.cuit.includes(filter);
+            const pCat = categoriesMap[p.cuit] || '';
+            const matchesTab = pCat === activeTab;
+            return matchesFilter && matchesTab;
+        });
+    }, [providers, filter, categoriesMap, activeTab]);
 
     return (
         <div className="animate-fade-in space-y-4">
@@ -113,35 +129,49 @@ const CategoriesView = ({ initialProviders, onProvidersChange }) => {
             <input
                 type="text"
                 placeholder="Buscar por nombre o CUIT..."
-                className="w-full bg-[var(--bg-surface)] border border-[var(--border-mid)] rounded-xl px-4 py-2 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-mid)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-blue-500 transition shadow-sm"
                 value={filter}
                 onChange={e => setFilter(e.target.value)}
             />
 
-            {/* Leyenda */}
-            <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-faint)]">
-                <span>Categorías:</span>
-                {CATEGORIES.map(cat => (
-                    <span key={cat.id} className="flex items-center gap-1.5 px-2 py-1 rounded-lg border"
-                        style={{ color: cat.color, background: cat.bg, borderColor: cat.color + '40' }}>
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: cat.color }} />
-                        {cat.label}
-                    </span>
-                ))}
+            {/* Tabs */}
+            <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-subtle)] pb-4">
+                {tabsData.map(tab => {
+                    const isActive = activeTab === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                                isActive 
+                                ? 'bg-[var(--bg-card)] border-[var(--border-mid)] text-[var(--text-primary)] shadow-sm' 
+                                : 'bg-transparent border-transparent text-[var(--text-dim)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                            }`}
+                        >
+                            <div className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full" style={{ background: isActive ? tab.color : 'currentColor', opacity: isActive ? 1 : 0.6 }} />
+                                {tab.label}
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] bg-[var(--bg-surface)] border border-[var(--border-subtle)] ${isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-dim)]'}`}>
+                                {tab.count}
+                            </span>
+                        </button>
+                    );
+                })}
             </div>
 
             {/* Tabla compacta */}
-            <div className="bg-[var(--bg-card)] border border-[var(--border-card)] rounded-2xl overflow-hidden">
+            <div className="bg-[var(--bg-card)] border border-[var(--border-card)] rounded-2xl overflow-hidden shadow-sm">
                 {/* Header */}
                 <div className="grid grid-cols-[1fr_auto_auto] gap-4 px-4 py-2.5 bg-[var(--bg-surface)] border-b border-[var(--border-subtle)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-faint)]">
                     <span>Proveedor</span>
                     <span className="text-center w-64">Categoría</span>
-                    <span className="text-right w-20">Limpiar</span>
+                    <span className="text-right w-20">Acción</span>
                 </div>
 
                 {filteredProviders.length === 0 ? (
                     <div className="py-12 text-center text-[var(--text-dim)] text-sm">
-                        {providers.length === 0 ? 'Cargando proveedores...' : 'Sin coincidencias.'}
+                        {providers.length === 0 ? 'Cargando proveedores...' : 'No hay proveedores en esta pestaña.'}
                     </div>
                 ) : filteredProviders.map((p, i) => {
                     const currentCat = categoriesMap[p.cuit] || '';
@@ -169,7 +199,9 @@ const CategoriesView = ({ initialProviders, onProvidersChange }) => {
                                         <button
                                             key={cat.id}
                                             onClick={() => handleCategoryChange(p.cuit, cat.id)}
-                                            className="flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition-all"
+                                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                                                active ? 'opacity-100 shadow-sm scale-[1.02]' : 'opacity-75 hover:opacity-100 hover:scale-[1.02]'
+                                            }`}
                                             style={{
                                                 color:       active ? 'white' : cat.color,
                                                 background:  active ? cat.color : cat.bg,
@@ -187,7 +219,7 @@ const CategoriesView = ({ initialProviders, onProvidersChange }) => {
                                 {currentCat && (
                                     <button
                                         onClick={() => handleCategoryChange(p.cuit, '')}
-                                        className="text-[10px] text-[var(--text-faint)] hover:text-[var(--text-dim)] transition font-bold uppercase tracking-wider"
+                                        className="text-[10px] text-[var(--text-faint)] hover:text-red-400 transition font-bold uppercase tracking-wider px-2 py-1 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg hover:border-red-400/30"
                                     >
                                         Quitar
                                     </button>
