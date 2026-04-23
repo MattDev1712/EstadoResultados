@@ -321,8 +321,8 @@ export default function MarginExpectationView() {
 
   // --- Lógica de Desgloses para los Modales ---
   // A partir de aquí dashData existe. Extraemos las sub-propiedades con fallbacks para evitar crashes.
-  const egresosBase = dashData.egresos || {};
-  const kpisBase = dashData.kpis || {};
+  const egresosBase = dashData?.egresos || {};
+  const kpisBase = dashData?.kpis || {};
   
   const laboralBreakdown = [
     { label: 'Sueldos Netos (Recibo + Informal)', val: n(egresosBase.laboral) > 0 ? n(egresosBase.laboral) : (empData || []).reduce((acc, emp) => acc + n(emp.recibo) + n(emp.negro), 0) },
@@ -869,14 +869,14 @@ export default function MarginExpectationView() {
       {/* Gráficos históricos */}
       <HistorialLineChart
         metrics={METRICS_DINERO}
-        historial={dashData.historial || {}}
+        historial={dashData?.historial || {}}
         title="Evolución — últimos 6 meses (pesos)"
         isPesos
         defaultActive={{ v: true }}
       />
       <HistorialLineChart
         metrics={METRICS_CANTIDAD}
-        historial={dashData.historial || {}}
+        historial={dashData?.historial || {}}
         title="Evolución — últimos 6 meses (cantidades)"
         isPesos={false}
         defaultActive={{ ops: true, emp: true }}
