@@ -262,6 +262,32 @@ export default function MarginExpectationView() {
     setActiveExpenses(prev => ({ ...prev, [key]: !prev[key] }));
   }, []);
 
+  // MUST be before any conditional returns (Rules of Hooks)
+  const proveedoresBreakdownData = useMemo(() => {
+    const res = { cmv: [], tipoBC: [], noApto: [], sA: [] };
+    (arcaData || []).forEach(item => {
+      const cuit = item.doc_nro || item.cuit;
+      const cat = (categoriesMap || {})[cuit] || '';
+      const tipo = (item.tipo_comp || '').toUpperCase();
+      if (cat === 'GASTO_FIJO' || item.rubro === 'Costos Estructurales') return;
+      const total = Math.abs(Utils.num(item.total ?? item.importe_total));
+      const isBC = /(?:FACTURA|TIQUE|RECIBO|CREDITO|DEBITO|TIQUET)\s+[BC]\b/i.test(tipo) || tipo === 'B' || tipo === 'C' || tipo.endsWith(' B') || tipo.endsWith(' C');
+      const label = item.entidad || cuit || 'Proveedor';
+      if (isBC) { res.tipoBC.push({ label, val: total }); }
+      else if (cat === 'PROVEEDOR') { res.cmv.push({ label, val: total }); }
+      else if (cat === 'NO_APTO') { res.noApto.push({ label, val: total }); }
+      else if (cat && cat !== '') { if (!res[cat]) res[cat] = []; res[cat].push({ label, val: total }); }
+      else { res.sA.push({ label, val: total }); }
+    });
+    const grouped = {};
+    Object.entries(res).forEach(([catKey, items]) => {
+      const map = {};
+      items.forEach(i => { map[i.label] = (map[i.label] || 0) + i.val; });
+      grouped[catKey] = Object.entries(map).map(([l, v]) => ({ label: l, val: v })).sort((a, b) => b.val - a.val);
+    });
+    return grouped;
+  }, [arcaData, categoriesMap]);
+
   // Al cambiar período: cargar borrador local (no mirar dashData, puede ser del mes anterior)
   useEffect(() => {
     const draft = localStorage.getItem(draftKey);
@@ -487,43 +513,6 @@ export default function MarginExpectationView() {
   const periodoLabel = `${mesNombre} ${selectedYear}`;
 
   let resultadoAjustado = resultadoMargenes;
-  const proveedoresBreakdownData = useMemo(() => {
-    const res = { cmv: [], tipoBC: [], noApto: [], sA: [] };
-    (arcaData || []).forEach(item => {
-      const cuit = item.doc_nro || item.cuit;
-      const cat = categoriesMap[cuit] || '';
-      const tipo = (item.tipo_comp || '').toUpperCase();
-      if (cat === 'GASTO_FIJO' || item.rubro === 'Costos Estructurales') return;
-
-      const total = Math.abs(n(item.total ?? item.importe_total));
-      const isBC = /(?:FACTURA|TIQUE|RECIBO|CREDITO|DEBITO|TIQUET)\s+[BC]\b/i.test(tipo) || tipo === 'B' || tipo === 'C' || tipo.endsWith(' B') || tipo.endsWith(' C');
-      const label = item.entidad || cuit || 'Proveedor';
-
-      if (isBC) {
-        res.tipoBC.push({ label, val: total });
-      } else if (cat === 'PROVEEDOR') {
-        res.cmv.push({ label, val: total });
-      } else if (cat === 'NO_APTO') {
-        res.noApto.push({ label, val: total });
-      } else if (cat && cat !== '') {
-        if (!res[cat]) res[cat] = [];
-        res[cat].push({ label, val: total });
-      } else {
-        res.sA.push({ label, val: total });
-      }
-    });
-
-    const grouped = {};
-    Object.entries(res).forEach(([catKey, items]) => {
-      const map = {};
-      items.forEach(i => { map[i.label] = (map[i.label] || 0) + i.val; });
-      grouped[catKey] = Object.entries(map)
-        .map(([label, val]) => ({ label, val })) // Margen expectation is already nominal/compared vs base
-        .sort((a, b) => b.val - a.val);
-    });
-    return grouped;
-  }, [arcaData, categoriesMap]);
-
   const CAT_LABELS = {
     'limpieza_mantenimiento': 'Limpieza y Mant.',
     'servicios_profesionales': 'Servicios Prof.',
