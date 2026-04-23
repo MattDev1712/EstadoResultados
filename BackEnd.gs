@@ -726,6 +726,8 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
   let egresoOtros = 0;
   let totalRecibo = 0;
 
+  const historyMap = {}; 
+  const proveedoresMap = {};
   const categoriesTotals = {};
   const mixPagos = {};
   const aliasMap = _getProviderAliasMap();
@@ -1424,4 +1426,12 @@ function _saveConfigToSheet(payload) {
   }
   
   return { status: 'OK', message: 'Configuración guardada correctamente' };
+}
+
+/**
+ * Redondeo simple para el reporte
+ */
+function _round(v) {
+  if (v === null || v === undefined || isNaN(v)) return 0;
+  return Math.round(v);
 }

@@ -546,7 +546,7 @@ const DashboardView = () => {
         { key: 'noApto', value: comprasBreakdown.noApto, label: 'Proveedores N/A' },
         { key: 'sA', value: comprasBreakdown.sA, label: 'Proveedores S/A' },
         { key: 'comisiones', value: getAdj(egresos.comisiones || 0), label: 'Comisiones Bancarias/Apps' },
-    ].filter(exp => exp.value !== 0 || exp.key === 'laboral' || exp.key === 'estructural' || exp.key === 'cmv');
+    ];
 
     const baseDineroFacturado = getAdj(
         (ivaCobradoBreakdown.totalAElec - ivaCobradoBreakdown.ivaA) + 

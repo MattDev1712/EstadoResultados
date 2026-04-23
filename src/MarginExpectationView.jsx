@@ -487,6 +487,43 @@ export default function MarginExpectationView() {
   const periodoLabel = `${mesNombre} ${selectedYear}`;
 
   let resultadoAjustado = resultadoMargenes;
+  const proveedoresBreakdownData = useMemo(() => {
+    const res = { cmv: [], tipoBC: [], noApto: [], sA: [] };
+    (arcaData || []).forEach(item => {
+      const cuit = item.doc_nro || item.cuit;
+      const cat = categoriesMap[cuit] || '';
+      const tipo = (item.tipo_comp || '').toUpperCase();
+      if (cat === 'GASTO_FIJO' || item.rubro === 'Costos Estructurales') return;
+
+      const total = Math.abs(n(item.total ?? item.importe_total));
+      const isBC = /(?:FACTURA|TIQUE|RECIBO|CREDITO|DEBITO|TIQUET)\s+[BC]\b/i.test(tipo) || tipo === 'B' || tipo === 'C' || tipo.endsWith(' B') || tipo.endsWith(' C');
+      const label = item.entidad || cuit || 'Proveedor';
+
+      if (isBC) {
+        res.tipoBC.push({ label, val: total });
+      } else if (cat === 'PROVEEDOR') {
+        res.cmv.push({ label, val: total });
+      } else if (cat === 'NO_APTO') {
+        res.noApto.push({ label, val: total });
+      } else if (cat && cat !== '') {
+        if (!res[cat]) res[cat] = [];
+        res[cat].push({ label, val: total });
+      } else {
+        res.sA.push({ label, val: total });
+      }
+    });
+
+    const grouped = {};
+    Object.entries(res).forEach(([catKey, items]) => {
+      const map = {};
+      items.forEach(i => { map[i.label] = (map[i.label] || 0) + i.val; });
+      grouped[catKey] = Object.entries(map)
+        .map(([label, val]) => ({ label, val })) // Margen expectation is already nominal/compared vs base
+        .sort((a, b) => b.val - a.val);
+    });
+    return grouped;
+  }, [arcaData, categoriesMap]);
+
   const CAT_LABELS = {
     'limpieza_mantenimiento': 'Limpieza y Mant.',
     'servicios_profesionales': 'Servicios Prof.',
@@ -497,7 +534,11 @@ export default function MarginExpectationView() {
     'facturas_bc': 'Facturas B / C (ARCA)',
     'iibb': 'Ingresos Brutos',
     'retenciones': 'Retenciones',
-    'comisiones': 'Comisiones Bancarias/Apps'
+    'comisiones': 'Comisiones Bancarias/Apps',
+    'cmv': 'Proveedores CMV',
+    'tipoBC': 'Proveedores Tipo B / C',
+    'noApto': 'Proveedores N / A',
+    'sA': 'Proveedores S / A'
   };
 
   const dynamicExpenses = Object.keys(egresosBase)
@@ -505,18 +546,19 @@ export default function MarginExpectationView() {
     .map(k => ({
         key: k,
         value: n(egresosBase[k]) + (k === 'excepcionales' ? excepcionales : 0),
-        label: CAT_LABELS[k] || k.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+        label: CAT_LABELS[k] || k.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
+        breakdown: proveedoresBreakdownData[k.toUpperCase()] || []
     }));
 
   const expensesToSubtract = [
-    { key: 'laboral', value: sueldosTotal, label: 'Sueldos y Cargas' },
-    { key: 'estructural', value: operaciones, label: 'Gastos Fijos Operativos' },
+    { key: 'laboral', value: sueldosTotal, label: 'Sueldos y Cargas', breakdown: laboralBreakdown },
+    { key: 'estructural', value: operaciones, label: 'Gastos Fijos Operativos', breakdown: estructuralBreakdown },
     ...dynamicExpenses,
-    { key: 'facturas_bc', value: totalFacturasBC, label: 'Facturas B / C (ARCA)' },
-    { key: 'iibb', value: iibbTotal, label: 'Ingresos Brutos' },
-    { key: 'retenciones', value: retencionesTotal, label: 'Retenciones' },
+    { key: 'tipoBC', value: totalFacturasBC, label: 'Proveedores Tipo B / C', breakdown: proveedoresBreakdownData.tipoBC },
+    { key: 'iibb', value: iibbTotal, label: 'Ingresos Brutos', breakdown: iibbBreakdown },
+    { key: 'retenciones', value: retencionesTotal, label: 'Retenciones', breakdown: retencionesBreakdown },
     { key: 'comisiones', value: n(egresosBase.comisiones), label: 'Comisiones Bancarias/Apps' },
-  ].filter(exp => exp.value !== 0 || ['laboral', 'estructural'].includes(exp.key));
+  ]; // Quitamos el filtro de !== 0
 
   expensesToSubtract.forEach(exp => {
     if (activeExpenses[exp.key]) {
@@ -870,10 +912,11 @@ export default function MarginExpectationView() {
           background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)'
         }} onClick={() => setInfoModal(null)}>
           {(() => {
+            const expObj = expensesToSubtract.find(e => e.key === infoModal);
             const info = INFO_TOOLTIPS[infoModal] || {
-              title: CAT_LABELS[infoModal] || infoModal,
+              title: (expObj ? expObj.label : CAT_LABELS[infoModal]) || infoModal,
               explanation: "Desglose de gastos detectados para esta categoría.",
-              breakdown: []
+              breakdown: expObj ? expObj.breakdown : []
             };
             return (
               <div style={{
