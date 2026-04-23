@@ -366,7 +366,10 @@ export default function MarginExpectationView() {
         explanation: "Suma de los costos fijos necesarios para abrir el local: alquileres, servicios y expensas detectados en facturas o cargados manualmente.",
         breakdown: estructuralBreakdown
     },
-    excepcionales_manual: { title: "Origen: Gastos Excepcionales", explanation: "Es el valor numérico que ingresaste manualmente en el campo 'Excepcionales' de esta pantalla. No proviene de ninguna planilla externa." },
+    excepcionales: { title: "Gastos Excepcionales", explanation: "Suma de gastos cargados manualmente en esta pantalla más aquellos proveedores categorizados explícitamente como Excepcionales en el sistema." },
+    limpieza: { title: "Limpieza y Mantenimiento", explanation: "Insumos de limpieza profunda, reparaciones generales y mantenimiento de equipos del local." },
+    prof: { title: "Servicios Profesionales", explanation: "Honorarios de contadores, abogados, consultores o servicios especializados externos." },
+    personal: { title: "Gastos Personales", explanation: "Gastos de socios o dueños que aparecen en las facturas del negocio pero que deben identificarse por separado." },
     iibb: { 
         title: "Ingresos Brutos", 
         explanation: "Pagos de IIBB (Local o Convenio) registrados manualmente para este período.",
@@ -484,15 +487,36 @@ export default function MarginExpectationView() {
   const periodoLabel = `${mesNombre} ${selectedYear}`;
 
   let resultadoAjustado = resultadoMargenes;
+  const CAT_LABELS = {
+    'limpieza_mantenimiento': 'Limpieza y Mant.',
+    'servicios_profesionales': 'Servicios Prof.',
+    'excepcionales': 'Gastos Excepcionales',
+    'personal': 'Gastos Personales',
+    'laboral': 'Sueldos y Cargas',
+    'estructural': 'Gastos Fijos Operativos',
+    'facturas_bc': 'Facturas B / C (ARCA)',
+    'iibb': 'Ingresos Brutos',
+    'retenciones': 'Retenciones',
+    'comisiones': 'Comisiones Bancarias/Apps'
+  };
+
+  const dynamicExpenses = Object.keys(egresosBase)
+    .filter(k => !['laboral', 'estructural', 'comisiones', 'otros', 'provision_sac', 'provision_cargas'].includes(k))
+    .map(k => ({
+        key: k,
+        value: n(egresosBase[k]) + (k === 'excepcionales' ? excepcionales : 0),
+        label: CAT_LABELS[k] || k.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+    }));
+
   const expensesToSubtract = [
     { key: 'laboral', value: sueldosTotal, label: 'Sueldos y Cargas' },
     { key: 'estructural', value: operaciones, label: 'Gastos Fijos Operativos' },
-    { key: 'excepcionales_manual', value: excepcionales, label: 'Gastos Excepcionales' },
+    ...dynamicExpenses,
     { key: 'facturas_bc', value: totalFacturasBC, label: 'Facturas B / C (ARCA)' },
     { key: 'iibb', value: iibbTotal, label: 'Ingresos Brutos' },
     { key: 'retenciones', value: retencionesTotal, label: 'Retenciones' },
     { key: 'comisiones', value: n(egresosBase.comisiones), label: 'Comisiones Bancarias/Apps' },
-  ];
+  ].filter(exp => exp.value !== 0 || ['laboral', 'estructural'].includes(exp.key));
 
   expensesToSubtract.forEach(exp => {
     if (activeExpenses[exp.key]) {

@@ -415,38 +415,57 @@ const DashboardView = () => {
 
     const comprasBreakdown = useMemo(() => {
         let cmv = 0, tipoBC = 0, noApto = 0, sA = 0;
+        const dynamicCats = {};
+
         Utils.arr(arcaData).forEach(item => {
             const cuit = item.doc_nro || item.cuit;
             const cat = categoriesMap[cuit] || '';
-            const tipo = (item.tipo || '').toUpperCase();
+            const tipo = (item.tipo_comp || '').toUpperCase();
             
-            if (cat === 'GASTO_FIJO') return;
+            if (cat === 'GASTO_FIJO' || item.rubro === 'Costos Estructurales') return;
 
             const total = Utils.num(item.total);
-            const isBC = /(?:FACTURA|TIQUE|RECIBO|CREDITO|DEBITO|TIQUET)\s+[BC]\b/i.test(tipo) || tipo === 'B' || tipo === 'C';
+            const isBC = /(?:FACTURA|TIQUE|RECIBO|CREDITO|DEBITO|TIQUET)\s+[BC]\b/i.test(tipo) || tipo === 'B' || tipo === 'C' || tipo.endsWith(' B') || tipo.endsWith(' C');
             
-            if (isBC) tipoBC += total;
-            else if (cat === 'PROVEEDOR') cmv += total;
-            else if (cat === 'NO_APTO') noApto += total;
-            else sA += total;
+            if (isBC) {
+                tipoBC += total;
+            } else if (cat === 'PROVEEDOR') {
+                cmv += total;
+            } else if (cat === 'NO_APTO') {
+                noApto += total;
+            } else if (cat && cat !== '') {
+                dynamicCats[cat] = (dynamicCats[cat] || 0) + total;
+            } else {
+                sA += total;
+            }
         });
 
-        // Aseguramos que la suma total sea exactamente igual al remanente de egresos calculados por el sistema
-        const totalCalculado = cmv + tipoBC + noApto + sA;
+        // Ajuste al remanente Sin Asignar
+        const totalCalculado = cmv + tipoBC + noApto + sA + Object.values(dynamicCats).reduce((a,b) => a+b, 0);
         const totalLineal = Utils.num(egresos.otros || 0);
         if (Math.abs(totalLineal - totalCalculado) > 1) {
-            sA += (totalLineal - totalCalculado); // Ajuste al remanente Sin Asignar
+            sA += (totalLineal - totalCalculado);
         }
 
-        return { cmv: getAdj(cmv), tipoBC: getAdj(tipoBC), noApto: getAdj(noApto), sA: getAdj(sA) };
+        const result = { 
+            cmv: getAdj(cmv), 
+            tipoBC: getAdj(tipoBC), 
+            noApto: getAdj(noApto), 
+            sA: getAdj(sA)
+        };
+        Object.entries(dynamicCats).forEach(([k, v]) => {
+            result[k] = getAdj(v);
+        });
+
+        return result;
     }, [arcaData, categoriesMap, egresos.otros, viewMode, localAjustes]);
 
     const arcaGastosFijosBreakdown = useMemo(() => {
         const map = {};
         Utils.arr(arcaData)
-            .filter(r => categoriesMap[r.doc_nro || r.cuit] === 'GASTO_FIJO')
+            .filter(r => categoriesMap[r.doc_nro || r.cuit] === 'GASTO_FIJO' || r.rubro === 'Costos Estructurales')
             .forEach(r => {
-                const label = r.entidad || r.doc_nro || r.cuit || 'Gasto Fijo';
+                const label = r.sub_rubro || r.entidad || r.doc_nro || r.cuit || 'Gasto Fijo';
                 map[label] = (map[label] || 0) + Math.abs(Utils.num(r.total));
             });
         return Object.entries(map)
@@ -463,18 +482,39 @@ const DashboardView = () => {
         Utils.arr(arcaData).forEach(item => {
             const cuit = item.doc_nro || item.cuit;
             const cat = categoriesMap[cuit] || '';
-            const tipo = (item.tipo || '').toUpperCase();
-            if (cat === 'GASTO_FIJO') return;
+            const tipo = (item.tipo_comp || '').toUpperCase();
+            if (cat === 'GASTO_FIJO' || item.rubro === 'Costos Estructurales') return;
 
             const total = Utils.num(item.total);
-            const isBC = /(?:FACTURA|TIQUE|RECIBO|CREDITO|DEBITO|TIQUET)\s+[BC]\b/i.test(tipo) || tipo === 'B' || tipo === 'C';
+            const isBC = /(?:FACTURA|TIQUE|RECIBO|CREDITO|DEBITO|TIQUET)\s+[BC]\b/i.test(tipo) || tipo === 'B' || tipo === 'C' || tipo.endsWith(' B') || tipo.endsWith(' C');
             const label = item.entidad || cuit || 'Proveedor';
 
-            if (isBC) result.tipoBC.push({ label, val: total });
-            else if (cat === 'PROVEEDOR') result.cmv.push({ label, val: total });
-            else if (cat === 'NO_APTO') result.noApto.push({ label, val: total });
-            else result.sA.push({ label, val: total });
+            if (isBC) {
+                result.tipoBC.push({ label, val: total });
+            } else if (cat === 'PROVEEDOR') {
+                result.cmv.push({ label, val: total });
+            } else if (cat === 'NO_APTO') {
+                result.noApto.push({ label, val: total });
+            } else if (cat && cat !== '') {
+                if (!result[cat]) result[cat] = [];
+                result[cat].push({ label, val: total });
+            } else {
+                result.sA.push({ label, val: total });
+            }
         });
+        
+        // Agrupar por label y ordenar por valor para cada categoría
+        const grouped = {};
+        Object.entries(result).forEach(([catKey, items]) => {
+            const map = {};
+            items.forEach(i => { map[i.label] = (map[i.label] || 0) + i.val; });
+            grouped[catKey] = Object.entries(map)
+                .map(([label, val]) => ({ label, val: getAdj(val) }))
+                .sort((a, b) => b.val - a.val);
+        });
+
+        return grouped;
+    }, [arcaData, categoriesMap, localAjustes, viewMode]);
 
         // Agrupar por label y ordenar por valor
         const groupAndSort = (arr) => {
@@ -493,15 +533,36 @@ const DashboardView = () => {
         };
     }, [arcaData, categoriesMap]);
 
+    // Mapeo amigable para las cards
+    const CAT_LABELS = {
+        'LIMPIEZA_MANTENIMIENTO': 'Limpieza y Mant.',
+        'SERVICIOS_PROFESIONALES': 'Servicios Prof.',
+        'EXCEPCIONALES': 'Gastos Excepcionales',
+        'PERSONAL': 'Gastos Personales',
+        'NO_APTO': 'Proveedores N/A',
+        'sA': 'Proveedores S/A',
+        'tipoBC': 'Proveedores Tipo B/C',
+        'cmv': 'Proveedores CMV'
+    };
+
+    const dynamicCards = Object.entries(comprasBreakdown)
+        .filter(([k]) => !['cmv', 'tipoBC', 'noApto', 'sA'].includes(k))
+        .map(([k, v]) => ({
+            key: k,
+            value: v,
+            label: CAT_LABELS[k] || k.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+        }));
+
     const expensesToSubtract = [
         { key: 'laboral', value: sueldosTotal, label: 'Sueldos y Cargas' },
         { key: 'estructural', value: gastosEstructuralesReal, label: 'Gastos Fijos Operativos' },
         { key: 'cmv', value: comprasBreakdown.cmv, label: 'Proveedores CMV' },
-        { key: 'tipo_bc', value: comprasBreakdown.tipoBC, label: 'Proveedores Tipo B/C' },
-        { key: 'no_apto', value: comprasBreakdown.noApto, label: 'Proveedores N/A' },
-        { key: 'sin_asignar', value: comprasBreakdown.sA, label: 'Proveedores S/A' },
+        { key: 'tipoBC', value: comprasBreakdown.tipoBC, label: 'Proveedores Tipo B/C' },
+        ...dynamicCards,
+        { key: 'noApto', value: comprasBreakdown.noApto, label: 'Proveedores N/A' },
+        { key: 'sA', value: comprasBreakdown.sA, label: 'Proveedores S/A' },
         { key: 'comisiones', value: getAdj(egresos.comisiones || 0), label: 'Comisiones Bancarias/Apps' },
-    ];
+    ].filter(exp => exp.value !== 0 || exp.key === 'laboral' || exp.key === 'estructural' || exp.key === 'cmv');
 
     const baseDineroFacturado = getAdj(
         (ivaCobradoBreakdown.totalAElec - ivaCobradoBreakdown.ivaA) + 
@@ -561,7 +622,7 @@ const DashboardView = () => {
         },
         'iva': {
             title: 'Tu IVA del mes',
-            explanation: 'Cada vez que vendés, cobrás IVA (21%) que le pertenece al Estado. Cada vez que comprás con factura, pagás IVA que podés descontar. La diferencia es lo que le debés (o te debe) AFIP.\n\nSi el número es positivo → tenés que pagar ese monto a AFIP.\nSi es negativo → tenés saldo a favor (AFIP te "debe" a vos).\n\nImportante: los sueldos y cargas sociales NO generan crédito fiscal de IVA.',
+            explanation: 'Cada vez que vendés, cobrás IVA (21%) que le pertenece al Estado. Cada vez que comprás con factura, pagás IVA que podés descontar. La diferencia es lo que le debés (o te debe) AFIP.\n\nSi el número es positivo → tenés que pagar ese monto a AFIP.\nSi es negativo → tenés saldo a favor (AFIP te "debe" a vos).',
             breakdown: [
                 { label: 'IVA Débito Fiscal (ventas)', val: Utils.num(kpis.iva_debito), color: 'text-emerald-400' },
                 { label: 'IVA Crédito Fiscal (compras con factura)', val: -Utils.num(kpis.iva_credito || 0), color: 'text-rose-400' },
@@ -602,9 +663,8 @@ const DashboardView = () => {
         },
         'estructural': {
             title: 'Gastos Fijos Operativos',
-            explanation: 'Suma de los costos fijos necesarios para abrir el local: alquileres, servicios y expensas detectados en facturas o cargados manualmente.',
+            explanation: 'Suma de los costos fijos necesarios para abrir el local (alquiler, luz, gas) detectados en facturas de AFIP o cargados manualmente en el portal.',
             breakdown: [
-                ...(egresos.estructural ? [{ label: 'Carga Manual (Ajuste)', val: getAdj(egresos.estructural) }] : []),
                 ...arcaGastosFijosBreakdown,
                 { label: 'Total Gastos Fijos', val: gastosEstructuralesReal, total: true }
             ]
@@ -612,31 +672,52 @@ const DashboardView = () => {
         'cmv': {
             title: 'Proveedores CMV',
             explanation: 'Proveedores que suministran mercadería directa para la venta (Cost of Goods Sold). Son gastos aptos para crédito fiscal A.',
-            breakdown: proveedoresBreakdownData.cmv.slice(0, 10)
+            breakdown: proveedoresBreakdownData.cmv?.slice(0, 10) || []
         },
-        'tipo_bc': {
+        'tipoBC': {
             title: 'Proveedores Tipo B/C',
             explanation: 'Gastos de proveedores que no discriminan IVA (Monotributistas o Facturas B/C). Son costos directos del período pero no generan crédito fiscal.',
-            breakdown: proveedoresBreakdownData.tipoBC.slice(0, 10)
+            breakdown: proveedoresBreakdownData.tipoBC?.slice(0, 10) || []
         },
-        'no_apto': {
+        'EXCEPCIONALES': {
+            title: 'Gastos Excepcionales',
+            explanation: 'Gastos que no ocurren todos los meses y que han sido categorizados explícitamente como tales para no distorsionar el análisis corriente.',
+            breakdown: proveedoresBreakdownData.EXCEPCIONALES?.slice(0, 10) || []
+        },
+        'LIMPIEZA_MANTENIMIENTO': {
+            title: 'Limpieza y Mantenimiento',
+            explanation: 'Insumos de limpieza profunda, reparaciones generales y mantenimiento de equipos del local.',
+            breakdown: proveedoresBreakdownData.LIMPIEZA_MANTENIMIENTO?.slice(0, 10) || []
+        },
+        'SERVICIOS_PROFESIONALES': {
+            title: 'Servicios Profesionales',
+            explanation: 'Honorarios de contadores, abogados, consultores o servicios especializados externos.',
+            breakdown: proveedoresBreakdownData.SERVICIOS_PROFESIONALES?.slice(0, 10) || []
+        },
+        'PERSONAL': {
+            title: 'Gastos Personales',
+            explanation: 'Gastos de socios o dueños que aparecen en las facturas del negocio pero que deben identificarse por separado.',
+            breakdown: proveedoresBreakdownData.PERSONAL?.slice(0, 10) || []
+        },
+        'noApto': {
             title: 'Proveedores N/A',
-            explanation: 'Facturas detectadas como proveedores pero categorizadas como "No Aptas" para el giro principal o que el sistema no debe computar como CMV directo.',
-            breakdown: proveedoresBreakdownData.noApto.slice(0, 10)
+            explanation: 'Facturas detectadas como proveedores pero categorizadas como "No Aptas" para el giro principal.',
+            breakdown: proveedoresBreakdownData.noApto?.slice(0, 10) || []
         },
-        'sin_asignar': {
+        'sA': {
             title: 'Proveedores S/A',
-            explanation: 'Gastos detectados en ARCA que aún no han sido categorizados en el sistema. Se computan como egreso general por prudencia.',
-            breakdown: proveedoresBreakdownData.sA.slice(0, 10)
+            explanation: 'Gastos detectados en ARCA que aún no han sido categorizados en el sistema.',
+            breakdown: proveedoresBreakdownData.sA?.slice(0, 10) || []
         },
         'comisiones': {
             title: 'Comisiones Bancarias/Apps',
             explanation: 'Cálculo automático basado en los porcentajes definidos en Ajustes aplicado sobre los medios de pago de Maxirest (Tarjetas y Otros).',
             breakdown: [
-                { label: 'Tarjetas (Estimado)', val: getAdj(egresos.comisiones || 0) * 0.7 }, // Estimación simple para el desglose visual
+                { label: 'Tarjetas (Estimado)', val: getAdj(egresos.comisiones || 0) * 0.7 },
                 { label: 'Apps / Otros (Estimado)', val: getAdj(egresos.comisiones || 0) * 0.3 }
             ]
         },
+    };
     };
 
     const ivaProveedoresVisible = ivaShowAll ? ivaGrouped : ivaGrouped.slice(0, 10);
@@ -650,7 +731,11 @@ const DashboardView = () => {
             <InfoModal
                 isOpen={!!infoModalKey}
                 onClose={() => setInfoModalKey(null)}
-                {...(infoData[infoModalKey] || {})}
+                {...(infoData[infoModalKey] || {
+                    title: CAT_LABELS[infoModalKey] || infoModalKey,
+                    explanation: 'Desglose detallado de gastos detectados para esta categoría.',
+                    breakdown: proveedoresBreakdownData[infoModalKey] || []
+                })}
             />
 
             {/* Selector de Vista y MEP */}

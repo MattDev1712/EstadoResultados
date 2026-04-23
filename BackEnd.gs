@@ -726,8 +726,7 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
   let egresoOtros = 0;
   let totalRecibo = 0;
 
-  const historyMap = {}; 
-  const proveedoresMap = {};
+  const categoriesTotals = {};
   const mixPagos = {};
   const aliasMap = _getProviderAliasMap();
 
@@ -781,6 +780,10 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
         const efectivoOtros = -otrosTrib;
         const efectivoIva   = -iva;
 
+        const isFijo = (categoria === 'GASTO_FIJO' || row[5] === 'Costos Estructurales');
+
+        const valNetoOtros = efectivoNeto + efectivoOtros;
+
         // CMV: solo IVA Crédito — márgenes ya contemplan el costo de mercaderías
         if (categoria === 'CMV') {
           creditoFiscal += efectivoIva;
@@ -788,10 +791,13 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
           utilidadNeta += neto + otrosTrib;
           creditoFiscal += efectivoIva;
 
-          if (categoria === 'GASTO_FIJO') {
-            egresoEstructural += efectivoNeto + efectivoOtros;
+          if (isFijo) {
+            egresoEstructural += valNetoOtros;
+          } else if (categoria && categoria !== '') {
+            if (!categoriesTotals[categoria]) categoriesTotals[categoria] = 0;
+            categoriesTotals[categoria] += valNetoOtros;
           } else {
-            egresoOtros += efectivoNeto + efectivoOtros;
+            egresoOtros += valNetoOtros;
           }
         }
 
@@ -892,7 +898,8 @@ function getFinancialSummary(startDate, endDate, cargasPct = 33) {
       provision_cargas: _round(provisionCargas),
       estructural: _round(egresoEstructural),
       otros: _round(egresoOtros),
-      comisiones: _round(totalComisiones)
+      comisiones: _round(totalComisiones),
+      ...Object.keys(categoriesTotals).reduce((a, k) => ({ ...a, [k.toLowerCase()]: _round(categoriesTotals[k]) }), {})
     },
     historial: Object.keys(historyMap).sort().reduce((obj, key) => {
       const h = historyMap[key];
