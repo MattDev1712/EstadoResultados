@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Chart, registerables } from 'chart.js';
 import { useFinance } from './FinanceContext';
 import { formatters as Utils } from './formatters';
