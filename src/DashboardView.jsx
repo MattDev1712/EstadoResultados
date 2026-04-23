@@ -441,6 +441,47 @@ const DashboardView = () => {
         return { cmv: getAdj(cmv), tipoBC: getAdj(tipoBC), noApto: getAdj(noApto), sA: getAdj(sA) };
     }, [arcaData, categoriesMap, egresos.otros, viewMode, localAjustes]);
 
+    const arcaGastosFijos = useMemo(() => {
+        return Utils.arr(arcaData)
+            .filter(r => categoriesMap[r.doc_nro || r.cuit] === 'GASTO_FIJO')
+            .reduce((acc, r) => acc + Math.abs(Utils.num(r.total)), 0);
+    }, [arcaData, categoriesMap]);
+
+    const proveedoresBreakdownData = useMemo(() => {
+        const result = { cmv: [], tipoBC: [], noApto: [], sA: [] };
+        Utils.arr(arcaData).forEach(item => {
+            const cuit = item.doc_nro || item.cuit;
+            const cat = categoriesMap[cuit] || '';
+            const tipo = (item.tipo || '').toUpperCase();
+            if (cat === 'GASTO_FIJO') return;
+
+            const total = Utils.num(item.total);
+            const isBC = /(?:FACTURA|TIQUE|RECIBO|CREDITO|DEBITO|TIQUET)\s+[BC]\b/i.test(tipo) || tipo === 'B' || tipo === 'C';
+            const label = item.entidad || cuit || 'Proveedor';
+
+            if (isBC) result.tipoBC.push({ label, val: total });
+            else if (cat === 'PROVEEDOR') result.cmv.push({ label, val: total });
+            else if (cat === 'NO_APTO') result.noApto.push({ label, val: total });
+            else result.sA.push({ label, val: total });
+        });
+
+        // Agrupar por label y ordenar por valor
+        const groupAndSort = (arr) => {
+            const map = {};
+            arr.forEach(i => { map[i.label] = (map[i.label] || 0) + i.val; });
+            return Object.entries(map)
+                .map(([label, val]) => ({ label, val }))
+                .sort((a, b) => b.val - a.val);
+        };
+
+        return {
+            cmv: groupAndSort(result.cmv),
+            tipoBC: groupAndSort(result.tipoBC),
+            noApto: groupAndSort(result.noApto),
+            sA: groupAndSort(result.sA)
+        };
+    }, [arcaData, categoriesMap]);
+
     const expensesToSubtract = [
         { key: 'laboral', value: sueldosTotal, label: 'Sueldos y Cargas' },
         { key: 'estructural', value: gastosEstructuralesReal, label: 'Gastos Fijos Operativos' },
@@ -537,6 +578,53 @@ const DashboardView = () => {
         'evolucion': {
             title: 'Cómo evolucionó el negocio',
             explanation: 'Muestra mes a mes cómo fueron tus ventas y gastos. En modo "Ajustado por inflación", los meses pasados se actualizan a pesos de hoy para que la comparación sea justa.'
+        },
+        'laboral': {
+            title: 'Sueldos y Cargas',
+            explanation: 'Contempla el pago total a empleados, incluyendo la provisión del aguinaldo (SAC) y las cargas sociales estimadas sobre el sueldo en blanco.',
+            breakdown: [
+                { label: 'Sueldos Netos (Caja + Recibo)', val: getAdj(laboralEfectivo) },
+                { label: 'Provisión SAC', val: getAdj(sacEfectivo) },
+                { label: 'Cargas Sociales', val: getAdj(cargasEfectivo) },
+                { label: 'Costo Laboral Total', val: sueldosTotal, total: true }
+            ]
+        },
+        'estructural': {
+            title: 'Gastos Fijos Operativos',
+            explanation: 'Suma de los costos fijos necesarios para abrir el local: alquileres, servicios y expensas detectados en facturas o cargados manualmente.',
+            breakdown: [
+                { label: 'Carga Manual', val: getAdj(egresos.estructural || 0) },
+                { label: 'Detectado en ARCA', val: getAdj(arcaGastosFijos) },
+                { label: 'Total Gastos Fijos', val: gastosEstructuralesReal, total: true }
+            ]
+        },
+        'cmv': {
+            title: 'Proveedores CMV',
+            explanation: 'Proveedores que suministran mercadería directa para la venta (Cost of Goods Sold). Son gastos aptos para crédito fiscal A.',
+            breakdown: proveedoresBreakdownData.cmv.slice(0, 10)
+        },
+        'tipo_bc': {
+            title: 'Proveedores Tipo B/C',
+            explanation: 'Gastos de proveedores que no discriminan IVA (Monotributistas o Facturas B/C). Son costos directos del período pero no generan crédito fiscal.',
+            breakdown: proveedoresBreakdownData.tipoBC.slice(0, 10)
+        },
+        'no_apto': {
+            title: 'Proveedores N/A',
+            explanation: 'Facturas detectadas como proveedores pero categorizadas como "No Aptas" para el giro principal o que el sistema no debe computar como CMV directo.',
+            breakdown: proveedoresBreakdownData.noApto.slice(0, 10)
+        },
+        'sin_asignar': {
+            title: 'Proveedores S/A',
+            explanation: 'Gastos detectados en ARCA que aún no han sido categorizados en el sistema. Se computan como egreso general por prudencia.',
+            breakdown: proveedoresBreakdownData.sA.slice(0, 10)
+        },
+        'comisiones': {
+            title: 'Comisiones Bancarias/Apps',
+            explanation: 'Cálculo automático basado en los porcentajes definidos en Ajustes aplicado sobre los medios de pago de Maxirest (Tarjetas y Otros).',
+            breakdown: [
+                { label: 'Tarjetas (Estimado)', val: getAdj(egresos.comisiones || 0) * 0.7 }, // Estimación simple para el desglose visual
+                { label: 'Apps / Otros (Estimado)', val: getAdj(egresos.comisiones || 0) * 0.3 }
+            ]
         },
     };
 
@@ -835,10 +923,18 @@ const DashboardView = () => {
                                         readOnly
                                         style={{ accentColor: '#3b82f6', transform: 'scale(1.1)', pointerEvents: 'none' }}
                                     />
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
                                         <span style={{ fontSize: 12, fontWeight: 600, color: activeExpenses[exp.key] ? (isLight ? '#3b82f6' : '#60a5fa') : (isLight ? '#475569' : '#94A3B8') }}>
                                             {exp.label}
                                         </span>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); setInfoModalKey(exp.key); }}
+                                            style={{
+                                                width: 14, height: 14, borderRadius: '50%', border: '1px solid var(--border-subtle)',
+                                                background: 'none', color: 'var(--text-faint)', fontSize: 8, cursor: 'pointer',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                            }}
+                                        >?</button>
                                     </div>
                                     <span style={{ fontSize: 12, fontWeight: 700, color: activeExpenses[exp.key] ? (isLight ? '#3b82f6' : '#60a5fa') : (isLight ? '#1C2537' : '#E2E8F0'), marginLeft: 'auto' }}>
                                         {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(exp.value)}

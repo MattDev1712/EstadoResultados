@@ -128,6 +128,20 @@ class Movimiento {
 }
 
 /**
+ * Normaliza un valor de periodo de la hoja (que puede ser String o Date)
+ * al formato estándar YYYY-MM.
+ */
+function _normalizePeriod(val) {
+  if (!val) return "";
+  if (val instanceof Date) {
+    const year = val.getFullYear();
+    const month = String(val.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  }
+  return String(val).trim();
+}
+
+/**
  * ============================================================================
  * MAPPER DE VENTAS (MAXIREST) — Resumen Mensual
  * ============================================================================
@@ -982,7 +996,7 @@ function _getEstadoResultManual(periodo) {
   const sheet = ss.getSheetByName(ESTADO_RESULT_MANUAL_SHEET_NAME);
   if (!sheet || sheet.getLastRow() < 2) return null;
   const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 6).getValues();
-  const row = data.find(r => r[0] === periodo);
+  const row = data.find(r => _normalizePeriod(r[0]) === periodo);
   if (!row) return null;
   return {
     mix_cafe: row[1],
@@ -1005,7 +1019,8 @@ function _getAllEstadoResultManual() {
   if (!sheet || sheet.getLastRow() < 2) return {};
   const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 6).getValues();
   return data.reduce((map, r) => {
-    if (r[0]) map[r[0]] = { mix_cafe: r[1], mix_producto: r[2], mgn_cafe: r[3], mgn_producto: r[4], excepcionales: r[5] };
+    const p = _normalizePeriod(r[0]);
+    if (p) map[p] = { mix_cafe: r[1], mix_producto: r[2], mgn_cafe: r[3], mgn_producto: r[4], excepcionales: r[5] };
     return map;
   }, {});
 }
@@ -1023,7 +1038,7 @@ function _saveEstadoResultManual(payload) {
   if (lastRow >= 2) {
     const periodos = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
     for (let i = 0; i < periodos.length; i++) {
-      if (periodos[i][0] === periodo) {
+      if (_normalizePeriod(periodos[i][0]) === periodo) {
         sheet.getRange(i + 2, 1, 1, 7).setValues([[periodo, mix_cafe, mix_producto, mgn_cafe, mgn_producto, excepcionales, new Date()]]);
         return { status: 'OK', action: 'updated' };
       }
@@ -1359,7 +1374,7 @@ function _syncConfigFromSheet(ss) {
   
   const data = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
   data.forEach(row => {
-    const k = String(row[0]).trim();
+    const k = _normalizePeriod(row[0]);
     if (k && k.includes('-')) {
       CONST_IPC[k] = parseFloat(row[1]) || (CONST_IPC[k] || 1.0);
       CONST_MEP[k] = parseFloat(row[2]) || (CONST_MEP[k] || 1000);
@@ -1387,7 +1402,7 @@ function _saveConfigToSheet(payload) {
   const lastRow = sheet.getLastRow();
   let periods = [];
   if (lastRow > 1) {
-    periods = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat().map(p => String(p).trim());
+    periods = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat().map(p => _normalizePeriod(p));
   }
   
   const rowIndex = periods.indexOf(periodo);
