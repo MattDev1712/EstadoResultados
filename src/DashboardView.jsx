@@ -441,11 +441,22 @@ const DashboardView = () => {
         return { cmv: getAdj(cmv), tipoBC: getAdj(tipoBC), noApto: getAdj(noApto), sA: getAdj(sA) };
     }, [arcaData, categoriesMap, egresos.otros, viewMode, localAjustes]);
 
-    const arcaGastosFijos = useMemo(() => {
-        return Utils.arr(arcaData)
+    const arcaGastosFijosBreakdown = useMemo(() => {
+        const map = {};
+        Utils.arr(arcaData)
             .filter(r => categoriesMap[r.doc_nro || r.cuit] === 'GASTO_FIJO')
-            .reduce((acc, r) => acc + Math.abs(Utils.num(r.total)), 0);
-    }, [arcaData, categoriesMap]);
+            .forEach(r => {
+                const label = r.entidad || r.doc_nro || r.cuit || 'Gasto Fijo';
+                map[label] = (map[label] || 0) + Math.abs(Utils.num(r.total));
+            });
+        return Object.entries(map)
+            .map(([label, val]) => ({ label, val: getAdj(val) }))
+            .sort((a, b) => b.val - a.val);
+    }, [arcaData, categoriesMap, localAjustes, viewMode]);
+
+    const arcaGastosFijos = useMemo(() => {
+        return arcaGastosFijosBreakdown.reduce((acc, r) => acc + r.val, 0);
+    }, [arcaGastosFijosBreakdown]);
 
     const proveedoresBreakdownData = useMemo(() => {
         const result = { cmv: [], tipoBC: [], noApto: [], sA: [] };
@@ -470,7 +481,7 @@ const DashboardView = () => {
             const map = {};
             arr.forEach(i => { map[i.label] = (map[i.label] || 0) + i.val; });
             return Object.entries(map)
-                .map(([label, val]) => ({ label, val }))
+                .map(([label, val]) => ({ label, val: getAdj(val) }))
                 .sort((a, b) => b.val - a.val);
         };
 
@@ -593,8 +604,8 @@ const DashboardView = () => {
             title: 'Gastos Fijos Operativos',
             explanation: 'Suma de los costos fijos necesarios para abrir el local: alquileres, servicios y expensas detectados en facturas o cargados manualmente.',
             breakdown: [
-                { label: 'Carga Manual', val: getAdj(egresos.estructural || 0) },
-                { label: 'Detectado en ARCA', val: getAdj(arcaGastosFijos) },
+                ...(egresos.estructural ? [{ label: 'Carga Manual (Ajuste)', val: getAdj(egresos.estructural) }] : []),
+                ...arcaGastosFijosBreakdown,
                 { label: 'Total Gastos Fijos', val: gastosEstructuralesReal, total: true }
             ]
         },
