@@ -864,39 +864,47 @@ export default function MarginExpectationView() {
         </button>
       </div>
 
-      {/* Info Modal */}
-      {infoModal && INFO_TOOLTIPS[infoModal] && (
+      {infoModal && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)'
         }} onClick={() => setInfoModal(null)}>
-          <div style={{
-            background: colors.bgCard, border: `1px solid ${colors.borderCard}`, borderRadius: 24,
-            width: '90%', maxWidth: 450, padding: 28, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
-          }} className="animate-pop-in" onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 900, color: colors.textPrimary, margin: 0 }}>
-                {INFO_TOOLTIPS[infoModal].title}
-              </h3>
-              <button 
-                onClick={() => setInfoModal(null)} 
-                style={{ background: 'none', border: 'none', color: colors.textDim, cursor: 'pointer', fontSize: 20 }}
-              >✕</button>
-            </div>
-            <p style={{ fontSize: 14, color: colors.textMuted, lineHeight: 1.6, margin: '0 0 24px' }}>
-              {INFO_TOOLTIPS[infoModal].explanation}
-            </p>
-            {INFO_TOOLTIPS[infoModal].breakdown && INFO_TOOLTIPS[infoModal].breakdown.length > 0 && (
-              <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 16, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
-                {INFO_TOOLTIPS[infoModal].breakdown.map((row, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: i < INFO_TOOLTIPS[infoModal].breakdown.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: colors.textDim, textTransform: 'uppercase' }}>{row.label}</span>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: colors.textPrimary, fontVariantNumeric: 'tabular-nums' }}>{Utils.fmt(row.val)}</span>
+          {(() => {
+            const info = INFO_TOOLTIPS[infoModal] || {
+              title: CAT_LABELS[infoModal] || infoModal,
+              explanation: "Desglose de gastos detectados para esta categoría.",
+              breakdown: []
+            };
+            return (
+              <div style={{
+                background: colors.bgCard, border: `1px solid ${colors.borderCard}`, borderRadius: 24,
+                width: '90%', maxWidth: 450, padding: 28, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
+              }} className="animate-pop-in" onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 18, fontWeight: 900, color: colors.textPrimary, margin: 0 }}>
+                    {info.title}
+                  </h3>
+                  <button 
+                    onClick={() => setInfoModal(null)} 
+                    style={{ background: 'none', border: 'none', color: colors.textDim, cursor: 'pointer', fontSize: 20 }}
+                  >✕</button>
+                </div>
+                <p style={{ fontSize: 14, color: colors.textMuted, lineHeight: 1.6, margin: '0 0 24px' }}>
+                  {info.explanation}
+                </p>
+                {info.breakdown && info.breakdown.length > 0 && (
+                  <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 16, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+                    {info.breakdown.map((row, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: i < info.breakdown.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: colors.textDim, textTransform: 'uppercase' }}>{row.label}</span>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: colors.textPrimary, fontVariantNumeric: 'tabular-nums' }}>{Utils.fmt(row.val)}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
       )}
 

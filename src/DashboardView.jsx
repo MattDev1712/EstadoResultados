@@ -718,7 +718,6 @@ const DashboardView = () => {
             ]
         },
     };
-    };
 
     const ivaProveedoresVisible = ivaShowAll ? ivaGrouped : ivaGrouped.slice(0, 10);
 
