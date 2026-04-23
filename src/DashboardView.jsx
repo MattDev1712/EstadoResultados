@@ -516,22 +516,6 @@ const DashboardView = () => {
         return grouped;
     }, [arcaData, categoriesMap, localAjustes, viewMode]);
 
-        // Agrupar por label y ordenar por valor
-        const groupAndSort = (arr) => {
-            const map = {};
-            arr.forEach(i => { map[i.label] = (map[i.label] || 0) + i.val; });
-            return Object.entries(map)
-                .map(([label, val]) => ({ label, val: getAdj(val) }))
-                .sort((a, b) => b.val - a.val);
-        };
-
-        return {
-            cmv: groupAndSort(result.cmv),
-            tipoBC: groupAndSort(result.tipoBC),
-            noApto: groupAndSort(result.noApto),
-            sA: groupAndSort(result.sA)
-        };
-    }, [arcaData, categoriesMap]);
 
     // Mapeo amigable para las cards
     const CAT_LABELS = {
