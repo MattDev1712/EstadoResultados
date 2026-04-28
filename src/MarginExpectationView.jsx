@@ -356,14 +356,28 @@ export default function MarginExpectationView() {
     { label: 'Cargas Sociales Proyectadas', val: n(egresosBase.provision_cargas) }
   ];
 
-  const arcaGastosFijos = (arcaData || [])
-    .filter(r => categoriesMap[r.cuit] === 'GASTO_FIJO')
-    .reduce((acc, r) => acc + Math.abs(n(r.total ?? r.importe_total)), 0);
+  const arcaGastosFijosItems = (arcaData || [])
+    .filter(r => {
+        const cuit = r.doc_nro || r.cuit;
+        const cat = (categoriesMap || {})[cuit] || '';
+        return cat === 'GASTO_FIJO' || r.rubro === 'Costos Estructurales';
+    })
+    .map(r => ({ label: r.entidad || r.cuit || 'Gasto Fijo S/D', val: Math.abs(n(r.total ?? r.importe_total)) }));
 
-  const estructuralBreakdown = [
-    { label: 'Carga Manual (Estructurales)', val: n(egresosBase.estructural) },
-    { label: 'Detectado en ARCA (Gasto Fijo)', val: arcaGastosFijos }
-  ];
+  const mapGF = {};
+  arcaGastosFijosItems.forEach(i => { mapGF[i.label] = (mapGF[i.label] || 0) + i.val; });
+  const arcaGastosFijosBreakdown = Object.entries(mapGF).map(([l, v]) => ({ label: l, val: v })).sort((a, b) => b.val - a.val);
+
+  const arcaGastosFijosTotal = arcaGastosFijosBreakdown.reduce((acc, r) => acc + r.val, 0);
+  const totalEstructural = n(egresosBase.estructural);
+  const cargaManualEst = totalEstructural - arcaGastosFijosTotal;
+
+  const estructuralBreakdown = [ ...arcaGastosFijosBreakdown ];
+  if (cargaManualEst > 0.01) {
+      estructuralBreakdown.push({ label: 'Carga Manual (Adicional)', val: cargaManualEst });
+  } else if (cargaManualEst < -0.01) {
+      estructuralBreakdown.push({ label: 'Ajuste Backend', val: cargaManualEst });
+  }
 
   const facturasBCBreakdown = (arcaData || [])
     .filter(r => r.tipo_comp && !r.tipo_comp.endsWith(' A') && r.tipo_comp !== '1')
@@ -530,8 +544,10 @@ export default function MarginExpectationView() {
     'sA': 'Proveedores S / A'
   };
 
+  const egresosKeysLower = Object.keys(egresosBase).map(k => k.toLowerCase());
+
   const dynamicExpenses = Object.keys(egresosBase)
-    .filter(k => !['laboral', 'estructural', 'comisiones', 'otros', 'provision_sac', 'provision_cargas'].includes(k))
+    .filter(k => !['laboral', 'estructural', 'comisiones', 'otros', 'provision_sac', 'provision_cargas', 'proveedores'].includes(k))
     .map(k => ({
         key: k,
         value: n(egresosBase[k]) + (k === 'excepcionales' ? excepcionales : 0),
@@ -539,10 +555,26 @@ export default function MarginExpectationView() {
         breakdown: proveedoresBreakdownData[k.toUpperCase()] || []
     }));
 
+  const proveedoresCards = Object.keys(proveedoresBreakdownData)
+    .filter(k => k !== 'cmv' && k !== 'tipoBC')
+    .filter(k => !egresosKeysLower.includes(k.toLowerCase()))
+    .map(k => {
+        const bd = proveedoresBreakdownData[k];
+        const val = bd.reduce((acc, i) => acc + i.val, 0);
+        return {
+            key: k,
+            value: val,
+            label: CAT_LABELS[k] || CAT_LABELS[k.toUpperCase()] || k.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
+            breakdown: bd
+        };
+    })
+    .filter(c => c.value > 0);
+
   const expensesToSubtract = [
     { key: 'laboral', value: sueldosTotal, label: 'Sueldos y Cargas', breakdown: laboralBreakdown },
     { key: 'estructural', value: operaciones, label: 'Gastos Fijos Operativos', breakdown: estructuralBreakdown },
     ...dynamicExpenses,
+    ...proveedoresCards,
     { key: 'tipoBC', value: totalFacturasBC, label: 'Proveedores Tipo B / C', breakdown: proveedoresBreakdownData.tipoBC },
     { key: 'iibb', value: iibbTotal, label: 'Ingresos Brutos', breakdown: iibbBreakdown },
     { key: 'retenciones', value: retencionesTotal, label: 'Retenciones', breakdown: retencionesBreakdown },
