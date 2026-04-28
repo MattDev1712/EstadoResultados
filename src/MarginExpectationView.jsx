@@ -547,7 +547,7 @@ export default function MarginExpectationView() {
   const egresosKeysLower = Object.keys(egresosBase).map(k => k.toLowerCase());
 
   const dynamicExpenses = Object.keys(egresosBase)
-    .filter(k => !['laboral', 'estructural', 'comisiones', 'otros', 'provision_sac', 'provision_cargas', 'proveedores'].includes(k))
+    .filter(k => !['laboral', 'estructural', 'comisiones', 'otros', 'provision_sac', 'provision_cargas', 'proveedores', 'proveedores_varios'].includes(k.toLowerCase()))
     .map(k => ({
         key: k,
         value: n(egresosBase[k]) + (k === 'excepcionales' ? excepcionales : 0),
