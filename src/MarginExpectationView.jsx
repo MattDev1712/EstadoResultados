@@ -153,6 +153,11 @@ function ScatterChart({ historial, title }) {
         { x: maxX, y: slope * maxX + intercept }
     ];
 
+    const fmtM = v => {
+        const n = Math.abs(parseFloat(v) || 0);
+        return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1000 ? (n / 1000).toFixed(0) + 'K' : n.toFixed(0);
+    };
+
     chartRef.current = new Chart(canvasRef.current.getContext('2d'), {
       type: 'scatter',
       data: {
@@ -186,6 +191,7 @@ function ScatterChart({ historial, title }) {
         maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
+          datalabels: { display: false },
           tooltip: {
             backgroundColor: tooltipBg, titleColor: tooltipTitle, bodyColor: tooltipBody,
             borderColor: tooltipBorder, borderWidth: 1, padding: 12, cornerRadius: 8,
@@ -193,21 +199,23 @@ function ScatterChart({ historial, title }) {
               label: ctx => {
                   if (ctx.dataset.type === 'line') return 'Línea de Tendencia';
                   const p = ctx.raw;
-                  return `${p.period}: Margen ${p.y.toFixed(1)}% | Ventas $${(p.x/1000).toFixed(0)}k`;
+                  return `${p.period}: Margen ${p.y.toFixed(1)}% | Ventas $${fmtM(p.x)}`;
               }
             }
           }
         },
         scales: {
           x: {
-            title: { display: true, text: 'Venta Neta ($)', color: tickColor, font: { size: 10, weight: 'bold' } },
+            title: { display: true, text: 'Venta Neta ($)', color: tickColor, font: { size: 10, weight: 'bold' }, padding: { top: 10 } },
             grid: { color: gridColor },
-            ticks: { color: tickColor, font: { size: 10 }, callback: v => `$${(v/1000).toFixed(0)}k` }
+            ticks: { color: tickColor, font: { size: 10 }, callback: v => `$${fmtM(v)}` },
+            grace: '5%'
           },
           y: {
-            title: { display: true, text: 'Margen (%)', color: tickColor, font: { size: 10, weight: 'bold' } },
+            title: { display: true, text: 'Margen (%)', color: tickColor, font: { size: 10, weight: 'bold' }, padding: { bottom: 10 } },
             grid: { color: gridColor },
-            ticks: { color: tickColor, font: { size: 10 }, callback: v => `${v.toFixed(1)}%` }
+            ticks: { color: tickColor, font: { size: 10 }, callback: v => `${v.toFixed(1)}%` },
+            grace: '10%'
           }
         }
       }
