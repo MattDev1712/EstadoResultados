@@ -105,6 +105,138 @@ const METRICS_CANTIDAD = [
   { key: 'emp', label: 'Cant. Empleados',   color: '#a78bfa', yAxisID: 'y1' },
 ];
 
+function ScatterChart({ historial, title }) {
+  const chartRef = useRef(null);
+  const canvasRef = useRef(null);
+  const isLight = useTheme();
+
+  const chartData = useMemo(() => {
+    if (!historial || Object.keys(historial).length === 0) return null;
+    const points = [];
+    Object.entries(historial).sort((a, b) => a[0].localeCompare(b[0])).forEach(([k, data]) => {
+      const v = data.v || 0;
+      const res = data.resultado_mgn || 0;
+      if (v > 0) {
+        const margin = (res / v) * 100;
+        const [y, m] = k.split('-');
+        const label = `${MESES[parseInt(m) - 1].slice(0, 3)} ${y}`;
+        points.push({ x: v, y: margin, period: label });
+      }
+    });
+    return points;
+  }, [historial]);
+
+  useEffect(() => {
+    if (!canvasRef.current || !chartData || chartData.length === 0) return;
+    if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
+
+    const gridColor = isLight ? 'rgba(28,37,55,0.07)' : 'rgba(255,255,255,0.05)';
+    const tickColor = isLight ? '#6B7A90' : '#64748b';
+    const tooltipBg = isLight ? 'rgba(255,255,255,0.97)' : 'rgba(15,23,42,0.95)';
+    const tooltipTitle = isLight ? '#1C2537' : '#f8fafc';
+    const tooltipBody = isLight ? '#374151' : '#cbd5e1';
+    const tooltipBorder = isLight ? 'rgba(228,232,238,0.9)' : 'rgba(51,65,85,0.5)';
+
+    // Calcular línea de tendencia simple
+    const n = chartData.length;
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    chartData.forEach(p => {
+        sumX += p.x; sumY += p.y; sumXY += p.x * p.y; sumXX += p.x * p.x;
+    });
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+    
+    const minX = Math.min(...chartData.map(p => p.x));
+    const maxX = Math.max(...chartData.map(p => p.x));
+    const trendline = [
+        { x: minX, y: slope * minX + intercept },
+        { x: maxX, y: slope * maxX + intercept }
+    ];
+
+    chartRef.current = new Chart(canvasRef.current.getContext('2d'), {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            type: 'scatter',
+            label: 'Meses',
+            data: chartData,
+            backgroundColor: isLight ? 'rgba(59,130,246,0.6)' : 'rgba(96,165,250,0.8)',
+            borderColor: isLight ? '#2563eb' : '#60a5fa',
+            borderWidth: 2,
+            pointRadius: 6,
+            pointHoverRadius: 8,
+          },
+          {
+            type: 'line',
+            label: 'Tendencia',
+            data: trendline,
+            borderColor: isLight ? 'rgba(244,63,94,0.5)' : 'rgba(251,113,133,0.5)',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            fill: false,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            order: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: tooltipBg, titleColor: tooltipTitle, bodyColor: tooltipBody,
+            borderColor: tooltipBorder, borderWidth: 1, padding: 12, cornerRadius: 8,
+            callbacks: {
+              label: ctx => {
+                  if (ctx.dataset.type === 'line') return 'Línea de Tendencia';
+                  const p = ctx.raw;
+                  return `${p.period}: Margen ${p.y.toFixed(1)}% | Ventas $${(p.x/1000).toFixed(0)}k`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Venta Neta ($)', color: tickColor, font: { size: 10, weight: 'bold' } },
+            grid: { color: gridColor },
+            ticks: { color: tickColor, font: { size: 10 }, callback: v => `$${(v/1000).toFixed(0)}k` }
+          },
+          y: {
+            title: { display: true, text: 'Margen (%)', color: tickColor, font: { size: 10, weight: 'bold' } },
+            grid: { color: gridColor },
+            ticks: { color: tickColor, font: { size: 10 }, callback: v => `${v.toFixed(1)}%` }
+          }
+        }
+      }
+    });
+
+    return () => { if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; } };
+  }, [chartData, isLight]);
+
+  return (
+    <Card style={{ padding: '24px 28px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 24, height: 24, borderRadius: 6, background: isLight ? 'rgba(244,63,94,0.1)' : 'rgba(244,63,94,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f43f5e', fontSize: 12, fontWeight: 'bold' }}>📉</div>
+            <div>
+                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.2px' }}>{title}</span>
+                <p style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>Relación entre Ventas (escala) y Rentabilidad (eficiencia). Ayuda a ver si vender más genera más margen.</p>
+            </div>
+        </div>
+      </div>
+      <div style={{ height: 240, position: 'relative' }}>
+        {!chartData || chartData.length === 0
+          ? <p style={{ color: 'var(--text-faint)', textAlign: 'center', paddingTop: 90, fontSize: 13 }}>Sin historial disponible.</p>
+          : <canvas ref={canvasRef} />
+        }
+      </div>
+    </Card>
+  );
+}
+
 function HistorialLineChart({ metrics, historial, title, isPesos, defaultActive }) {
   const chartRef = useRef(null);
   const canvasRef = useRef(null);
@@ -888,12 +1020,9 @@ export default function MarginExpectationView() {
       </Card>
 
       {/* Gráficos históricos */}
-      <HistorialLineChart
-        metrics={METRICS_DINERO}
+      <ScatterChart
         historial={dashData?.historial || {}}
-        title="Evolución — últimos 6 meses (pesos)"
-        isPesos
-        defaultActive={{ v: true }}
+        title="Escalabilidad: Venta Neta vs. Margen % (Histórico)"
       />
       <HistorialLineChart
         metrics={METRICS_CANTIDAD}

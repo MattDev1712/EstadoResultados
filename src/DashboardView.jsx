@@ -27,82 +27,108 @@ const fmtM = v => {
     return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : n >= 1000 ? (n / 1000).toFixed(0) + 'K' : n.toFixed(0);
 };
 
-const EvolutionChart = ({ historial, mode = 'NOMINAL' }) => {
+const WaterfallChart = ({ base, expenses, prefix }) => {
     const canvasRef = useRef(null);
     const chartRef = useRef(null);
     const isLight = useTheme();
 
     const chartData = useMemo(() => {
-        if (!historial) return null;
-        const sorted = Object.entries(historial).sort((a, b) => a[0].localeCompare(b[0]));
-        return {
-            labels: sorted.map(([k]) => {
-                const parts = k.split('-');
-                const y = parts[0] || '0000';
-                const m = parts[1] || '01';
-                return new Date(+y, +m - 1, 1).toLocaleDateString('es-AR', { month: 'short' }).replace('.', '').toUpperCase();
-            }),
-            ingresos: sorted.map(([, v]) => {
-                if (mode === 'REAL_IPC') return Utils.num(v.vr);
-                if (mode === 'DOLAR_MEP') return Utils.num(v.v) / Utils.num(v.mep);
-                return Utils.num(v.v);
-            }),
-            egresos: sorted.map(([, v]) => {
-                if (mode === 'REAL_IPC') return Utils.num(v.gr);
-                if (mode === 'DOLAR_MEP') return Utils.num(v.g) / Utils.num(v.mep);
-                return Utils.num(v.g);
-            }),
-        };
-    }, [historial, mode]);
+        if (!base && expenses.length === 0) return null;
+        
+        const labels = ['Ingreso Base'];
+        const data = [[0, base]];
+        const bgColors = [isLight ? 'rgba(16,185,129,0.8)' : 'rgba(16,185,129,0.6)'];
+        const borders = [isLight ? '#10b981' : '#34d399'];
 
-    const resultData = useMemo(() => {
-        if (!chartData) return [];
-        return chartData.ingresos.map((ing, i) => ing - chartData.egresos[i]);
-    }, [chartData]);
+        let current = base;
+
+        // Filtrar y agrupar gastos menores al 2% del total para no saturar el gráfico
+        let sumOtros = 0;
+        expenses.forEach(exp => {
+            if (exp.value <= 0) return;
+            if (exp.value / base < 0.02 && expenses.length > 6) {
+                sumOtros += exp.value;
+            } else {
+                labels.push(exp.label);
+                const end = current - exp.value;
+                data.push([current, end]);
+                current = end;
+                bgColors.push(isLight ? 'rgba(244,63,94,0.7)' : 'rgba(244,63,94,0.5)');
+                borders.push(isLight ? '#f43f5e' : '#fb7185');
+            }
+        });
+
+        if (sumOtros > 0) {
+            labels.push('Otros Gastos Menores');
+            const end = current - sumOtros;
+            data.push([current, end]);
+            current = end;
+            bgColors.push(isLight ? 'rgba(244,63,94,0.7)' : 'rgba(244,63,94,0.5)');
+            borders.push(isLight ? '#f43f5e' : '#fb7185');
+        }
+
+        // Resultado Final
+        labels.push('Resultado');
+        data.push([0, current]);
+        const isPositive = current >= 0;
+        bgColors.push(isPositive ? (isLight ? 'rgba(59,130,246,0.8)' : 'rgba(59,130,246,0.6)') : (isLight ? 'rgba(244,63,94,0.8)' : 'rgba(244,63,94,0.6)'));
+        borders.push(isPositive ? (isLight ? '#3b82f6' : '#60a5fa') : (isLight ? '#f43f5e' : '#fb7185'));
+
+        return { labels, data, bgColors, borders };
+    }, [base, expenses, isLight]);
 
     useEffect(() => {
         if (chartRef.current) { chartRef.current.destroy(); chartRef.current = null; }
         if (!canvasRef.current || !chartData) return;
-        const prefix = mode === 'DOLAR_MEP' ? 'u$s ' : '$';
+        
         const gridColor = isLight ? 'rgba(28,37,55,0.07)' : 'rgba(255,255,255,0.035)';
         const tickColor = isLight ? '#6B7A90' : '#475569';
-        const pointBorder = isLight ? '#F2F4F7' : '#070c18';
         const tooltipBg = isLight ? 'rgba(255,255,255,0.97)' : 'rgba(7,12,24,0.97)';
         const tooltipTitle = isLight ? '#1C2537' : '#f1f5f9';
         const tooltipBody = isLight ? '#374151' : '#94a3b8';
-        const tooltipBorder = isLight ? 'rgba(228,232,238,0.9)' : 'rgba(255,255,255,0.07)';
+
         chartRef.current = new Chart(canvasRef.current.getContext('2d'), {
+            type: 'bar',
             data: {
                 labels: chartData.labels,
-                datasets: [
-                    { type: 'bar', label: 'Ingresos', data: chartData.ingresos, backgroundColor: 'rgba(16,185,129,0.18)', borderColor: 'rgba(16,185,129,0.6)', borderWidth: 1.5, borderRadius: 7, borderSkipped: false, order: 2 },
-                    { type: 'bar', label: 'Egresos', data: chartData.egresos, backgroundColor: 'rgba(244,63,94,0.15)', borderColor: 'rgba(244,63,94,0.55)', borderWidth: 1.5, borderRadius: 7, borderSkipped: false, order: 3 },
-                    { type: 'line', label: 'Resultado', data: resultData, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.07)', borderWidth: 2.5, pointRadius: 5, pointBackgroundColor: '#3b82f6', pointBorderColor: pointBorder, pointBorderWidth: 2.5, fill: true, tension: 0.35, order: 1 },
-                ]
+                datasets: [{
+                    data: chartData.data,
+                    backgroundColor: chartData.bgColors,
+                    borderColor: chartData.borders,
+                    borderWidth: 1.5,
+                    borderRadius: 6,
+                    borderSkipped: false
+                }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                animation: { duration: 500, easing: 'easeOutQuart' },
+                animation: { duration: 600, easing: 'easeOutBounce' },
                 plugins: {
                     legend: { display: false },
                     datalabels: { display: false },
                     tooltip: {
                         backgroundColor: tooltipBg, titleColor: tooltipTitle, bodyColor: tooltipBody,
-                        borderColor: tooltipBorder, borderWidth: 1, padding: 14, cornerRadius: 10,
-                        callbacks: { label: ctx => `  ${ctx.dataset.label}:  ${prefix}${fmtM(ctx.raw)}` }
+                        padding: 12, cornerRadius: 8,
+                        callbacks: {
+                            label: (ctx) => {
+                                const raw = ctx.raw;
+                                const val = Array.isArray(raw) ? Math.abs(raw[0] - raw[1]) : raw;
+                                return `  ${prefix}${fmtM(val)}`;
+                            }
+                        }
                     }
                 },
                 scales: {
-                    x: { grid: { display: false }, border: { display: false }, ticks: { color: tickColor, font: { size: 10, weight: '600' } } },
+                    x: { grid: { display: false }, ticks: { color: tickColor, font: { size: 9, weight: '700' }, maxRotation: 45, minRotation: 45 } },
                     y: { grid: { color: gridColor }, border: { display: false }, ticks: { color: tickColor, font: { size: 10 }, callback: v => prefix + fmtM(v) } }
                 }
             }
         });
         return () => { if (chartRef.current) chartRef.current.destroy(); };
-    }, [chartData, resultData, mode, isLight]);
+    }, [chartData, prefix, isLight]);
 
-    if (!chartData) return <div style={{ height: 210, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: '#64748b', fontSize: 11 }}>Sin datos históricos</p></div>;
-    return <div style={{ height: 210 }}><canvas ref={canvasRef}></canvas></div>;
+    if (!chartData) return <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: '#64748b', fontSize: 11 }}>Sin datos suficientes</p></div>;
+    return <div style={{ height: 260 }}><canvas ref={canvasRef}></canvas></div>;
 };
 
 // --- MODAL DE INFORMACIÓN ---
@@ -1024,30 +1050,22 @@ const DashboardView = () => {
                     </Card>
                 </div>
 
-                {/* ── GRÁFICO EVOLUCIÓN ───────────────────────────── */}
-                <Card style={{ padding: 22 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                {/* ── GRÁFICO WATERFALL ───────────────────────────── */}
+                <Card style={{ padding: '24px 28px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', color: 'var(--text-dim)', textTransform: 'uppercase', margin: 0 }}>Cómo evolucionó el negocio</p>
-                            <button onClick={() => setInfoModalKey('evolucion')} className="w-5 h-5 rounded-full border border-slate-700/50 text-slate-500 hover:text-blue-400 hover:border-blue-500/50 hover:bg-slate-800/50 flex items-center justify-center text-[10px] font-bold transition-all">?</button>
-                        </div>
-                        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                            {[
-                                { c: 'rgba(16,185,129,0.55)', label: 'Ingresos', line: false },
-                                { c: 'rgba(244,63,94,0.45)', label: 'Egresos', line: false },
-                                { c: '#3b82f6', label: 'Resultado', line: true },
-                            ].map(l => (
-                                <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    {l.line
-                                        ? <div style={{ width: 18, height: 2, background: l.c, borderRadius: 2 }}></div>
-                                        : <div style={{ width: 10, height: 10, background: l.c, borderRadius: 3 }}></div>
-                                    }
-                                    <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>{l.label}</span>
-                                </div>
-                            ))}
+                            <div style={{ width: 24, height: 24, borderRadius: 6, background: isLight ? 'rgba(59,130,246,0.1)' : 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6', fontSize: 12, fontWeight: 'bold' }}>📊</div>
+                            <div>
+                                <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.2px' }}>Flujo de Utilidad del Mes (Waterfall)</p>
+                                <p style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>Desglose de cómo los ingresos cubren los costos hasta llegar al resultado final. El gráfico se actualiza al apagar/encender gastos.</p>
+                            </div>
                         </div>
                     </div>
-                    <EvolutionChart historial={historial} mode={viewMode} />
+                    <WaterfallChart 
+                        base={baseDineroFacturado} 
+                        expenses={expensesToSubtract.filter(e => activeExpenses[e.key])} 
+                        prefix={viewMode === 'DOLAR_MEP' ? 'u$s ' : '$'} 
+                    />
                 </Card>
 
             </div> {/* Closes pnl-export-area */}
