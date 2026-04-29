@@ -834,14 +834,14 @@ const DashboardView = () => {
                             </div>
                             <div style={{ textAlign: 'right', background: 'rgba(59,130,246,0.05)', padding: '12px 16px', borderRadius: 16, border: '1px solid rgba(59,130,246,0.1)' }}>
                                 <p style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-faint)', textTransform: 'uppercase', marginBottom: 8 }}>Ajustes de Auditoría</p>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20 }}>
-                                        <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>Retenciones Bancos/Tarj.</span>
-                                        <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981' }}>− {Utils.fmt(getAdj(Math.abs(egresos.retenciones)))}</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, textAlign: 'left' }}>
+                                        <span style={{ fontSize: 10, color: 'var(--text-dim)', flex: 1 }}>Retenciones Bancos/Tarj.</span>
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981', flexShrink: 0, wordBreak: 'break-word', textAlign: 'right' }}>− {Utils.fmt(getAdj(Math.abs(egresos.retenciones)))}</span>
                                     </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, borderTop: '1px solid var(--border-subtle)', paddingTop: 4, marginTop: 2 }}>
-                                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>Teórico (Ventas-Compras)</span>
-                                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>{Utils.fmt(getAdj(ivaPosicionTeorica))}</span>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 6, marginTop: 2, textAlign: 'left' }}>
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', flex: 1 }}>Teórico (Ventas-Compras)</span>
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', flexShrink: 0, wordBreak: 'break-word', textAlign: 'right' }}>{Utils.fmt(getAdj(ivaPosicionTeorica))}</span>
                                     </div>
                                 </div>
                             </div>
@@ -869,21 +869,21 @@ const DashboardView = () => {
                                 </div>
                                 {ivaCobradoExpanded && (
                                     <div style={{ borderTop: '1px solid var(--border-subtle)', padding: '10px 18px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>Total Factura B Electrónica</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.totalBElec))}</span>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                                            <span style={{ fontSize: 10, color: 'var(--text-dim)', flex: 1 }}>Total Factura B Electrónica</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums', flexShrink: 0, wordBreak: 'break-word', textAlign: 'right' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.totalBElec))}</span>
                                         </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingLeft: 12, marginBottom: 2 }}>
-                                            <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>↳ IVA contenido (21%)</span>
-                                            <span style={{ fontSize: 9, fontWeight: 600, color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.ivaB))}</span>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingLeft: 12, marginBottom: 2, gap: 12 }}>
+                                            <span style={{ fontSize: 9, color: 'var(--text-faint)', flex: 1 }}>↳ IVA contenido (21%)</span>
+                                            <span style={{ fontSize: 9, fontWeight: 600, color: '#10b981', fontVariantNumeric: 'tabular-nums', flexShrink: 0, wordBreak: 'break-word', textAlign: 'right' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.ivaB))}</span>
                                         </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>IVA Factura A</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981', fontVariantNumeric: 'tabular-nums' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.ivaA))}</span>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                                            <span style={{ fontSize: 10, color: 'var(--text-dim)', flex: 1 }}>IVA Factura A</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981', fontVariantNumeric: 'tabular-nums', flexShrink: 0, wordBreak: 'break-word', textAlign: 'right' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.ivaA))}</span>
                                         </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed var(--border-subtle)', paddingTop: 4, marginTop: 2 }}>
-                                            <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>Monto Factura B (No genera IVA)</span>
-                                            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.totalB))}</span>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderTop: '1px dashed var(--border-subtle)', paddingTop: 4, marginTop: 2, gap: 12 }}>
+                                            <span style={{ fontSize: 10, color: 'var(--text-dim)', flex: 1 }}>Monto Factura B (No genera IVA)</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums', flexShrink: 0, wordBreak: 'break-word', textAlign: 'right' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.totalB))}</span>
                                         </div>
                                     </div>
                                 )}
@@ -984,9 +984,9 @@ const DashboardView = () => {
                                     { l: 'IVA Factura B (−)', v: getAdj(ivaCobradoBreakdown.ivaB), neg: true },
                                     { l: 'Factura B Manual', v: getAdj(ivaCobradoBreakdown.totalB) },
                                 ].filter(r => r.v > 0).map((row, i) => (
-                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontSize: 11, color: isLight ? '#475569' : '#94a3b8' }}>{row.l}</span>
-                                        <span style={{ fontSize: 12, fontWeight: 600, color: row.neg ? (isLight ? '#dc2626' : '#f43f5e') : (isLight ? '#059669' : '#10b981'), fontVariantNumeric: 'tabular-nums' }}>
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                                        <span style={{ fontSize: 11, color: isLight ? '#475569' : '#94a3b8', flex: 1 }}>{row.l}</span>
+                                        <span style={{ fontSize: 12, fontWeight: 600, color: row.neg ? (isLight ? '#dc2626' : '#f43f5e') : (isLight ? '#059669' : '#10b981'), fontVariantNumeric: 'tabular-nums', flexShrink: 0, wordBreak: 'break-word', textAlign: 'right' }}>
                                             {row.neg ? '− ' : ''}{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(row.v)}
                                         </span>
                                     </div>
@@ -997,10 +997,10 @@ const DashboardView = () => {
                         {/* Expense Toggles */}
                         <div style={{
                             borderTop: `1px solid ${isLight ? 'rgba(28,37,55,0.07)' : 'rgba(255,255,255,0.05)'}`,
-                            padding: '16px 28px',
+                            padding: '20px 28px',
                             display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                            gap: 12,
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                            gap: 16,
                         }}>
                             {expensesToSubtract.map(exp => (
                                 <div
@@ -1008,42 +1008,48 @@ const DashboardView = () => {
                                     onClick={() => toggleExpense(exp.key)}
                                     style={{
                                         display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 8,
+                                        flexDirection: 'column',
+                                        gap: 10,
                                         cursor: 'pointer',
-                                        padding: '8px 12px',
-                                        borderRadius: 8,
+                                        padding: '14px 16px',
+                                        borderRadius: 14,
                                         background: activeExpenses[exp.key]
-                                            ? (isLight ? 'rgba(59,130,246,0.1)' : 'rgba(59,130,246,0.15)')
-                                            : (isLight ? 'rgba(28,37,55,0.03)' : 'rgba(255,255,255,0.03)'),
+                                            ? (isLight ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.15)')
+                                            : (isLight ? 'rgba(28,37,55,0.02)' : 'rgba(255,255,255,0.02)'),
                                         border: `1px solid ${activeExpenses[exp.key]
                                             ? (isLight ? 'rgba(59,130,246,0.3)' : 'rgba(59,130,246,0.4)')
-                                            : (isLight ? 'rgba(28,37,55,0.07)' : 'rgba(255,255,255,0.05)')}`,
-                                        transition: 'all 0.2s ease-in-out',
+                                            : (isLight ? 'rgba(28,37,55,0.06)' : 'rgba(255,255,255,0.04)')}`,
+                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        boxShadow: activeExpenses[exp.key] ? '0 4px 12px rgba(59, 130, 246, 0.08)' : 'none',
                                     }}
                                 >
-                                    <input
-                                        type="checkbox"
-                                        checked={activeExpenses[exp.key] || false}
-                                        readOnly
-                                        style={{ accentColor: '#3b82f6', transform: 'scale(1.1)', pointerEvents: 'none' }}
-                                    />
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
-                                        <span style={{ fontSize: 12, fontWeight: 600, color: activeExpenses[exp.key] ? (isLight ? '#3b82f6' : '#60a5fa') : (isLight ? '#475569' : '#94A3B8') }}>
-                                            {exp.label}
-                                        </span>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); setInfoModalKey(exp.key); }}
-                                            style={{
-                                                width: 14, height: 14, borderRadius: '50%', border: '1px solid var(--border-subtle)',
-                                                background: 'none', color: 'var(--text-faint)', fontSize: 8, cursor: 'pointer',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                            }}
-                                        >?</button>
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                        <div style={{ 
+                                            width: 18, height: 18, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1,
+                                            background: activeExpenses[exp.key] ? '#3b82f6' : (isLight ? 'rgba(28,37,55,0.1)' : 'rgba(255,255,255,0.1)'),
+                                            color: '#fff', transition: 'all 0.2s'
+                                        }}>
+                                            {activeExpenses[exp.key] && <span style={{ fontSize: 10, fontWeight: 'bold' }}>✓</span>}
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, flex: 1, minWidth: 0, paddingTop: 1 }}>
+                                            <span style={{ fontSize: 12, lineHeight: 1.2, fontWeight: 600, color: activeExpenses[exp.key] ? (isLight ? '#2563eb' : '#60a5fa') : (isLight ? '#475569' : '#94A3B8'), flex: 1, wordBreak: 'break-word' }}>
+                                                {exp.label}
+                                            </span>
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setInfoModalKey(exp.key); }}
+                                                style={{
+                                                    width: 16, height: 16, borderRadius: '50%', border: '1px solid var(--border-subtle)',
+                                                    background: 'none', color: 'var(--text-faint)', fontSize: 9, cursor: 'pointer',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                                                }}
+                                            >?</button>
+                                        </div>
                                     </div>
-                                    <span style={{ fontSize: 12, fontWeight: 700, color: activeExpenses[exp.key] ? (isLight ? '#3b82f6' : '#60a5fa') : (isLight ? '#1C2537' : '#E2E8F0'), marginLeft: 'auto' }}>
-                                        {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(exp.value)}
-                                    </span>
+                                    <div style={{ paddingLeft: 26, display: 'flex', justifyContent: 'flex-end' }}>
+                                        <span style={{ fontSize: 16, fontWeight: 800, color: activeExpenses[exp.key] ? (isLight ? '#1d4ed8' : '#93c5fd') : (isLight ? '#1C2537' : '#E2E8F0'), fontVariantNumeric: 'tabular-nums', wordBreak: 'break-word', textAlign: 'right' }}>
+                                            {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(exp.value)}
+                                        </span>
+                                    </div>
                                 </div>
                             ))}
                         </div>
