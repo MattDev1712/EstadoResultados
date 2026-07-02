@@ -119,6 +119,7 @@ create table public.config_negocio (
   pct_cargas_sociales numeric,
   kw_estructural text,
   kw_cmv text,
+  alicuota_iva numeric default 0.21,
   updated_at timestamptz default now()
 );
 

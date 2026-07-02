@@ -64,7 +64,8 @@ const App = () => {
         availablePeriods, cargasPct, setCargasPct,
         dashData, empData, arcaData, ventasData,
         fetchData, manualRefresh,
-        checkHash, prefetchVisiblePeriods, newDataAvailable, setNewDataAvailable
+        checkHash, prefetchVisiblePeriods, newDataAvailable, setNewDataAvailable,
+        configData
     } = useFinance();
 
     // Generar botones de periodos (últimos 9 meses)
@@ -307,8 +308,9 @@ const App = () => {
                 const fBElec = parseFloat(updated.val_factura_b_elec) || 0;
                 const fB = parseFloat(updated.val_factura_b) || 0;
 
-                updated.val_iva_acf = fBElec - (fBElec / 1.21);
-                updated.val_neto_acf = (fBElec / 1.21) + fB;
+                const divisor = 1 + (configData?.alicuota_iva ?? 0.21);
+                updated.val_iva_acf = fBElec - (fBElec / divisor);
+                updated.val_neto_acf = (fBElec / divisor) + fB;
 
                 updated.neto = updated.val_neto_acf;
                 updated.iva = updated.val_iva_acf;
@@ -450,7 +452,7 @@ const App = () => {
                                     <h3 className="text-xs font-black text-orange-400 uppercase tracking-widest">Configuración Fiscal</h3>
                                     <div className="tooltip-trigger">
                                         <span className="w-5 h-5 rounded-full border border-[var(--border-mid)] text-[var(--text-dim)] flex items-center justify-center text-[10px] font-bold cursor-help">?</span>
-                                        <div className="tooltip-box">Solo la Factura B Electrónica genera IVA (21%). La Factura B manual se considera exenta. El Neto se calcula proporcionalmente.</div>
+                                        <div className="tooltip-box">Solo la Factura B Electrónica genera IVA ({(configData?.alicuota_iva ?? 0.21) * 100}%). La Factura B manual se considera exenta. El Neto se calcula proporcionalmente.</div>
                                     </div>
                                 </div>
                                 <div className="space-y-4">
@@ -808,6 +810,7 @@ const App = () => {
                 onClose={() => setShowStructModal(false)}
                 onConfirm={(data) => sendToBackend(data, 'MANUAL_COSTS')}
                 defaultDate={defaultDate}
+                alicuotaIva={configData?.alicuota_iva ?? 0.21}
             />
             <RetentionsModal
                 isOpen={showRetentionsModal}

@@ -384,7 +384,7 @@ export default function MarginExpectationView() {
     dashData, setDashData, empData, arcaData, categoriesMap, loading, error,
     selectedYear, selectedMonth, isRefreshing,
     apiUrl, finalApiUrl,
-    invalidateCache,
+    invalidateCache, configData,
   } = useFinance();
 
   const [manual, setManual] = useState({ mix_cafe: '', mix_producto: '', mgn_cafe: '', mgn_producto: '', excepcionales: '' });
@@ -534,7 +534,7 @@ export default function MarginExpectationView() {
     .map(r => ({ label: r.sub_rubro || 'Retención', val: Math.abs(n(r.total ?? r.importe_total)) }));
 
   const INFO_TOOLTIPS = {
-    ventas_card: { title: "Origen: Ventas Netas", explanation: "Se toma el 'Neto ACF' del reporte Maxirest. Cálculo: Total Facturado - Anulaciones - IVA (21% sobre Factura B Electrónica). Es el dinero real que ingresa al local sin impuestos ni devoluciones." },
+    ventas_card: { title: "Origen: Ventas Netas", explanation: `Se toma el 'Neto ACF' del reporte Maxirest. Cálculo: Total Facturado - Anulaciones - IVA (${((configData?.alicuota_iva ?? 0.21) * 100).toFixed(1).replace(/\.0$/, '')}% sobre Factura B Electrónica). Es el dinero real que ingresa al local sin impuestos ni devoluciones.` },
     gastos_card: { title: "Origen: Egresos Totales", explanation: "Suma de tres fuentes: 1. Nómina (planilla de sueldos + cargas + SAC). 2. Gastos fijos (Alquiler/Servicios detectados en ARCA o cargados a mano). 3. Gastos extraordinarios cargados en esta pantalla." },
     mix_cafe: { title: "Origen: Mix de Cafetería", explanation: "Es un valor de entrada manual. Define qué porcentaje de la 'Venta Neta' total se le atribuye a Cafetería para aplicarle su margen de ganancia específico en el cálculo del resultado." },
     laboral: { 

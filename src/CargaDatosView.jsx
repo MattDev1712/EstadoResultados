@@ -3,7 +3,7 @@ import { useFinance } from './FinanceContext';
 import FileCard from './FileCard';
 
 const CargaDatosView = ({ onDataReady, setShowStructModal, setShowRetentionsModal, defaultDate }) => {
-    const { selectedYear, selectedMonth } = useFinance();
+    const { selectedYear, selectedMonth, configData } = useFinance();
 
     return (
         <div className="animate-fade-in py-4">
@@ -34,7 +34,7 @@ const CargaDatosView = ({ onDataReady, setShowStructModal, setShowRetentionsModa
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 relative z-10">
-                    <FileCard title="Sistema de Ventas (Maxirest PDF)" type="PDF" onDataReady={(d) => onDataReady && onDataReady(d, 'MAXIREST')} />
+                    <FileCard title="Sistema de Ventas (Maxirest PDF)" type="PDF" alicuotaIva={configData?.alicuota_iva ?? 0.21} onDataReady={(d) => onDataReady && onDataReady(d, 'MAXIREST')} />
                     <FileCard title="Facturas de AFIP/ARCA (CSV)" type="CSV" onDataReady={(d) => onDataReady && onDataReady(d, 'ARCA')} />
                     <FileCard title="Planilla de Sueldos (CSV)" type="CSV" parserMode="sueldos" defaultDate={defaultDate} onDataReady={(d) => onDataReady && onDataReady(d, 'SUELDOS')} />
                 </div>

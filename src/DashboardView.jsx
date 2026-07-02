@@ -305,7 +305,8 @@ const DashboardView = () => {
         dashData: data, empData, arcaData, ventasData, categoriesMap,
         loading, error, viewMode, setViewMode, isRefreshing,
         localAjustes, setLocalAjustes, updateConfig,
-        selectedYear, selectedMonth, cargasPct
+        selectedYear, selectedMonth, cargasPct,
+        configData
     } = useFinance();
     const isLight = useTheme();
     const [infoModalKey, setInfoModalKey] = useState(null);
@@ -332,19 +333,22 @@ const DashboardView = () => {
         return Object.entries(map).sort((a, b) => b[1] - a[1]);
     }, [arcaData]);
 
+    const alicuotaIva = configData?.alicuota_iva ?? 0.21;
+    const ivaDivisor = 1 + alicuotaIva;
+
     const ivaCobradoBreakdown = useMemo(() => {
         return Utils.arr(ventasData).reduce((acc, v) => {
             const b = Utils.num(v.val_factura_b_elec);
             const a = Utils.num(v.val_factura_a_elec);
             const manual = Utils.num(v.val_factura_b);
             acc.totalBElec += b;
-            acc.ivaB += b - (b / 1.21);
+            acc.ivaB += b - (b / ivaDivisor);
             acc.totalAElec += a;
-            acc.ivaA += a - (a / 1.21);
+            acc.ivaA += a - (a / ivaDivisor);
             acc.totalB += manual;
             return acc;
         }, { ivaB: 0, ivaA: 0, totalB: 0, totalBElec: 0, totalAElec: 0 });
-    }, [ventasData]);
+    }, [ventasData, ivaDivisor]);
 
     const { kpis, egresos, historial, mixPagos } = useMemo(() => ({
         kpis: data?.kpis || {},
@@ -632,7 +636,7 @@ const DashboardView = () => {
         },
         'iva': {
             title: 'Tu IVA del mes',
-            explanation: 'Cada vez que vendés, cobrás IVA (21%) que le pertenece al Estado. Cada vez que comprás con factura, pagás IVA que podés descontar. La diferencia es lo que le debés (o te debe) AFIP.\n\nSi el número es positivo → tenés que pagar ese monto a AFIP.\nSi es negativo → tenés saldo a favor (AFIP te "debe" a vos).',
+            explanation: `Cada vez que vendés, cobrás IVA (${(alicuotaIva * 100).toFixed(1).replace(/\.0$/, '')}%) que le pertenece al Estado. Cada vez que comprás con factura, pagás IVA que podés descontar. La diferencia es lo que le debés (o te debe) AFIP.\n\nSi el número es positivo → tenés que pagar ese monto a AFIP.\nSi es negativo → tenés saldo a favor (AFIP te "debe" a vos).`,
             breakdown: [
                 { label: 'IVA Débito Fiscal (ventas)', val: Utils.num(kpis.iva_debito), color: 'text-emerald-400' },
                 { label: 'IVA Crédito Fiscal (compras con factura)', val: -Utils.num(kpis.iva_credito || 0), color: 'text-rose-400' },
@@ -875,7 +879,7 @@ const DashboardView = () => {
                                             <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', fontVariantNumeric: 'tabular-nums', flexShrink: 0, wordBreak: 'break-word', textAlign: 'right' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.totalBElec))}</span>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingLeft: 12, marginBottom: 2, gap: 12 }}>
-                                            <span style={{ fontSize: 9, color: 'var(--text-faint)', flex: 1 }}>↳ IVA contenido (21%)</span>
+                                            <span style={{ fontSize: 9, color: 'var(--text-faint)', flex: 1 }}>{`↳ IVA contenido (${(alicuotaIva * 100).toFixed(1).replace(/\.0$/, '')}%)`}</span>
                                             <span style={{ fontSize: 9, fontWeight: 600, color: '#10b981', fontVariantNumeric: 'tabular-nums', flexShrink: 0, wordBreak: 'break-word', textAlign: 'right' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaCobradoBreakdown.ivaB))}</span>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>

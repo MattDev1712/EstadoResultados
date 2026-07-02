@@ -8,7 +8,7 @@ export const Parsers = {
      * Intenta extraer fechas y montos de un texto crudo de Maxirest.
      * Lógica ajustada para Resumen Mensual (PDF).
      */
-    maxirest: (text) => {
+    maxirest: (text, alicuota = 0.21) => {
         const cleanNumber = (str) => {
             if (!str) return 0;
             let clean = str.replace(/\s+/g, '');
@@ -88,12 +88,13 @@ export const Parsers = {
 
         // Calculamos el IVA solo de las facturas electrónicas (A y B)
         // El reporte de Maxirest suele mostrar el bruto (Neto + IVA)
-        const ivaB = factBElecData.importe - (factBElecData.importe / 1.21);
-        const ivaA = factAElecData.importe - (factAElecData.importe / 1.21);
+        const divisor = 1 + alicuota;
+        const ivaB = factBElecData.importe - (factBElecData.importe / divisor);
+        const ivaA = factAElecData.importe - (factAElecData.importe / divisor);
         const calcIva = ivaB + ivaA;
 
-        const netoB = (factBElecData.importe / 1.21) + factBData.importe;
-        const netoA = factAElecData.importe / 1.21;
+        const netoB = (factBElecData.importe / divisor) + factBData.importe;
+        const netoA = factAElecData.importe / divisor;
         const calcNeto = netoB + netoA;
 
         const rawData = {

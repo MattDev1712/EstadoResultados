@@ -15,7 +15,8 @@ const ConfigView = () => {
         COMISION_EFECTIVO: '',
         PCT_CARGAS_SOCIALES: '',
         KW_ESTRUCTURAL: '',
-        KW_CMV: ''
+        KW_CMV: '',
+        ALICUOTA_IVA: '0.21'
     });
     const [saving, setSaving] = useState(false);
     const [saveMsg, setSaveMsg] = useState(null);   // { type: 'ok'|'error', text: string }
@@ -54,6 +55,7 @@ const ConfigView = () => {
                         PCT_CARGAS_SOCIALES: data.pct_cargas_sociales ?? '',
                         KW_ESTRUCTURAL: data.kw_estructural || '',
                         KW_CMV: data.kw_cmv || '',
+                        ALICUOTA_IVA: data.alicuota_iva ?? '0.21',
                     }));
                 }
             } catch (err) {
@@ -89,6 +91,7 @@ const ConfigView = () => {
                     pct_cargas_sociales: parseFloat(config.PCT_CARGAS_SOCIALES) || null,
                     kw_estructural: config.KW_ESTRUCTURAL,
                     kw_cmv: config.KW_CMV,
+                    alicuota_iva: parseFloat(config.ALICUOTA_IVA) || 0.21,
                     updated_at: new Date().toISOString(),
                 })
                 .eq('id', 1);
@@ -174,9 +177,14 @@ const ConfigView = () => {
                         </div>
                     </div>
 
-                    <div className="pt-6 grid grid-cols-1 gap-6 border-t border-slate-700/50">
+                    <div className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-700/50">
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-violet-400">Provisión Cargas Sociales (Decimal: 0.33 = 33%)</label>
+                            <label className="text-[10px] font-black text-orange-400/70 uppercase tracking-widest">Alícuota IVA Ventas (Decimal: 0.21 = 21%)</label>
+                            <p className="text-[9px] text-slate-500">21% general — 10.5% alimentos — 27% servicios</p>
+                            <input name="ALICUOTA_IVA" type="number" step="0.005" min="0" max="0.27" value={config.ALICUOTA_IVA} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-orange-200 font-mono focus:ring-2 focus:ring-orange-500 outline-none transition" />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-violet-400/70 uppercase tracking-widest">Provisión Cargas Sociales (Decimal: 0.33 = 33%)</label>
                             <input name="PCT_CARGAS_SOCIALES" type="number" step="0.01" value={config.PCT_CARGAS_SOCIALES} onChange={handleChange} className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-violet-200 font-mono" />
                         </div>
                         

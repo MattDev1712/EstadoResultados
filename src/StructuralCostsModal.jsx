@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const StructuralCostsModal = ({ isOpen, onClose, onConfirm, defaultDate }) => {
+const StructuralCostsModal = ({ isOpen, onClose, onConfirm, defaultDate, alicuotaIva = 0.21 }) => {
     const [fields, setFields] = useState([
         { label: 'Alquiler Local', value: '' },
         { label: 'Luz', value: '' },
@@ -19,7 +19,7 @@ const StructuralCostsModal = ({ isOpen, onClose, onConfirm, defaultDate }) => {
             .filter(f => f.value && parseFloat(f.value) !== 0)
             .map(f => {
                 const total = Math.abs(parseFloat(f.value));
-                const neto = total / 1.21;
+                const neto = total / (1 + alicuotaIva);
                 const iva = total - neto;
                 return {
                     fecha: defaultDate,

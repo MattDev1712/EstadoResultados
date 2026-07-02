@@ -5,7 +5,7 @@ import { Parsers } from './parsers';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
-const FileCard = ({ title, type, parserMode, onDataReady, isLoading, defaultDate }) => {
+const FileCard = ({ title, type, parserMode, onDataReady, isLoading, defaultDate, alicuotaIva }) => {
     const [dragActive, setDragActive] = useState(false);
     const [fileName, setFileName] = useState('');
     const [stats, setStats] = useState(null);
@@ -57,7 +57,7 @@ const FileCard = ({ title, type, parserMode, onDataReady, isLoading, defaultDate
                     fullText += pageLines.join('\n') + '\n';
                 }
                 content = fullText;
-                parsedData = Parsers.maxirest(content);
+                parsedData = Parsers.maxirest(content, alicuotaIva);
 
             } else if (type === 'CSV') {
                 const name = file.name.toLowerCase();
