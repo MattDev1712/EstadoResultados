@@ -1,30 +1,18 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { supabase } from './supabaseClient';
 
 const FinanceContext = createContext();
 
-const APP_VERSION = '1.2.5';
+const APP_VERSION = '2.0.0'; // Supabase migration
 
 const validatePersistence = () => {
     const savedVersion = localStorage.getItem('app_version');
     if (savedVersion !== APP_VERSION) {
-        const apiUrl = localStorage.getItem('gas_api_url');
         localStorage.clear();
-        if (apiUrl) localStorage.setItem('gas_api_url', apiUrl);
         localStorage.setItem('app_version', APP_VERSION);
     }
 };
 
-const getInitialApiUrl = () => {
-    const stored = localStorage.getItem('gas_api_url');
-    if (stored) return stored;
-    const param = new URLSearchParams(window.location.search).get('apiUrl');
-    if (param) { localStorage.setItem('gas_api_url', param); return param; }
-    const env = import.meta.env.VITE_API_URL;
-    if (env) { localStorage.setItem('gas_api_url', env); return env; }
-    return '';
-};
-
-// Compute the 9 visible period keys shown in the UI
 const getVisiblePeriods = () => {
     const now = new Date();
     const periods = [];
@@ -38,17 +26,148 @@ const getVisiblePeriods = () => {
     return periods;
 };
 
+// Fecha del primer y ultimo dia del mes
+const monthRange = (year, month) => {
+    const y = parseInt(year);
+    const m = parseInt(month);
+    const start = `${year}-${month}-01`;
+    const lastDay = new Date(y, m, 0).getDate();
+    const end = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+    return { start, end };
+};
+
+// Computar KPIs desde datos crudos
+const computeDashboard = (ventas, compras, empleados, costosManuales, categorias, config, ajuste) => {
+    const num = (v) => {
+        if (v === undefined || v === null || v === '') return 0;
+        const n = parseFloat(v);
+        return Number.isFinite(n) ? n : 0;
+    };
+
+    // --- KPIs de ventas ---
+    let venta_bruta = 0, iva_debito = 0, ventas_netas = 0, cant_operaciones = 0;
+    let mix_canales = {};
+
+    ventas.forEach(v => {
+        venta_bruta += num(v.total);
+        iva_debito += num(v.iva);
+        ventas_netas += num(v.neto);
+        cant_operaciones += num(v.val_cantidad);
+
+        // Mix canales
+        if (num(v.val_mostrador)) mix_canales.mostrador = (mix_canales.mostrador || 0) + num(v.val_mostrador);
+        if (num(v.val_salon)) mix_canales.salon = (mix_canales.salon || 0) + num(v.val_salon);
+        if (num(v.val_exterior)) mix_canales.exterior = (mix_canales.exterior || 0) + num(v.val_exterior);
+        if (num(v.val_producto)) mix_canales.producto = (mix_canales.producto || 0) + num(v.val_producto);
+    });
+
+    // --- IVA credito (compras) ---
+    let iva_credito = 0;
+    let total_compras = 0;
+    let total_compras_estructural = 0;
+
+    const catMap = {};
+    categorias.forEach(c => { catMap[c.cuit] = c.categoria; });
+
+    compras.forEach(c => {
+        iva_credito += Math.abs(num(c.iva));
+        const cat = catMap[c.cuit] || '';
+        if (cat === 'GASTO_FIJO' || c.rubro === 'Costos Estructurales') {
+            total_compras_estructural += Math.abs(num(c.total));
+        } else {
+            total_compras += Math.abs(num(c.total));
+        }
+    });
+
+    // --- Egresos laborales ---
+    let laboral = 0, recibo_total = 0;
+    empleados.forEach(e => {
+        laboral += num(e.costo_total) || (num(e.recibo) + num(e.negro));
+        recibo_total += num(e.recibo);
+    });
+
+    // --- Costos manuales ---
+    let estructural_manual = 0, retenciones = 0, iva_credito_manual = 0;
+    costosManuales.forEach(cm => {
+        if (cm.rubro === 'Costos Estructurales') {
+            estructural_manual += Math.abs(num(cm.importe_total));
+        } else if (cm.rubro === 'Retenciones') {
+            retenciones += Math.abs(num(cm.importe_total));
+        }
+        // IVA de costos manuales suma al crédito fiscal
+        iva_credito_manual += Math.abs(num(cm.importe_iva));
+    });
+    iva_credito += iva_credito_manual;
+
+    // --- Comisiones ---
+    const comTarj = num(config?.comision_tarjetas) || 0;
+    const comOtros = num(config?.comision_otros) || 0;
+    const comEfvo = num(config?.comision_efectivo) || 0;
+    let comisiones = 0;
+    ventas.forEach(v => {
+        comisiones += num(v.val_tarjetas) * comTarj;
+        comisiones += num(v.val_otros) * comOtros;
+        comisiones += num(v.val_efectivo) * comEfvo;
+    });
+
+    // --- Provisiones ---
+    const cargasPct = num(config?.pct_cargas_sociales) || 0.33;
+    const provision_sac = laboral / 12;
+    const provision_cargas = recibo_total * cargasPct;
+
+    const estructural = estructural_manual + total_compras_estructural;
+    const total_egresos = laboral + provision_sac + provision_cargas + estructural + comisiones + total_compras;
+    const utilidad_neta = ventas_netas - total_egresos;
+    const break_even_mensual = ventas_netas > 0 && utilidad_neta !== 0
+        ? (total_egresos / ventas_netas) * ventas_netas
+        : total_egresos;
+
+    // --- Mix pagos ---
+    let efvo = 0, tarj = 0, otros = 0;
+    ventas.forEach(v => {
+        efvo += num(v.val_efectivo);
+        tarj += num(v.val_tarjetas);
+        otros += num(v.val_otros);
+    });
+
+    return {
+        kpis: {
+            venta_bruta,
+            ventas_netas_reales: ventas_netas,
+            iva_debito,
+            iva_credito,
+            iva_posicion: iva_debito - iva_credito,
+            utilidad_neta,
+            break_even_mensual,
+            cant_operaciones,
+        },
+        egresos: {
+            laboral,
+            otros: total_compras,
+            estructural,
+            comisiones,
+            retenciones,
+            provision_sac,
+            provision_cargas,
+        },
+        mix_pagos: { efectivo: efvo, tarjetas: tarj, otros },
+        ajustes: {
+            ipc: num(ajuste?.ipc) || 1,
+            mep: num(ajuste?.mep) || 1000,
+        },
+        analisis_ventas: { mix_canales },
+        estado_result_manual: ajuste ? {
+            mix_cafe: num(ajuste.mix_cafe),
+            mix_producto: num(ajuste.mix_producto),
+            mgn_cafe: num(ajuste.mgn_cafe),
+            mgn_producto: num(ajuste.mgn_producto),
+            excepcionales: num(ajuste.excepcionales),
+        } : null,
+    };
+};
+
 export const FinanceProvider = ({ children }) => {
     validatePersistence();
-
-    const [apiUrl, setApiUrl] = useState(getInitialApiUrl);
-
-    const finalApiUrl = useMemo(() => {
-        if (!apiUrl) return '';
-        if (apiUrl.startsWith('AKfy')) return `https://script.google.com/macros/s/${apiUrl}/exec`;
-        if (!apiUrl.startsWith('http')) return `https://${apiUrl}`;
-        return apiUrl;
-    }, [apiUrl]);
 
     const [dashData, setDashData]       = useState(null);
     const [empData, setEmpData]         = useState([]);
@@ -60,6 +179,12 @@ export const FinanceProvider = ({ children }) => {
     const [error, setError]             = useState(null);
     const [availablePeriods, setAvailablePeriods] = useState([]);
     const [newDataAvailable, setNewDataAvailable] = useState(false);
+    const [configData, setConfigData]   = useState(null);
+
+    // Mantenemos apiUrl como string no-vacio para que los guards de App.jsx no bloqueen
+    const apiUrl = 'supabase';
+    const setApiUrl = () => {};
+    const finalApiUrl = 'supabase';
 
     const [selectedYear, setSelectedYear] = useState(() =>
         localStorage.getItem('selectedYear') || String(new Date().getFullYear())
@@ -71,10 +196,7 @@ export const FinanceProvider = ({ children }) => {
     const [viewMode, setViewMode] = useState('NOMINAL');
     const [localAjustes, setLocalAjustes] = useState({ ipc: 1, mep: 1000 });
 
-    // In-memory cache — más rápido que localStorage para switching de meses
     const memCache = useRef({});
-    // Hash del servidor conocido — para detectar cambios
-    const lastKnownHash = useRef(localStorage.getItem('last_server_hash') || null);
 
     useEffect(() => {
         localStorage.setItem('selectedYear', selectedYear);
@@ -89,11 +211,15 @@ export const FinanceProvider = ({ children }) => {
         if (dashData?.ajustes) setLocalAjustes(dashData.ajustes);
     }, [dashData]);
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
+    // Cargar config del negocio una vez
+    useEffect(() => {
+        (async () => {
+            const { data } = await supabase.from('config_negocio').select('*').eq('id', 1).single();
+            if (data) setConfigData(data);
+        })();
+    }, []);
 
-    const getCacheKey = useCallback((year, month) => {
-        return `cache_${btoa(apiUrl).substring(0, 8)}_${year}_${month}`;
-    }, [apiUrl]);
+    // ── Helpers ──────────────────────────────────────────────────────────────────
 
     const applyPeriodData = useCallback((data) => {
         setDashData(data.dash);
@@ -108,83 +234,151 @@ export const FinanceProvider = ({ children }) => {
         }
     }, []);
 
-    // ── Fetch de bajo nivel — sin tocar loading/error state ───────────────────
-    // Retorna los datos del periodo. Usa memCache → localStorage → red, en ese orden.
+    // ── Fetch de un periodo desde Supabase ──────────────────────────────────────
     const fetchPeriodData = useCallback(async (year, month) => {
         const periodKey = `${year}-${month}`;
 
-        // 1. Memoria (instantáneo)
+        // Cache en memoria
         if (memCache.current[periodKey]) return memCache.current[periodKey];
 
-        // 2. localStorage
-        const cacheKey = getCacheKey(year, month);
-        try {
-            const raw = localStorage.getItem(cacheKey);
-            if (raw) {
-                const data = JSON.parse(raw);
-                memCache.current[periodKey] = data;
-                return data;
-            }
-        } catch (e) {
-            localStorage.removeItem(cacheKey);
+        const { start, end } = monthRange(year, month);
+        const periodoStr = `${year}-${month}`;
+
+        // Queries en paralelo
+        const [
+            ventasRes,
+            comprasRes,
+            empleadosRes,
+            costosRes,
+            categoriasRes,
+            ajusteRes,
+        ] = await Promise.all([
+            supabase.from('ventas').select('*').gte('fecha', start).lte('fecha', end),
+            supabase.from('compras').select('*').gte('fecha', start).lte('fecha', end),
+            supabase.from('empleados').select('*').gte('fecha_periodo', start).lte('fecha_periodo', end),
+            supabase.from('costos_manuales').select('*').gte('fecha', start).lte('fecha', end),
+            supabase.from('categorias').select('*'),
+            supabase.from('ajustes_periodo').select('*').eq('periodo', periodoStr).maybeSingle(),
+        ]);
+
+        // Chequear errores
+        const anyError = [ventasRes, comprasRes, empleadosRes, costosRes, categoriasRes].find(r => r.error);
+        if (anyError?.error) throw new Error(anyError.error.message);
+
+        const ventas = ventasRes.data || [];
+        const compras = comprasRes.data || [];
+        const empleados = empleadosRes.data || [];
+        const costosManuales = costosRes.data || [];
+        const categorias = categoriasRes.data || [];
+        const ajuste = ajusteRes.data;
+
+        // Juntar compras + costos manuales para arcaData (las vistas los consumen unificados)
+        const arcaCombined = [
+            ...compras,
+            ...costosManuales.map(cm => ({
+                fecha: cm.fecha,
+                tipo_comp: cm.metodo_pago || 'Manual',
+                nro_comp: 'Manual',
+                cuit: '',
+                entidad: cm.sub_rubro || cm.rubro,
+                neto: cm.importe_neto,
+                iva: cm.importe_iva,
+                total: cm.importe_total,
+                rubro: cm.rubro,
+                sub_rubro: cm.sub_rubro,
+                origen_dato: cm.origen_dato,
+                importe_neto: cm.importe_neto,
+                importe_iva: cm.importe_iva,
+                importe_total: cm.importe_total,
+                metodo_pago: cm.metodo_pago,
+            }))
+        ];
+
+        const dash = computeDashboard(ventas, compras, empleados, costosManuales, categorias, configData, ajuste);
+
+        const data = {
+            dash,
+            emp: empleados,
+            arca: arcaCombined,
+            ventas,
+            categoriesMap: categorias,
+        };
+
+        memCache.current[periodKey] = data;
+        return data;
+    }, [configData]);
+
+    // ── Computar metadata de periodos (score por completitud) ────────────────────
+    const computePeriodsMetadata = useCallback(async () => {
+        const periods = getVisiblePeriods();
+        const results = [];
+
+        for (const { y, m } of periods) {
+            const { start, end } = monthRange(y, m);
+            const periodoId = `${y}-${m}`;
+
+            // Queries livianas — solo count
+            const [ventasCount, comprasCount, empCount, costosCount] = await Promise.all([
+                supabase.from('ventas').select('id', { count: 'exact', head: true }).gte('fecha', start).lte('fecha', end),
+                supabase.from('compras').select('id', { count: 'exact', head: true }).gte('fecha', start).lte('fecha', end),
+                supabase.from('empleados').select('id', { count: 'exact', head: true }).gte('fecha_periodo', start).lte('fecha_periodo', end),
+                supabase.from('costos_manuales').select('id', { count: 'exact', head: true }).gte('fecha', start).lte('fecha', end),
+            ]);
+
+            const hasVentas = (ventasCount.count || 0) > 0;
+            const hasCompras = (comprasCount.count || 0) > 0;
+            const hasEmp = (empCount.count || 0) > 0;
+            const hasCostos = (costosCount.count || 0) > 0;
+
+            const score = [hasVentas, hasCompras, hasEmp, hasCostos].filter(Boolean).length;
+
+            results.push({
+                id: periodoId,
+                isComplete: score === 4,
+                score,
+            });
         }
 
-        // 3. Red
-        const start = `${year}-${month}-01`;
-        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-        const end = `${year}-${month}-${lastDay}`;
-        const url = `${finalApiUrl}?action=GET_COMPLETE_DATA&start=${start}&end=${end}&cargasPct=${cargasPct}`;
+        return results;
+    }, []);
 
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 45000);
-        try {
-            const res = await fetch(url, { signal: controller.signal }).then(r => r.json());
-            clearTimeout(timer);
+    // ── Computar historial para graficos ─────────────────────────────────────────
+    const computeHistorial = useCallback(async () => {
+        const periods = getVisiblePeriods();
+        const historial = {};
 
-            if (res.status === 'ERROR' || !res.dashboard) return null;
+        for (const { y, m } of periods) {
+            try {
+                const data = await fetchPeriodData(y, m);
+                if (!data?.dash) continue;
 
-            // Actualizar hash conocido
-            if (res.stateHash) {
-                lastKnownHash.current = res.stateHash;
-                localStorage.setItem('last_server_hash', res.stateHash);
-            }
+                const kpis = data.dash.kpis;
+                const empCount = (data.emp || []).length;
+                const laboral = data.dash.egresos.laboral;
 
-            const data = {
-                dash: res.dashboard,
-                emp: res.employees || [],
-                arca: res.arca || [],
-                ventas: res.ventas || [],
-                metadata: res.metadata,
-                categoriesMap: res.categoriesMap,
-                hash: res.stateHash
-            };
-            memCache.current[periodKey] = data;
-            localStorage.setItem(cacheKey, JSON.stringify(data));
-            return data;
-        } catch (e) {
-            clearTimeout(timer);
-            if (e.name === 'AbortError') throw new Error('Timeout: el servidor tardó demasiado. Intentá de nuevo con ↻.');
-            throw e;
+                historial[`${y}-${m}`] = {
+                    v: kpis.ventas_netas_reales,
+                    ticket: kpis.cant_operaciones > 0 ? kpis.venta_bruta / kpis.cant_operaciones : 0,
+                    sueldo_prom: empCount > 0 ? laboral / empCount : 0,
+                    resultado_mgn: kpis.utilidad_neta,
+                    ops: kpis.cant_operaciones,
+                    emp: empCount,
+                };
+            } catch { /* silencioso */ }
         }
-    }, [finalApiUrl, cargasPct, getCacheKey]);
 
-    // ── fetchData — carga el periodo seleccionado en el estado UI ─────────────
+        return historial;
+    }, [fetchPeriodData]);
+
+    // ── fetchData — carga el periodo seleccionado ────────────────────────────────
     const fetchData = useCallback(async (force = false) => {
-        if (!apiUrl) return;
-
         if (force) {
-            // Invalidar caches del periodo actual
             const periodKey = `${selectedYear}-${selectedMonth}`;
             delete memCache.current[periodKey];
-            localStorage.removeItem(getCacheKey(selectedYear, selectedMonth));
         }
 
-        // Verificar si hay datos en cache antes de mostrar spinner
         const periodKey = `${selectedYear}-${selectedMonth}`;
-        const hasCache = !force && (
-            memCache.current[periodKey] ||
-            localStorage.getItem(getCacheKey(selectedYear, selectedMonth))
-        );
+        const hasCache = !force && memCache.current[periodKey];
 
         if (!hasCache) {
             setLoading(true);
@@ -193,90 +387,76 @@ export const FinanceProvider = ({ children }) => {
 
         try {
             const data = await fetchPeriodData(selectedYear, selectedMonth);
-            if (!data) throw new Error('No se recibieron datos del tablero.');
+            if (!data) throw new Error('No se recibieron datos.');
             applyPeriodData(data);
             if (force) setNewDataAvailable(false);
+
+            // Computar historial y metadata en background
+            computeHistorial().then(historial => {
+                setDashData(prev => prev ? { ...prev, historial } : prev);
+            });
+            computePeriodsMetadata().then(periods => {
+                setAvailablePeriods(periods);
+            });
         } catch (e) {
             setError(e.message);
         } finally {
             setLoading(false);
             setIsRefreshing(false);
         }
-    }, [apiUrl, selectedYear, selectedMonth, fetchPeriodData, applyPeriodData, getCacheKey]);
+    }, [selectedYear, selectedMonth, fetchPeriodData, applyPeriodData, computeHistorial, computePeriodsMetadata]);
 
-    // Auto-fetch al montar y cuando cambia el periodo seleccionado
+    // Auto-fetch al montar y cuando cambia el periodo
     useEffect(() => {
         fetchData(false);
     }, [fetchData]);
 
-    // ── Prefetch silencioso de todos los periodos visibles ────────────────────
-    // Se llama una vez después de la carga inicial. Sin loading indicators.
-    const prefetchVisiblePeriods = useCallback(async () => {
-        if (!finalApiUrl) return;
-        const periods = getVisiblePeriods();
-        for (const { y, m } of periods) {
-            if (y === selectedYear && m === selectedMonth) continue; // Ya cargado
-            try {
-                await fetchPeriodData(y, m); // Lee cache si existe, va a red si no
-            } catch (e) { /* Silent — no bloquear por un periodo fallido */ }
-            // Pausa entre requests para no saturar GAS
-            await new Promise(r => setTimeout(r, 800));
-        }
-    }, [finalApiUrl, selectedYear, selectedMonth, fetchPeriodData]);
+    // ── Prefetch silencioso (ya no necesario, historial lo cubre) ────────────────
+    const prefetchVisiblePeriods = useCallback(async () => {}, []);
 
-    // ── Hash check liviano — detecta cambios sin traer datos ─────────────────
-    const checkHash = useCallback(async () => {
-        if (!finalApiUrl) return;
-        try {
-            const res = await fetch(`${finalApiUrl}?action=GET_HASH`).then(r => r.json());
-            if (!res.hash) return;
-            if (lastKnownHash.current && res.hash !== lastKnownHash.current) {
-                setNewDataAvailable(true);
-            }
-            // Inicializar referencia si no había hash previo
-            if (!lastKnownHash.current) {
-                lastKnownHash.current = res.hash;
-                localStorage.setItem('last_server_hash', res.hash);
-            }
-        } catch (e) { /* Silent */ }
-    }, [finalApiUrl]);
+    // ── Hash check (reemplazado por Supabase realtime en futuro) ─────────────────
+    const checkHash = useCallback(async () => {}, []);
 
-    // ── manualRefresh ─────────────────────────────────────────────────────────
+    // ── manualRefresh ──────────────────────────────────────────────────────────
     const manualRefresh = useCallback(async () => {
+        // Limpiar todo el cache
+        memCache.current = {};
         setLoading(true);
         try {
             await fetchData(true);
-        } catch (e) { /* Error manejado por fetchData */ }
+        } catch (e) { /* manejado por fetchData */ }
     }, [fetchData]);
 
     // ── invalidateCache ───────────────────────────────────────────────────────
     const invalidateCache = useCallback((year, month) => {
         const periodKey = `${year}-${month}`;
         delete memCache.current[periodKey];
-        localStorage.removeItem(getCacheKey(year, month));
-    }, [getCacheKey]);
+    }, []);
 
-    // ── updateConfig ──────────────────────────────────────────────────────────
+    // ── updateConfig (IPC/MEP por periodo) ──────────────────────────────────────
     const updateConfig = async (periodo, ipc, mep) => {
-        if (!finalApiUrl) return;
         try {
-            const res = await fetch(finalApiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({
-                    action: 'CARGAR_DATOS',
-                    origen: 'SAVE_CONFIG',
-                    payload: { periodo, ipc: parseFloat(ipc), mep: parseFloat(mep) }
-                })
-            });
-            const data = await res.json();
-            if (data.status === 'OK') {
-                setDashData(prev => ({ ...prev, ajustes: { ipc: parseFloat(ipc), mep: parseFloat(mep) } }));
+            const { error } = await supabase
+                .from('ajustes_periodo')
+                .upsert({ periodo, ipc: parseFloat(ipc), mep: parseFloat(mep) }, { onConflict: 'periodo' });
+
+            if (!error) {
+                setDashData(prev => prev ? { ...prev, ajustes: { ipc: parseFloat(ipc), mep: parseFloat(mep) } } : prev);
                 return true;
             }
         } catch (e) { console.error("Error guardando config:", e); }
         return false;
     };
+
+    // ── fetchCategoriesMap (usado por CategoriesView) ───────────────────────────
+    const fetchCategoriesMap = useCallback(async () => {
+        const { data } = await supabase.from('categorias').select('*');
+        if (data) {
+            const catMap = {};
+            data.forEach(i => { catMap[i.cuit] = i.categoria; });
+            setCategoriesMap(catMap);
+        }
+    }, []);
 
     const value = useMemo(() => ({
         apiUrl, setApiUrl, finalApiUrl,
@@ -297,13 +477,15 @@ export const FinanceProvider = ({ children }) => {
         prefetchVisiblePeriods,
         manualRefresh,
         invalidateCache,
+        fetchCategoriesMap,
+        configData,
     }), [
-        apiUrl, dashData, empData, arcaData, ventasData,
+        dashData, empData, arcaData, ventasData,
         isRefreshing, loading, error,
         selectedYear, selectedMonth, cargasPct, viewMode,
         availablePeriods, localAjustes, categoriesMap,
-        newDataAvailable,
-        fetchData, checkHash, prefetchVisiblePeriods, manualRefresh, invalidateCache
+        newDataAvailable, configData,
+        fetchData, checkHash, prefetchVisiblePeriods, manualRefresh, invalidateCache, fetchCategoriesMap
     ]);
 
     return (

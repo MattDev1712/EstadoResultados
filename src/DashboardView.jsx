@@ -353,9 +353,9 @@ const DashboardView = () => {
         mixPagos: data?.mix_pagos || {}
     }), [data]);
 
-    // Cálculo de Posición Fiscal Real (Auditoría Contable)
+    // Cálculo de Posición Fiscal Estimada (no contempla arrastre, percepciones ni alícuotas diferenciadas)
     const ivaPosicionTeorica = Utils.num(kpis.iva_posicion);
-    const ivaPosicionReal = ivaPosicionTeorica - Math.abs(Utils.num(egresos.retenciones));
+    const ivaPosicionEstimada = ivaPosicionTeorica - Math.abs(Utils.num(egresos.retenciones));
 
     const getAdj = (val) => {
         const n = Utils.num(val);
@@ -825,11 +825,11 @@ const DashboardView = () => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                             <div>
                                 <CardTitle title="Posición Fiscal IVA" onInfo={() => setInfoModalKey('iva')} />
-                                <p className="text-4xl font-black tracking-tighter leading-none font-mono" style={{ color: ivaPosicionReal > 0 ? '#f43f5e' : '#10b981', fontVariantNumeric: 'tabular-nums', margin: 0 }}>
-                                    {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaPosicionReal))}
+                                <p className="text-4xl font-black tracking-tighter leading-none font-mono" style={{ color: ivaPosicionEstimada > 0 ? '#f43f5e' : '#10b981', fontVariantNumeric: 'tabular-nums', margin: 0 }}>
+                                    {viewMode === 'DOLAR_MEP' ? 'u$s ' : ''}{Utils.fmt(getAdj(ivaPosicionEstimada))}
                                 </p>
-                                <p style={{ fontSize: 13, fontWeight: 700, marginTop: 10, color: ivaPosicionReal > 0 ? '#f43f5e' : '#10b981' }}>
-                                    {ivaPosicionReal > 0 ? 'Monto estimado a pagar (VEP)' : 'Saldo a favor proyectado'}
+                                <p style={{ fontSize: 13, fontWeight: 700, marginTop: 10, color: ivaPosicionEstimada > 0 ? '#f43f5e' : '#10b981' }}>
+                                    {ivaPosicionEstimada > 0 ? 'Monto estimado a pagar (VEP)' : 'Saldo a favor proyectado'}
                                 </p>
                             </div>
                             <div style={{ textAlign: 'right', background: 'rgba(59,130,246,0.05)', padding: '12px 16px', borderRadius: 16, border: '1px solid rgba(59,130,246,0.1)' }}>
@@ -847,7 +847,8 @@ const DashboardView = () => {
                             </div>
                         </div>
 
-                        <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 12, marginBottom: 20 }}>Saldo real proyectado considerando pagos a cuenta del mes.</p>
+                        <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 12, marginBottom: 6 }}>Estimación orientativa considerando pagos a cuenta del mes.</p>
+                        <p style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 20, lineHeight: 1.5, fontStyle: 'italic' }}>* No contempla saldo a favor de meses anteriores, percepciones, ni alícuotas diferenciadas (10.5%, 27%). Consultá con tu contador para la liquidación definitiva.</p>
 
                         {/* Dos columnas: IVA cobrado | IVA pagado */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
