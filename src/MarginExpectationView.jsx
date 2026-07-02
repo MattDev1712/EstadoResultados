@@ -5,6 +5,7 @@ import { formatters as Utils } from './formatters';
 import Card from './components/Card';
 import { PctInput, CurrencyInput } from './components/Inputs';
 import { colors } from './theme';
+import { supabase } from './supabaseClient';
 
 Chart.register(...registerables);
 
@@ -570,36 +571,26 @@ export default function MarginExpectationView() {
   };
 
   const handleSave = async () => {
-    if (!finalApiUrl) return;
     setSaving(true);
     setSaveStatus(null);
+    const periodo = `${selectedYear}-${selectedMonth}`;
+    const payload = {
+      periodo,
+      mix_cafe: parseFloat(manual.mix_cafe) || 0,
+      mix_producto: parseFloat(manual.mix_producto) || 0,
+      mgn_cafe: parseFloat(manual.mgn_cafe) || 0,
+      mgn_producto: parseFloat(manual.mgn_producto) || 0,
+      excepcionales: parseFloat(manual.excepcionales) || 0,
+    };
     try {
-      const res = await fetch(finalApiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          action: 'CARGAR_DATOS',
-          origen: 'SAVE_ESTADO_RESULT',
-          payload: {
-            periodo: `${selectedYear}-${selectedMonth}`,
-            mix_cafe: parseFloat(manual.mix_cafe) || 0,
-            mix_producto: parseFloat(manual.mix_producto) || 0,
-            mgn_cafe: parseFloat(manual.mgn_cafe) || 0,
-            mgn_producto: parseFloat(manual.mgn_producto) || 0,
-            excepcionales: parseFloat(manual.excepcionales) || 0,
-          }
-        })
-      });
-      const data = await res.json();
-      if (data.status === 'OK') {
+      const { error } = await supabase
+        .from('ajustes_periodo')
+        .upsert(payload, { onConflict: 'periodo' });
+
+      if (!error) {
         setSaveStatus('ok');
-        const saved = {
-          mix_cafe: parseFloat(manual.mix_cafe) || 0,
-          mix_producto: parseFloat(manual.mix_producto) || 0,
-          mgn_cafe: parseFloat(manual.mgn_cafe) || 0,
-          mgn_producto: parseFloat(manual.mgn_producto) || 0,
-          excepcionales: parseFloat(manual.excepcionales) || 0,
-        };
+        const saved = { ...payload };
+        delete saved.periodo;
         setDashData(prev => ({ ...prev, estado_result_manual: saved }));
         invalidateCache(selectedYear, selectedMonth);
         localStorage.setItem(draftKey, JSON.stringify(manual));

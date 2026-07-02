@@ -3,6 +3,7 @@ import { formatters as Utils } from './formatters';
 import { useFinance } from './FinanceContext';
 import CategoriesView from './CategoriesView';
 import { CAT_CONFIG } from './catConfig';
+import { supabase } from './supabaseClient';
 
 // ─── Constantes ────────────────────────────────────────────────────────────────
 
@@ -347,28 +348,45 @@ const ArcaView = ({ data: dataProp }) => {
     }, [providers]);
 
     const fetchProviders = useCallback(async () => {
-        if (!apiUrl) return;
         try {
-            const res  = await fetch(`${apiUrl}?action=GET_PROVIDERS`);
-            const list = await res.json();
-            if (Array.isArray(list)) setProviders(list);
+            // Derivar proveedores unicos de compras + categorias/aliases
+            const { data: categorias } = await supabase.from('categorias').select('*');
+            const aliasMap = {};
+            (categorias || []).forEach(c => { if (c.alias) aliasMap[c.cuit] = c.alias; });
+
+            // Obtener CUITs unicos de arcaData
+            const cuitsSet = new Set();
+            Utils.arr(data).forEach(r => { if (r.cuit) cuitsSet.add(r.cuit); });
+
+            const list = [...cuitsSet].map(cuit => {
+                const item = Utils.arr(data).find(r => r.cuit === cuit);
+                return {
+                    cuit,
+                    nombre: item?.entidad || cuit,
+                    alias: aliasMap[cuit] || '',
+                };
+            });
+            setProviders(list);
         } catch (e) { console.warn('fetchProviders:', e); }
-    }, [apiUrl]);
+    }, [data]);
 
     useEffect(() => { fetchProviders(); }, [fetchProviders]);
 
     const saveAliases = useCallback(async (aliasesMap) => {
-        if (!apiUrl) return;
-        const payload = Object.entries(aliasesMap).map(([nombre, alias]) => ({ nombre, alias }));
         try {
-            await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'CARGAR_DATOS', origen: 'SAVE_ALIASES', payload })
-            });
+            // Actualizar alias en la tabla categorias
+            for (const [nombre, alias] of Object.entries(aliasesMap)) {
+                // Buscar el CUIT asociado a este nombre en los datos
+                const item = Utils.arr(data).find(r => r.entidad === nombre);
+                if (item?.cuit) {
+                    await supabase
+                        .from('categorias')
+                        .upsert({ cuit: item.cuit, alias: alias || null, categoria: categoriesMap[item.cuit] || '' }, { onConflict: 'cuit' });
+                }
+            }
             fetchProviders();
         } catch (e) { console.warn('saveAliases:', e); }
-    }, [apiUrl, fetchProviders]);
+    }, [data, categoriesMap, fetchProviders]);
 
     const facturasA = useMemo(() =>
         Utils.arr(data).filter(r => r.tipo_comp === 'Factura A' || r.tipo_comp === '1'), [data]);

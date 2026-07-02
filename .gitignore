@@ -16,6 +16,7 @@ dist-ssr
 # Bases y planes de trabajo (no se suben a git)
 bases/
 planes/
+plans/
 
 # Archivos de configuración de editores (VS Code, JetBrains, etc)
 .vscode/*
@@ -36,3 +37,5 @@ planes/
 .env.production.local
 
 ! .env.example
+.vercel
+.env*

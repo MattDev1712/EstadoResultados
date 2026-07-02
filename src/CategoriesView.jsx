@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useFinance } from './FinanceContext';
 import { CAT_CONFIG } from './catConfig';
+import { supabase } from './supabaseClient';
 
 const CATEGORIES = [
     { id: 'PROVEEDOR',  label: 'CMV',       ...CAT_CONFIG.PROVEEDOR  },
@@ -24,20 +25,24 @@ const CategoriesView = ({ initialProviders, onProvidersChange }) => {
         }
     }, [initialProviders]);
 
-    // Fetch propio solo si el padre no pasó providers
+    // Fetch propio solo si el padre no paso providers
     useEffect(() => {
         if (initialProviders && initialProviders.length > 0) return;
-        if (!apiUrl) return;
-        fetch(`${apiUrl}?action=GET_PROVIDERS`)
-            .then(r => r.json())
-            .then(list => {
-                if (Array.isArray(list)) {
+        (async () => {
+            try {
+                const { data: categorias } = await supabase.from('categorias').select('*');
+                if (Array.isArray(categorias)) {
+                    const list = categorias.map(c => ({
+                        cuit: c.cuit,
+                        nombre: c.alias || c.cuit,
+                        alias: c.alias || '',
+                    }));
                     setProviders(list);
                     onProvidersChange?.(list);
                 }
-            })
-            .catch(e => console.warn('CategoriesView fetchProviders:', e));
-    }, [apiUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+            } catch (e) { console.warn('CategoriesView fetchProviders:', e); }
+        })();
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Sincronizar categoriesMap del context
     useEffect(() => {
@@ -56,14 +61,16 @@ const CategoriesView = ({ initialProviders, onProvidersChange }) => {
 
     const saveCategories = async () => {
         setSaving(true);
-        const payload = Object.entries(categoriesMap).map(([cuit, categoria]) => ({ cuit, categoria }));
         try {
-            const res = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'CARGAR_DATOS', origen: 'SAVE_CATEGORIES', payload })
-            }).then(r => r.json());
-            if (res.status === 'OK') {
+            const upserts = Object.entries(categoriesMap)
+                .filter(([, cat]) => cat)
+                .map(([cuit, categoria]) => ({ cuit, categoria }));
+
+            const { error } = await supabase
+                .from('categorias')
+                .upsert(upserts, { onConflict: 'cuit' });
+
+            if (!error) {
                 setSaveMsg({ type: 'ok', text: 'Guardado.' });
                 fetchCategoriesMap();
             } else {

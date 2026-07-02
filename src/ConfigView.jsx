@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFinance } from './FinanceContext';
+import { supabase } from './supabaseClient';
 
 const ConfigView = () => {
     const { apiUrl, setApiUrl, finalApiUrl } = useFinance();
@@ -34,19 +35,33 @@ const ConfigView = () => {
 
     useEffect(() => {
         const fetchConfig = async () => {
-            if (!finalApiUrl) return;
             try {
-                const res = await fetch(`${finalApiUrl}?action=GET_BUSINESS_CONFIG`);
-                const data = await res.json();
-                if (data && typeof data === 'object') {
-                    setConfig(prev => ({ ...prev, ...data }));
+                const { data, error } = await supabase
+                    .from('config_negocio')
+                    .select('*')
+                    .eq('id', 1)
+                    .single();
+                if (!error && data) {
+                    setConfig(prev => ({
+                        ...prev,
+                        LOCAL_NOMBRE: data.local_nombre || '',
+                        LOCAL_CUIT: data.local_cuit || '',
+                        OBJETIVO_MARGEN: data.objetivo_margen ?? '',
+                        OBJETIVO_VENTAS: data.objetivo_ventas ?? '',
+                        COMISION_TARJETAS: data.comision_tarjetas ?? '',
+                        COMISION_OTROS: data.comision_otros ?? '',
+                        COMISION_EFECTIVO: data.comision_efectivo ?? '',
+                        PCT_CARGAS_SOCIALES: data.pct_cargas_sociales ?? '',
+                        KW_ESTRUCTURAL: data.kw_estructural || '',
+                        KW_CMV: data.kw_cmv || '',
+                    }));
                 }
             } catch (err) {
                 console.error("Error al cargar config:", err);
             }
         };
         fetchConfig();
-    }, [apiUrl]);
+    }, []);
 
     const handleCopyShareLink = () => {
         if (!apiUrl) { setUrlMsg({ type: 'error', text: 'Vinculá la URL del backend primero.' }); return; }
@@ -59,22 +74,32 @@ const ConfigView = () => {
 
     const handleSave = async (e) => {
         e.preventDefault();
-        if (!finalApiUrl) { setSaveMsg({ type: 'error', text: 'API no configurada.' }); return; }
         setSaving(true);
         try {
-            const res = await fetch(finalApiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'CARGAR_DATOS', origen: 'SAVE_BUSINESS_CONFIG', payload: config })
-            });
-            const data = await res.json();
-            if (data.status === 'OK') {
-                setSaveMsg({ type: 'ok', text: 'Configuración guardada con éxito.' });
+            const { error } = await supabase
+                .from('config_negocio')
+                .update({
+                    local_nombre: config.LOCAL_NOMBRE,
+                    local_cuit: config.LOCAL_CUIT,
+                    objetivo_margen: parseFloat(config.OBJETIVO_MARGEN) || null,
+                    objetivo_ventas: parseFloat(config.OBJETIVO_VENTAS) || null,
+                    comision_tarjetas: parseFloat(config.COMISION_TARJETAS) || null,
+                    comision_otros: parseFloat(config.COMISION_OTROS) || null,
+                    comision_efectivo: parseFloat(config.COMISION_EFECTIVO) || null,
+                    pct_cargas_sociales: parseFloat(config.PCT_CARGAS_SOCIALES) || null,
+                    kw_estructural: config.KW_ESTRUCTURAL,
+                    kw_cmv: config.KW_CMV,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', 1);
+
+            if (!error) {
+                setSaveMsg({ type: 'ok', text: 'Configuracion guardada con exito.' });
             } else {
-                setSaveMsg({ type: 'error', text: 'Error: ' + (data.message || 'Desconocido') });
+                setSaveMsg({ type: 'error', text: 'Error: ' + error.message });
             }
         } catch (err) {
-            setSaveMsg({ type: 'error', text: 'Error de red: ' + err.message });
+            setSaveMsg({ type: 'error', text: 'Error: ' + err.message });
         } finally {
             setSaving(false);
         }

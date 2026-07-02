@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useFinance } from './FinanceContext';
-import { formatters as Utils } from './formatters'; // Asumo que tienes un archivo formatters.js con Utils
+import { formatters as Utils } from './formatters';
+import { supabase } from './supabaseClient';
 
 // Componentes de Vista
 import DashboardView from './DashboardView';
@@ -162,26 +163,125 @@ const App = () => {
     };
 
     const sendToBackend = async (data, origen) => {
-        if (!apiUrl) { addLog("❌ Configura la URL del backend en Ajustes del Sistema."); return; }
         setLoading(true);
         addLog(`Enviando ${data.length} registros de ${origen}...`);
         try {
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'CARGAR_DATOS', origen, payload: data })
-            });
-            const res = await response.json();
-            if (res.status === 'OK') {
-                addLog(`✅ Éxito: ${res.insertados} insertados, ${res.omitidos ?? 0} duplicados omitidos.`);
-                // Forzar refresh — trae datos + metadata actualizados en una sola llamada
+            let table, rows;
+            const periodo = `${selectedYear}-${selectedMonth}`;
+
+            if (origen === 'MAXIREST_RESUMEN' || origen === 'MAXIREST') {
+                table = 'ventas';
+                rows = data.map(r => ({
+                    fecha: r.fecha,
+                    neto: r.neto || 0,
+                    iva: r.iva || 0,
+                    total: r.total || 0,
+                    categoria: r.categoria,
+                    comprobante: r.comprobante,
+                    medio_pago: r.medio_pago,
+                    observaciones: r.observaciones,
+                    val_total: r.val_total || 0,
+                    val_cantidad: r.val_cantidad || 0,
+                    val_efectivo: r.val_efectivo || 0,
+                    val_efectivo_cantidad: r.val_efectivo_cantidad || 0,
+                    val_tarjetas: r.val_tarjetas || 0,
+                    val_tarjetas_cantidad: r.val_tarjetas_cantidad || 0,
+                    val_otros: r.val_otros || 0,
+                    val_otros_cantidad: r.val_otros_cantidad || 0,
+                    val_factura_b_elec: r.val_factura_b_elec || 0,
+                    val_factura_b_elec_cantidad: r.val_factura_b_elec_cantidad || 0,
+                    val_factura_a_elec: r.val_factura_a_elec || 0,
+                    val_factura_a_elec_cantidad: r.val_factura_a_elec_cantidad || 0,
+                    val_factura_b: r.val_factura_b || 0,
+                    val_factura_b_cantidad: r.val_factura_b_cantidad || 0,
+                    val_turno_am: r.val_turno_am || 0,
+                    val_turno_am_cantidad: r.val_turno_am_cantidad || 0,
+                    val_turno_pm: r.val_turno_pm || 0,
+                    val_turno_pm_cantidad: r.val_turno_pm_cantidad || 0,
+                    val_mostrador: r.val_mostrador || 0,
+                    val_mostrador_cantidad: r.val_mostrador_cantidad || 0,
+                    val_salon: r.val_salon || 0,
+                    val_salon_cantidad: r.val_salon_cantidad || 0,
+                    val_exterior: r.val_exterior || 0,
+                    val_exterior_cantidad: r.val_exterior_cantidad || 0,
+                    val_producto: r.val_producto || 0,
+                    val_producto_cantidad: r.val_producto_cantidad || 0,
+                    val_stock: r.val_stock || 0,
+                    val_stock_cantidad: r.val_stock_cantidad || 0,
+                    val_neto_acf: r.val_neto_acf || 0,
+                    val_iva_acf: r.val_iva_acf || 0,
+                    val_anulaciones: r.val_anulaciones || 0,
+                }));
+            } else if (origen === 'ARCA') {
+                table = 'compras';
+                rows = data.map(r => ({
+                    fecha: r.fecha,
+                    tipo_comp: r.tipo_comp,
+                    nro_comp: r.nro_comp,
+                    cuit: r.cuit,
+                    entidad: r.entidad,
+                    neto: r.neto || 0,
+                    iva: r.iva || 0,
+                    otros_tributos: r.otros_tributos || 0,
+                    total: r.total || 0,
+                    iva_pct: r.iva_pct || 0,
+                    rubro: r.rubro || 'Compras',
+                }));
+            } else if (origen === 'SUELDOS') {
+                table = 'empleados';
+                rows = data.map(r => ({
+                    fecha_periodo: r.fecha_periodo,
+                    nombre: r.nombre,
+                    tarea: r.tarea,
+                    dni: r.dni,
+                    legajo: r.legajo,
+                    jornada: r.jornada,
+                    total_hs: r.total_hs || 0,
+                    recibo: r.recibo || 0,
+                    negro: r.negro || 0,
+                    costo_total: r.costo_total || 0,
+                }));
+            } else if (origen === 'MANUAL_COSTS') {
+                table = 'costos_manuales';
+                rows = data.map(r => ({
+                    fecha: r.fecha,
+                    tipo_movimiento: r.tipo_movimiento || 'EGRESO',
+                    origen_dato: r.origen_dato || 'MANUAL',
+                    rubro: r.rubro,
+                    sub_rubro: r.sub_rubro,
+                    importe_total: r.importe_total || 0,
+                    importe_neto: r.importe_neto || 0,
+                    importe_iva: r.importe_iva || 0,
+                    metodo_pago: r.metodo_pago,
+                    observaciones: r.observaciones,
+                }));
+            } else {
+                addLog(`No se reconoce el origen: ${origen}`);
+                setLoading(false);
+                return;
+            }
+
+            const { error, data: inserted } = await supabase.from(table).insert(rows).select();
+
+            if (error) {
+                addLog(`Error: ${error.message}`);
+            } else {
+                const count = inserted?.length || rows.length;
+                addLog(`Exito: ${count} registros insertados en ${table}.`);
+
+                // Audit log
+                await supabase.from('audit_log').insert({
+                    action: origen,
+                    count,
+                    period: periodo,
+                    user: 'app',
+                });
+
                 fetchData(true);
                 setPreviewData(null);
-            } else {
-                addLog(`❌ El servidor respondió con error: ${res.message || res.status}`);
             }
         } catch (e) {
-            addLog(`❌ Error: ${e.message}`);
+            addLog(`Error: ${e.message}`);
         } finally {
             setLoading(false);
         }
