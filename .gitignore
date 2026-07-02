@@ -7,18 +7,25 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dependencias y Compilación
+# Dependencias y Compilacion
 node_modules
 dist
 dist-ssr
 *.local
+package-lock.json
 
-# Bases y planes de trabajo (no se suben a git)
+# Local: datos del negocio, planes, docs internos, backend viejo
+_local/
 bases/
 planes/
 plans/
+MetaData/
+BackEnd.gs
 
-# Archivos de configuración de editores (VS Code, JetBrains, etc)
+# Supabase CLI temp
+supabase/.temp/
+
+# Archivos de configuracion de editores
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -29,13 +36,8 @@ plans/
 *.sln
 *.sw?
 
-# Variables de Entorno (¡MUY IMPORTANTE!)
+# Variables de Entorno
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-! .env.example
+.env.*
+!.env.example
 .vercel
-.env*
