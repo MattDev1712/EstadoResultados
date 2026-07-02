@@ -401,7 +401,8 @@ const DashboardView = () => {
             const pageHeight = pdf.internal.pageSize.getHeight();
             pdf.setFontSize(8);
             pdf.setTextColor(100, 116, 139);
-            pdf.text("Generado con Estado Result — Solo para uso de gestión interna. No reemplaza estados contables oficiales.", 15, pageHeight - 10);
+            pdf.text("Generado con Estado Result — Solo para uso de gestión interna. No reemplaza estados contables oficiales.", 15, pageHeight - 16);
+            pdf.text("(*) SAC y Cargas Sociales son provisiones estimadas. Comisiones bancarias son aproximaciones. Consultar con contador para liquidación definitiva.", 15, pageHeight - 10);
             pdf.save(`EstadoResultado_${selectedYear}_${selectedMonth}.pdf`);
         } catch (err) {
             console.error("Error al exportar PDF:", err);
@@ -667,11 +668,11 @@ const DashboardView = () => {
         },
         'laboral': {
             title: 'Sueldos y Cargas',
-            explanation: 'Contempla el pago total a empleados, incluyendo la provisión del aguinaldo (SAC) y las cargas sociales estimadas sobre el sueldo en blanco.',
+            explanation: 'Contempla el pago total a empleados, incluyendo la provisión del aguinaldo (SAC) y las cargas sociales estimadas sobre el sueldo en blanco.\n\n* SAC y Cargas Sociales son estimaciones (1/12 y % configurable). Las cargas reales varían por convenio, ART y sindicato. Consultar con contador para liquidación definitiva.',
             breakdown: [
                 { label: 'Sueldos Netos (Caja + Recibo)', val: getAdj(laboralEfectivo) },
-                { label: 'Provisión SAC', val: getAdj(sacEfectivo) },
-                { label: 'Cargas Sociales', val: getAdj(cargasEfectivo) },
+                { label: 'Provisión SAC (estimada *)', val: getAdj(sacEfectivo) },
+                { label: 'Cargas Sociales (estimadas *)', val: getAdj(cargasEfectivo) },
                 { label: 'Costo Laboral Total', val: sueldosTotal, total: true }
             ]
         },
@@ -725,7 +726,7 @@ const DashboardView = () => {
         },
         'comisiones': {
             title: 'Comisiones Bancarias/Apps',
-            explanation: 'Cálculo automático basado en los porcentajes definidos en Ajustes aplicado sobre los medios de pago de Maxirest (Tarjetas y Otros).',
+            explanation: 'Cálculo automático basado en los porcentajes definidos en Ajustes aplicado sobre los medios de pago de Maxirest (Tarjetas y Otros).\n\n* Estas son aproximaciones. Las comisiones reales dependen de cada liquidación bancaria e incluyen retenciones de IVA/IIBB/Ganancias no contempladas aquí.',
             breakdown: [
                 { label: 'Tarjetas (Estimado)', val: getAdj(egresos.comisiones || 0) * 0.7 },
                 { label: 'Apps / Otros (Estimado)', val: getAdj(egresos.comisiones || 0) * 0.3 }
