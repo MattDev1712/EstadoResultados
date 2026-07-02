@@ -126,6 +126,7 @@ const App = () => {
     const [defaultDate, setDefaultDate] = useState(new Date().toISOString().split('T')[0]);
     const [logs, setLogs] = useState([]);
     const [showLogs, setShowLogs] = useState(false);
+    const [duplicateWarning, setDuplicateWarning] = useState(null); // { table, count, rows, origen, periodo }
 
     // Prefetch silencioso de todos los periodos visibles — se dispara una vez al iniciar
     const prefetchDone = useRef(false);
@@ -343,15 +344,80 @@ const App = () => {
         setPreviewData(updated);
     }, [previewData, previewOrigen]);
 
-    const confirmUpload = () => {
-        // REDIRECCION: Si el origen es MAXIREST, lo enviamos como 'MAXIREST_RESUMEN'
-        // para asegurar que se guarde en la hoja principal que lee el Dashboard,
-        // evitando que se cree una hoja separada 'Resumen Maxirest'.
+    const checkDuplicatesAndUpload = async () => {
         const origenFinal = previewOrigen === 'MAXIREST' ? 'MAXIREST_RESUMEN' : previewOrigen;
+
+        // MANUAL_COSTS son aditivos por naturaleza, no chequear duplicados
+        if (origenFinal === 'MANUAL_COSTS') {
+            sendToBackend(previewData, origenFinal);
+            setPreviewData(null);
+            setPreviewOrigen(null);
+            return;
+        }
+
+        const tableMap = {
+            'MAXIREST_RESUMEN': 'ventas',
+            'MAXIREST': 'ventas',
+            'ARCA': 'compras',
+            'SUELDOS': 'empleados',
+        };
+        const table = tableMap[origenFinal];
+        if (!table) {
+            sendToBackend(previewData, origenFinal);
+            setPreviewData(null);
+            setPreviewOrigen(null);
+            return;
+        }
+
+        // Rango del periodo seleccionado
+        const y = parseInt(selectedYear);
+        const m = parseInt(selectedMonth);
+        const start = `${selectedYear}-${selectedMonth}-01`;
+        const lastDay = new Date(y, m, 0).getDate();
+        const end = `${selectedYear}-${selectedMonth}-${String(lastDay).padStart(2, '0')}`;
+
+        const dateCol = table === 'empleados' ? 'fecha_periodo' : 'fecha';
+        const { count } = await supabase
+            .from(table)
+            .select('id', { count: 'exact', head: true })
+            .gte(dateCol, start)
+            .lte(dateCol, end);
+
+        if (count && count > 0) {
+            setDuplicateWarning({ table, count, origenFinal, dateCol, start, end });
+            return;
+        }
 
         sendToBackend(previewData, origenFinal);
         setPreviewData(null);
         setPreviewOrigen(null);
+    };
+
+    const handleDuplicateReplace = async () => {
+        if (!duplicateWarning) return;
+        const { table, dateCol, start, end, origenFinal } = duplicateWarning;
+
+        addLog(`Reemplazando: borrando ${duplicateWarning.count} registros existentes de ${table}...`);
+        const { error } = await supabase
+            .from(table)
+            .delete()
+            .gte(dateCol, start)
+            .lte(dateCol, end);
+
+        if (error) {
+            addLog(`Error al borrar datos existentes: ${error.message}`);
+            setDuplicateWarning(null);
+            return;
+        }
+
+        setDuplicateWarning(null);
+        sendToBackend(previewData, origenFinal);
+        setPreviewData(null);
+        setPreviewOrigen(null);
+    };
+
+    const confirmUpload = () => {
+        checkDuplicatesAndUpload();
     };
 
     // Componente auxiliar para mostrar y editar estadísticas (Maxirest)
@@ -777,6 +843,44 @@ const App = () => {
 
             {/* PREVIEW MODAL */}
             {renderPreviewModal()}
+
+            {/* DUPLICATE WARNING MODAL */}
+            {duplicateWarning && (
+                <div className="fixed inset-0 z-[110] flex justify-center items-center bg-black/80 backdrop-blur-sm p-4">
+                    <div className="bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-amber-500/30 w-full max-w-md animate-fade-in">
+                        <div className="p-6 border-b border-amber-500/20 bg-amber-500/5">
+                            <div className="flex items-center gap-3">
+                                <span className="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg font-black ring-1 ring-amber-500/30">!</span>
+                                <div>
+                                    <h3 className="text-lg font-bold text-[var(--text-primary)]">Datos existentes detectados</h3>
+                                    <p className="text-sm text-amber-400 mt-1">
+                                        Ya hay <strong>{duplicateWarning.count}</strong> registros en <strong>{duplicateWarning.table}</strong> para este periodo.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-sm text-[var(--text-muted)] mb-6">
+                                Si cargaste el mismo archivo dos veces, los datos se van a duplicar y los numeros del dashboard van a estar inflados. Elegi que hacer:
+                            </p>
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={handleDuplicateReplace}
+                                    className="w-full px-4 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold transition flex items-center justify-center gap-2"
+                                >
+                                    Reemplazar datos existentes
+                                </button>
+                                <button
+                                    onClick={() => setDuplicateWarning(null)}
+                                    className="w-full px-4 py-3 rounded-xl border border-[var(--border-mid)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] font-medium transition"
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Consola de Logs — colapsable */}
             <div className="mt-8">
