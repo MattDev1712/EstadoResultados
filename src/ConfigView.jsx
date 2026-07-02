@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useFinance } from './FinanceContext';
 import { supabase } from './supabaseClient';
 
 const ConfigView = () => {
-    const { apiUrl, setApiUrl, finalApiUrl } = useFinance();
-    const [urlInput, setUrlInput] = useState(apiUrl);
     const [config, setConfig] = useState({
         LOCAL_NOMBRE: '',
         LOCAL_CUIT: '',
@@ -20,19 +17,12 @@ const ConfigView = () => {
     });
     const [saving, setSaving] = useState(false);
     const [saveMsg, setSaveMsg] = useState(null);   // { type: 'ok'|'error', text: string }
-    const [urlMsg, setUrlMsg] = useState(null);     // { type: 'ok'|'error', text: string }
 
     useEffect(() => {
         if (!saveMsg) return;
         const t = setTimeout(() => setSaveMsg(null), 4000);
         return () => clearTimeout(t);
     }, [saveMsg]);
-
-    useEffect(() => {
-        if (!urlMsg) return;
-        const t = setTimeout(() => setUrlMsg(null), 4000);
-        return () => clearTimeout(t);
-    }, [urlMsg]);
 
     useEffect(() => {
         const fetchConfig = async () => {
@@ -64,15 +54,6 @@ const ConfigView = () => {
         };
         fetchConfig();
     }, []);
-
-    const handleCopyShareLink = () => {
-        if (!apiUrl) { setUrlMsg({ type: 'error', text: 'Vinculá la URL del backend primero.' }); return; }
-        const base = window.location.origin + window.location.pathname;
-        const link = `${base}?apiUrl=${encodeURIComponent(apiUrl)}`;
-        navigator.clipboard.writeText(link).then(() =>
-            setUrlMsg({ type: 'ok', text: 'Link copiado. Compartilo y el backend se configura automáticamente.' })
-        );
-    };
 
     const handleSave = async (e) => {
         e.preventDefault();
@@ -210,69 +191,6 @@ const ConfigView = () => {
                         <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-xs text-amber-200/70 leading-relaxed space-y-1">
                             <p>Los coeficientes <span className="font-bold text-amber-300">IPC</span> y <span className="font-bold text-violet-300">Dólar MEP</span> se configuran por período directamente en el <span className="font-bold text-white">Dashboard</span>, en el panel superior derecho.</p>
                             <p className="text-slate-500">Los valores iniciales son estimaciones. Para que la vista "Real IPC" sea confiable, actualizá el coeficiente de cada mes con el dato real publicado por <span className="font-bold text-slate-400">INDEC</span> (indec.gob.ar → IPC Nivel General). El factor es: <span className="font-mono text-slate-300">inflación acumulada desde ese mes hasta hoy</span>.</p>
-                        </div>
-                    </div>
-
-                    <div className="pt-6 border-t border-slate-700/40">
-                        <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                            <span>🔌 Conexión Técnica</span>
-                            <span className="text-[9px] font-normal text-slate-400 bg-slate-900 border border-slate-700 px-2 py-0.5 rounded uppercase tracking-tighter">Avanzado</span>
-                        </h3>
-                        <div className="bg-slate-900/40 p-5 rounded-2xl border border-slate-700/30">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">URL de Despliegue (AppScript)</label>
-                                <div className="flex gap-3">
-                                    <input
-                                        type="text"
-                                        value={urlInput}
-                                        onChange={(e) => setUrlInput(e.target.value)}
-                                        placeholder="https://script.google.com/macros/s/.../exec"
-                                        className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs font-mono text-blue-300 focus:ring-1 focus:ring-blue-500 outline-none transition"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            localStorage.setItem('gas_api_url', urlInput);
-                                            setApiUrl(urlInput);
-                                            setUrlMsg({ type: 'ok', text: 'URL vinculada correctamente.' });
-                                        }}
-                                        className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition border border-slate-700"
-                                    >
-                                        Vincular
-                                    </button>
-                                    {apiUrl && (
-                                        <button
-                                            type="button"
-                                            onClick={handleCopyShareLink}
-                                            className="bg-blue-900/40 hover:bg-blue-800/50 text-blue-300 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition border border-blue-700/40"
-                                        >
-                                            Copiar link
-                                        </button>
-                                    )}
-                                </div>
-                                {(() => {
-                                    const match = apiUrl?.match(/\/macros\/s\/([^/]+)\/exec/);
-                                    const id = match?.[1];
-                                    if (!id) return null;
-                                    return (
-                                        <div className="flex items-center gap-2 px-1 mt-2">
-                                            <span className="text-[9px] text-slate-500 uppercase tracking-widest">ID activo:</span>
-                                            <span className="font-mono text-[11px]">
-                                                <span className="text-blue-400 font-bold">{id.slice(0, 4)}</span>
-                                                <span className="text-slate-500">{id.slice(4, -4)}</span>
-                                                <span className="text-blue-400 font-bold">{id.slice(-4)}</span>
-                                            </span>
-                                        </div>
-                                    );
-                                })()}
-                                <p className="text-[9px] text-slate-500 leading-relaxed italic px-1 mt-1">Pegá la URL completa que termina en <span className="text-slate-400 font-mono">/exec</span>. Usá <span className="text-blue-400">Copiar link</span> para compartir la app — el receptor se conecta automáticamente sin configuración.</p>
-                                {urlMsg && (
-                                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold mt-2 ${urlMsg.type === 'ok' ? 'bg-emerald-500/10 border border-emerald-500/25 text-emerald-400' : 'bg-red-500/10 border border-red-500/25 text-red-400'}`}>
-                                        <span>{urlMsg.type === 'ok' ? '✓' : '✗'}</span>
-                                        <span>{urlMsg.text}</span>
-                                    </div>
-                                )}
-                            </div>
                         </div>
                     </div>
 
