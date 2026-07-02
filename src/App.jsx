@@ -127,6 +127,7 @@ const App = () => {
     const [logs, setLogs] = useState([]);
     const [showLogs, setShowLogs] = useState(false);
     const [duplicateWarning, setDuplicateWarning] = useState(null); // { table, count, rows, origen, periodo }
+    const [dateWarning, setDateWarning] = useState(null); // { dataMonth, dataPeriod, selectedPeriod }
 
     // Prefetch silencioso de todos los periodos visibles — se dispara una vez al iniciar
     const prefetchDone = useRef(false);
@@ -417,6 +418,30 @@ const App = () => {
     };
 
     const confirmUpload = () => {
+        if (!previewData || previewData.length === 0) return;
+
+        // Detectar fecha del primer registro
+        const firstRow = previewData[0];
+        const dataDate = firstRow.fecha || firstRow.fecha_periodo;
+        if (dataDate) {
+            const parts = dataDate.split('-');
+            const dataY = parts[0];
+            const dataM = parts[1];
+            if (dataY !== selectedYear || dataM !== selectedMonth) {
+                const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+                setDateWarning({
+                    dataLabel: `${meses[parseInt(dataM)]} ${dataY}`,
+                    selectedLabel: `${meses[parseInt(selectedMonth)]} ${selectedYear}`,
+                });
+                return;
+            }
+        }
+
+        checkDuplicatesAndUpload();
+    };
+
+    const confirmUploadOverrideDate = () => {
+        setDateWarning(null);
         checkDuplicatesAndUpload();
     };
 
@@ -875,6 +900,44 @@ const App = () => {
                                     className="w-full px-4 py-3 rounded-xl border border-[var(--border-mid)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] font-medium transition"
                                 >
                                     Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* DATE MISMATCH WARNING MODAL */}
+            {dateWarning && (
+                <div className="fixed inset-0 z-[110] flex justify-center items-center bg-black/80 backdrop-blur-sm p-4">
+                    <div className="bg-[var(--bg-card)] rounded-2xl shadow-2xl border border-amber-500/30 w-full max-w-md animate-fade-in">
+                        <div className="p-6 border-b border-amber-500/20 bg-amber-500/5">
+                            <div className="flex items-center gap-3">
+                                <span className="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg font-black ring-1 ring-amber-500/30">!</span>
+                                <div>
+                                    <h3 className="text-lg font-bold text-[var(--text-primary)]">Fecha no coincide con el periodo</h3>
+                                    <p className="text-sm text-amber-400 mt-1">
+                                        Los datos son de <strong>{dateWarning.dataLabel}</strong> pero el periodo seleccionado es <strong>{dateWarning.selectedLabel}</strong>.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-sm text-[var(--text-muted)] mb-6">
+                                Esto puede pasar si seleccionaste el mes incorrecto arriba, o si el archivo tiene una fecha distinta. Podes continuar igual o volver a corregir.
+                            </p>
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={confirmUploadOverrideDate}
+                                    className="w-full px-4 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold transition"
+                                >
+                                    Continuar de todas formas
+                                </button>
+                                <button
+                                    onClick={() => setDateWarning(null)}
+                                    className="w-full px-4 py-3 rounded-xl border border-[var(--border-mid)] text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] font-medium transition"
+                                >
+                                    Volver y corregir
                                 </button>
                             </div>
                         </div>
