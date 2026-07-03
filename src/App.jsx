@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useFinance } from './FinanceContext';
+import { useAuth } from './AuthContext';
 import { formatters as Utils } from './formatters';
 import { supabase } from './supabaseClient';
 
@@ -67,6 +68,7 @@ const App = () => {
         checkHash, prefetchVisiblePeriods, newDataAvailable, setNewDataAvailable,
         configData
     } = useFinance();
+    const { user, signOut } = useAuth();
 
     // Generar botones de periodos (últimos 9 meses)
     const periodButtons = useMemo(() => {
@@ -277,7 +279,7 @@ const App = () => {
                     action: origen,
                     count,
                     period: periodo,
-                    user: 'app',
+                    user: user?.email || 'app',
                 });
 
                 fetchData(true);
@@ -855,6 +857,23 @@ const App = () => {
                     {newDataAvailable && !loading && !isRefreshing && (
                         <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-slate-950 animate-pulse" />
                     )}
+                </div>
+
+                <div className="w-px h-6 bg-white/10 mx-2 hidden sm:block"></div>
+
+                <div className="flex items-center gap-2" title={user?.email}>
+                    <span className="hidden md:inline text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wide max-w-[140px] truncate">
+                        {user?.email}
+                    </span>
+                    <button
+                        onClick={signOut}
+                        title="Cerrar sesión"
+                        className="flex items-center justify-center w-9 h-9 rounded-xl transition-all border border-slate-700/30 text-slate-400 hover:bg-red-600 hover:text-white hover:border-red-500/40"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                        </svg>
+                    </button>
                 </div>
             </nav>
 

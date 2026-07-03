@@ -141,8 +141,8 @@ create index idx_empleados_periodo on public.empleados (fecha_periodo);
 create index idx_costos_fecha on public.costos_manuales (fecha);
 
 -- ============================================================
--- RLS: por ahora acceso abierto con anon key (app single-tenant)
--- Se puede restringir después con auth
+-- RLS: requiere sesion autenticada (Supabase Auth, cuentas individuales)
+-- Cerrado 2026-07-03 — hallazgo C2 de audit-legal-contable-2026-07.md
 -- ============================================================
 alter table public.ventas enable row level security;
 alter table public.compras enable row level security;
@@ -152,14 +152,17 @@ alter table public.categorias enable row level security;
 alter table public.config_negocio enable row level security;
 alter table public.ajustes_periodo enable row level security;
 
--- Policies: permitir todo al rol anon (single-tenant, sin auth por ahora)
-create policy "anon_all" on public.ventas for all using (true) with check (true);
-create policy "anon_all" on public.compras for all using (true) with check (true);
-create policy "anon_all" on public.empleados for all using (true) with check (true);
-create policy "anon_all" on public.costos_manuales for all using (true) with check (true);
-create policy "anon_all" on public.categorias for all using (true) with check (true);
-create policy "anon_all" on public.config_negocio for all using (true) with check (true);
-create policy "anon_all" on public.ajustes_periodo for all using (true) with check (true);
+-- Policies: solo el rol authenticated (anon queda sin acceso por default)
+create policy "authenticated_all" on public.ventas for all to authenticated using (true) with check (true);
+create policy "authenticated_all" on public.compras for all to authenticated using (true) with check (true);
+create policy "authenticated_all" on public.empleados for all to authenticated using (true) with check (true);
+create policy "authenticated_all" on public.costos_manuales for all to authenticated using (true) with check (true);
+create policy "authenticated_all" on public.categorias for all to authenticated using (true) with check (true);
+create policy "authenticated_all" on public.config_negocio for all to authenticated using (true) with check (true);
+create policy "authenticated_all" on public.ajustes_periodo for all to authenticated using (true) with check (true);
+
+-- audit_log no esta creada en este schema (se creo ad-hoc en Supabase), pero tambien
+-- necesita la misma policy — ver bloque SQL a correr manualmente en Supabase SQL Editor.
 
 -- Insertar fila singleton de config
 insert into public.config_negocio (id) values (1);
