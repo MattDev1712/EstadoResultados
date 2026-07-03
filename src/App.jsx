@@ -12,6 +12,7 @@ import VentasSistemaView from './VentasSistemaView';
 import GuideView from './GuideView';
 import ConfigView from './ConfigView';
 import AuditView from './AuditView';
+import UsersView from './UsersView';
 import CargaDatosView from './CargaDatosView'; // Este ya es correcto si CargaDatosView.jsx está en src/
 import { CardSkeleton, TableSkeleton } from './Skeleton';
 import MarginExpectationView from './MarginExpectationView';
@@ -33,6 +34,7 @@ const TAB_TITLES = {
     retenciones: 'Retenciones Impositivas',
     config: 'Ajustes del Sistema',
     audit: 'Registro de Cambios',
+    usuarios: 'Usuarios del Sistema',
     guia: 'Ayuda y Guía',
 };
 
@@ -743,6 +745,7 @@ const App = () => {
             case 'retenciones': return (loading && arcaData?.length === 0) ? <TableSkeleton /> : <RetentionsView />;
             case 'config': return <ConfigView />;
             case 'audit': return <AuditView />;
+            case 'usuarios': return <UsersView />;
             case 'guia': return <GuideView />;
             default: return <DashboardView />;
         }
@@ -831,6 +834,7 @@ const App = () => {
                     items={[
                         { id: 'audit', label: 'Registro de Cambios', icon: '📋' },
                         { id: 'config', label: 'Ajustes de Sistema', icon: '⚙️' },
+                        { id: 'usuarios', label: 'Usuarios', icon: '🔑' },
                         { id: 'guia', label: 'Guía de Ayuda', icon: '📖' },
                     ]}
                 />
