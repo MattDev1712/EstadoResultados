@@ -5,7 +5,27 @@ import { Parsers } from './parsers';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
-const FileCard = ({ title, type, parserMode, onDataReady, isLoading, defaultDate, alicuotaIva }) => {
+const HelpModal = ({ isOpen, onClose, title, body }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/40 backdrop-blur-md p-4" onClick={onClose}>
+            <div className="bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-card)] w-full max-w-md rounded-[2rem] shadow-[0_0_50px_rgba(0,0,0,0.6)] overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+                <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+                    <h3 className="text-lg font-bold text-[var(--text-primary)] tracking-tight flex items-center gap-3">
+                        <span className="w-7 h-7 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-black ring-1 ring-blue-500/30">?</span>
+                        {title}
+                    </h3>
+                    <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text-primary)] w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/5 active:scale-90 transition-all">✕</button>
+                </div>
+                <div className="p-6 overflow-y-auto scrollbar-hide text-sm text-slate-300 leading-relaxed whitespace-pre-line">
+                    {body}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const FileCard = ({ title, type, parserMode, onDataReady, isLoading, defaultDate, alicuotaIva, help }) => {
     const [dragActive, setDragActive] = useState(false);
     const [fileName, setFileName] = useState('');
     const [stats, setStats] = useState(null);
@@ -13,6 +33,7 @@ const FileCard = ({ title, type, parserMode, onDataReady, isLoading, defaultDate
     const [simpleTotal, setSimpleTotal] = useState('');
     const [simpleCantidad, setSimpleCantidad] = useState('');
     const [simplePctNegro, setSimplePctNegro] = useState('0');
+    const [showHelp, setShowHelp] = useState(false);
 
     const handleFiles = async (files) => {
         if (!files || files.length === 0) return;
@@ -136,7 +157,16 @@ const FileCard = ({ title, type, parserMode, onDataReady, isLoading, defaultDate
             onDrop={handleDrop}
         >
             <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-lg text-slate-200">{title}</h3>
+                <div className="flex items-center gap-2 min-w-0">
+                    <h3 className="font-bold text-lg text-slate-200 truncate">{title}</h3>
+                    {help && (
+                        <button
+                            onClick={() => setShowHelp(true)}
+                            title="¿Qué es este archivo?"
+                            className="w-5 h-5 rounded-full border border-slate-600 text-slate-400 hover:text-blue-400 hover:border-blue-500/50 hover:bg-slate-800/50 flex items-center justify-center text-[10px] font-bold transition-all flex-shrink-0"
+                        >?</button>
+                    )}
+                </div>
                 {parserMode === 'sueldos' ? (
                     <div className="flex rounded overflow-hidden border border-slate-600 text-xs font-semibold">
                         <button
@@ -252,6 +282,9 @@ const FileCard = ({ title, type, parserMode, onDataReady, isLoading, defaultDate
                         Seleccionar Archivo
                     </label>
                 </>
+            )}
+            {help && (
+                <HelpModal isOpen={showHelp} onClose={() => setShowHelp(false)} title={help.title || '¿Qué es este archivo?'} body={help.body} />
             )}
         </div>
     );
