@@ -400,8 +400,8 @@ const DashboardView = () => {
         if (!element) return;
         setIsExporting(true);
         try {
-            const canvas = await html2canvas(element, { // Changed background color for light theme PDF export
-                scale: 2, backgroundColor: '#F2F4F7', logging: false, useCORS: true
+            const canvas = await html2canvas(element, {
+                scale: 2, backgroundColor: isLight ? '#F2F4F7' : '#070c18', logging: false, useCORS: true
             });
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });

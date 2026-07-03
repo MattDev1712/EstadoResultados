@@ -118,9 +118,7 @@ const computeDashboard = (ventas, compras, empleados, costosManuales, categorias
     const estructural = estructural_manual + total_compras_estructural;
     const total_egresos = laboral + provision_sac + provision_cargas + estructural + comisiones + total_compras;
     const utilidad_neta = ventas_netas - total_egresos;
-    const break_even_mensual = ventas_netas > 0 && utilidad_neta !== 0
-        ? (total_egresos / ventas_netas) * ventas_netas
-        : total_egresos;
+    const break_even_mensual = total_egresos; // punto de equilibrio simplificado: ventas = egresos totales
 
     // --- Mix pagos ---
     let efvo = 0, tarj = 0, otros = 0;
