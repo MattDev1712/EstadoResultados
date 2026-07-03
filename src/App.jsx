@@ -266,7 +266,26 @@ const App = () => {
                 return;
             }
 
-            const { error, data: inserted } = await supabase.from(table).insert(rows).select();
+            let error, inserted;
+            if (table === 'empleados') {
+                // negro se encripta server-side — insert_empleado() es el unico camino de escritura
+                const results = await Promise.all(rows.map(r => supabase.rpc('insert_empleado', {
+                    p_fecha_periodo: r.fecha_periodo,
+                    p_nombre: r.nombre,
+                    p_tarea: r.tarea,
+                    p_dni: r.dni,
+                    p_legajo: r.legajo,
+                    p_jornada: r.jornada,
+                    p_total_hs: r.total_hs,
+                    p_recibo: r.recibo,
+                    p_negro: r.negro,
+                    p_costo_total: r.costo_total,
+                })));
+                error = results.find(r => r.error)?.error || null;
+                inserted = error ? null : results.map(r => r.data);
+            } else {
+                ({ error, data: inserted } = await supabase.from(table).insert(rows).select());
+            }
 
             if (error) {
                 addLog(`Error: ${error.message}`);

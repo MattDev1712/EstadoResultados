@@ -357,9 +357,14 @@ const DashboardView = () => {
         mixPagos: data?.mix_pagos || {}
     }), [data]);
 
-    // Cálculo de Posición Fiscal Estimada (no contempla arrastre, percepciones ni alícuotas diferenciadas)
-    const ivaPosicionTeorica = Utils.num(kpis.iva_posicion);
-    const ivaPosicionEstimada = ivaPosicionTeorica - Math.abs(Utils.num(egresos.retenciones));
+    // Cálculo de Posición Fiscal Estimada (arrastra saldo a favor de los meses cargados en el sistema;
+    // no contempla periodos anteriores a la primera carga, percepciones, ni alícuotas diferenciadas)
+    const ivaPosicionTeorica = Utils.num(kpis.iva_posicion); // bruta del mes, sin arrastre
+    const ivaSaldoFavorAnterior = Utils.num(kpis.iva_saldo_favor_anterior);
+    const ivaPosicionConArrastre = kpis.iva_posicion_neta !== undefined
+        ? Utils.num(kpis.iva_posicion_neta)
+        : ivaPosicionTeorica;
+    const ivaPosicionEstimada = ivaPosicionConArrastre - Math.abs(Utils.num(egresos.retenciones));
 
     const getAdj = (val) => {
         const n = Utils.num(val);
@@ -653,7 +658,11 @@ const DashboardView = () => {
             breakdown: [
                 { label: 'IVA Débito Fiscal (ventas)', val: Utils.num(kpis.iva_debito), color: 'text-emerald-400' },
                 { label: 'IVA Crédito Fiscal (compras con factura)', val: -Utils.num(kpis.iva_credito || 0), color: 'text-rose-400' },
-                { label: 'Posición neta del mes', val: Utils.num(kpis.iva_posicion), total: true }
+                { label: 'Posición bruta del mes (sin arrastre)', val: Utils.num(kpis.iva_posicion), total: ivaSaldoFavorAnterior === 0 },
+                ...(ivaSaldoFavorAnterior > 0 ? [
+                    { label: 'Saldo a favor arrastrado', val: -ivaSaldoFavorAnterior, color: 'text-emerald-400' },
+                    { label: 'Posición final estimada', val: ivaPosicionConArrastre, total: true }
+                ] : [])
             ]
         },
         'ventas': {
@@ -884,8 +893,14 @@ const DashboardView = () => {
                                         <span style={{ fontSize: 10, color: 'var(--text-dim)', flex: 1 }}>Retenciones Bancos/Tarj.</span>
                                         <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981', flexShrink: 0, wordBreak: 'break-word', textAlign: 'right' }}>− {Utils.fmt(getAdj(Math.abs(egresos.retenciones)))}</span>
                                     </div>
+                                    {ivaSaldoFavorAnterior > 0 && (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, textAlign: 'left' }}>
+                                            <span style={{ fontSize: 10, color: 'var(--text-dim)', flex: 1 }}>Saldo a favor arrastrado</span>
+                                            <span style={{ fontSize: 10, fontWeight: 700, color: '#10b981', flexShrink: 0, wordBreak: 'break-word', textAlign: 'right' }}>− {Utils.fmt(getAdj(ivaSaldoFavorAnterior))}</span>
+                                        </div>
+                                    )}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 6, marginTop: 2, textAlign: 'left' }}>
-                                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', flex: 1 }}>Teórico (Ventas-Compras)</span>
+                                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', flex: 1 }}>Bruto del mes (sin arrastre)</span>
                                         <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', flexShrink: 0, wordBreak: 'break-word', textAlign: 'right' }}>{Utils.fmt(getAdj(ivaPosicionTeorica))}</span>
                                     </div>
                                 </div>
@@ -893,7 +908,7 @@ const DashboardView = () => {
                         </div>
 
                         <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 12, marginBottom: 6 }}>Estimación orientativa considerando pagos a cuenta del mes.</p>
-                        <p style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 20, lineHeight: 1.5, fontStyle: 'italic' }}>* No contempla saldo a favor de meses anteriores, percepciones, ni alícuotas diferenciadas (10.5%, 27%). Consultá con tu contador para la liquidación definitiva.</p>
+                        <p style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 20, lineHeight: 1.5, fontStyle: 'italic' }}>* Arrastra saldo a favor de los meses ya cargados en el sistema. No contempla períodos anteriores a tu primera carga, percepciones, ni alícuotas diferenciadas (10.5%, 27%). Consultá con tu contador para la liquidación definitiva.</p>
 
                         {/* Dos columnas: IVA cobrado | IVA pagado */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

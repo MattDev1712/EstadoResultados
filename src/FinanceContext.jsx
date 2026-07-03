@@ -255,7 +255,7 @@ export const FinanceProvider = ({ children }) => {
         ] = await Promise.all([
             supabase.from('ventas').select('*').gte('fecha', start).lte('fecha', end),
             supabase.from('compras').select('*').gte('fecha', start).lte('fecha', end),
-            supabase.from('empleados').select('*').gte('fecha_periodo', start).lte('fecha_periodo', end),
+            supabase.from('empleados_dec').select('*').gte('fecha_periodo', start).lte('fecha_periodo', end),
             supabase.from('costos_manuales').select('*').gte('fecha', start).lte('fecha', end),
             supabase.from('categorias').select('*'),
             supabase.from('ajustes_periodo').select('*').eq('periodo', periodoStr).maybeSingle(),
@@ -342,10 +342,11 @@ export const FinanceProvider = ({ children }) => {
         return results;
     }, []);
 
-    // ── Computar historial para graficos ─────────────────────────────────────────
+    // ── Computar historial para graficos (y arrastre de saldo a favor de IVA) ────
     const computeHistorial = useCallback(async () => {
-        const periods = getVisiblePeriods();
+        const periods = getVisiblePeriods(); // ordenados de mas viejo a mas nuevo
         const historial = {};
+        let saldoFavorArrastrado = 0; // saldo a favor que entra a cada periodo, acumulado desde el mas viejo visible
 
         for (const { y, m } of periods) {
             try {
@@ -356,6 +357,8 @@ export const FinanceProvider = ({ children }) => {
                 const empCount = (data.emp || []).length;
                 const laboral = data.dash.egresos.laboral;
 
+                const posicionNeta = kpis.iva_posicion - saldoFavorArrastrado;
+
                 historial[`${y}-${m}`] = {
                     v: kpis.ventas_netas_reales,
                     ticket: kpis.cant_operaciones > 0 ? kpis.venta_bruta / kpis.cant_operaciones : 0,
@@ -363,7 +366,13 @@ export const FinanceProvider = ({ children }) => {
                     resultado_mgn: kpis.utilidad_neta,
                     ops: kpis.cant_operaciones,
                     emp: empCount,
+                    iva_saldo_favor_entrante: saldoFavorArrastrado,
+                    iva_posicion_neta: posicionNeta,
                 };
+
+                // Si este mes queda con saldo a favor (posicion neta negativa), se arrastra al que sigue.
+                // Si queda a pagar, se asume pagado: no hay arrastre hacia el proximo mes.
+                saldoFavorArrastrado = posicionNeta < 0 ? -posicionNeta : 0;
             } catch { /* silencioso */ }
         }
 
@@ -393,7 +402,20 @@ export const FinanceProvider = ({ children }) => {
 
             // Computar historial y metadata en background
             computeHistorial().then(historial => {
-                setDashData(prev => prev ? { ...prev, historial } : prev);
+                setDashData(prev => {
+                    if (!prev) return prev;
+                    const periodKey = `${selectedYear}-${selectedMonth}`;
+                    const propio = historial[periodKey];
+                    return {
+                        ...prev,
+                        historial,
+                        kpis: propio ? {
+                            ...prev.kpis,
+                            iva_saldo_favor_anterior: propio.iva_saldo_favor_entrante,
+                            iva_posicion_neta: propio.iva_posicion_neta,
+                        } : prev.kpis,
+                    };
+                });
             });
             computePeriodsMetadata().then(periods => {
                 setAvailablePeriods(periods);

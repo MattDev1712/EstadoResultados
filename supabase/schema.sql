@@ -77,7 +77,7 @@ create table public.empleados (
   jornada text,
   total_hs numeric default 0,
   recibo numeric default 0,
-  negro numeric default 0,
+  negro_enc bytea, -- sueldos en negro, encriptado. Ver seccion ENCRIPTACION mas abajo.
   costo_total numeric default 0,
   created_at timestamptz default now()
 );
@@ -141,6 +141,67 @@ create index idx_empleados_periodo on public.empleados (fecha_periodo);
 create index idx_costos_fecha on public.costos_manuales (fecha);
 
 -- ============================================================
+-- ENCRIPTACION: sueldos en negro (empleados.negro_enc)
+-- Cierra hallazgo H4 de audit-legal-contable-2026-07.md — la clave vive solo
+-- en private.keys (schema no expuesto por PostgREST, sin grants a anon ni
+-- authenticated). El insert pasa por insert_empleado() (SECURITY DEFINER,
+-- corre como dueno de la tabla) y la lectura por la vista empleados_dec.
+-- Ni la clave ni el texto plano llegan nunca al bundle JS del cliente.
+-- ============================================================
+create extension if not exists pgcrypto;
+
+create schema if not exists private;
+revoke all on schema private from public;
+
+create table private.keys (
+  name  text primary key,
+  value text not null
+);
+revoke all on private.keys from public;
+
+insert into private.keys (name, value) values ('negro_key', encode(extensions.gen_random_bytes(32), 'hex'));
+
+create or replace function public.insert_empleado(
+  p_fecha_periodo date,
+  p_nombre        text,
+  p_tarea         text,
+  p_dni           text,
+  p_legajo        text,
+  p_jornada       text,
+  p_total_hs      numeric,
+  p_recibo        numeric,
+  p_negro         numeric,
+  p_costo_total   numeric
+) returns bigint
+language plpgsql
+security definer
+set search_path = public, private, extensions
+as $$
+declare
+  v_id  bigint;
+  v_key text;
+begin
+  select value into v_key from private.keys where name = 'negro_key';
+
+  insert into public.empleados
+    (fecha_periodo, nombre, tarea, dni, legajo, jornada, total_hs, recibo, negro_enc, costo_total)
+  values
+    (p_fecha_periodo, p_nombre, p_tarea, p_dni, p_legajo, p_jornada, p_total_hs, p_recibo,
+     extensions.pgp_sym_encrypt(coalesce(p_negro, 0)::text, v_key), p_costo_total)
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+
+create or replace view public.empleados_dec as
+select
+  id, fecha_periodo, nombre, tarea, dni, legajo, jornada, total_hs, recibo,
+  extensions.pgp_sym_decrypt(negro_enc, (select value from private.keys where name = 'negro_key'))::numeric as negro,
+  costo_total, created_at
+from public.empleados;
+
+-- ============================================================
 -- RLS: requiere sesion autenticada (Supabase Auth, cuentas individuales)
 -- Cerrado 2026-07-03 — hallazgo C2 de audit-legal-contable-2026-07.md
 -- ============================================================
@@ -169,12 +230,21 @@ create policy "authenticated_all" on public.ajustes_periodo for all to authentic
 -- denied for table X". Aplicado en las 8 tablas (incluye audit_log).
 grant select, insert, update, delete on public.ventas          to authenticated;
 grant select, insert, update, delete on public.compras         to authenticated;
-grant select, insert, update, delete on public.empleados       to authenticated;
+-- empleados: sin insert/update directo — negro_enc solo se escribe encriptado
+-- via insert_empleado(). select y delete se mantienen (conteos y borrado de periodo).
+grant select, delete on public.empleados                       to authenticated;
 grant select, insert, update, delete on public.costos_manuales to authenticated;
 grant select, insert, update, delete on public.categorias      to authenticated;
 grant select, insert, update, delete on public.config_negocio  to authenticated;
 grant select, insert, update, delete on public.ajustes_periodo to authenticated;
 grant select, insert, update, delete on public.audit_log       to authenticated;
+
+-- Encriptacion de sueldos en negro: unico camino de escritura/lectura del monto real.
+revoke all on function public.insert_empleado from public;
+grant execute on function public.insert_empleado(date, text, text, text, text, text, numeric, numeric, numeric, numeric) to authenticated;
+
+revoke all on public.empleados_dec from public;
+grant select on public.empleados_dec to authenticated;
 
 -- Insertar fila singleton de config
 insert into public.config_negocio (id) values (1);
