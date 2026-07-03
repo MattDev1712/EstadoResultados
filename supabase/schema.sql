@@ -246,5 +246,19 @@ grant execute on function public.insert_empleado(date, text, text, text, text, t
 revoke all on public.empleados_dec from public;
 grant select on public.empleados_dec to authenticated;
 
+-- Hardening: anon no necesita ningun grant de tabla — RLS ya lo bloquea, pero
+-- si alguna vez se deshabilita RLS por error, sin esto anon recupera acceso
+-- total. Defensa en profundidad (no habia exploit activo antes de esto).
+revoke all on public.ventas          from anon;
+revoke all on public.compras         from anon;
+revoke all on public.empleados       from anon;
+revoke all on public.costos_manuales from anon;
+revoke all on public.categorias      from anon;
+revoke all on public.config_negocio  from anon;
+revoke all on public.ajustes_periodo from anon;
+revoke all on public.audit_log       from anon;
+revoke all on public.empleados_dec   from anon;
+revoke all on function public.insert_empleado(date, text, text, text, text, text, numeric, numeric, numeric, numeric) from anon;
+
 -- Insertar fila singleton de config
 insert into public.config_negocio (id) values (1);
