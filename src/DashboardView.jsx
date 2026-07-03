@@ -306,7 +306,7 @@ const DashboardView = () => {
         loading, error, viewMode, setViewMode, isRefreshing,
         localAjustes, setLocalAjustes, updateConfig,
         selectedYear, selectedMonth, cargasPct,
-        configData
+        configData, availablePeriods
     } = useFinance();
     const isLight = useTheme();
     const [infoModalKey, setInfoModalKey] = useState(null);
@@ -365,6 +365,21 @@ const DashboardView = () => {
         ? Utils.num(kpis.iva_posicion_neta)
         : ivaPosicionTeorica;
     const ivaPosicionEstimada = ivaPosicionConArrastre - Math.abs(Utils.num(egresos.retenciones));
+
+    // Completitud del período (reusa el score 0-4 ya calculado para el selector de períodos)
+    const periodMeta = useMemo(() =>
+        (availablePeriods || []).find(p => p.id === `${selectedYear}-${selectedMonth}`),
+        [availablePeriods, selectedYear, selectedMonth]
+    );
+    const faltantes = useMemo(() => {
+        if (!periodMeta) return [];
+        return [
+            [!periodMeta.hasVentas, 'Ventas'],
+            [!periodMeta.hasCompras, 'ARCA'],
+            [!periodMeta.hasEmp, 'Sueldos'],
+            [!periodMeta.hasCostos, 'Costos manuales'],
+        ].filter(([missing]) => missing).map(([, label]) => label);
+    }, [periodMeta]);
 
     const getAdj = (val) => {
         const n = Utils.num(val);
@@ -665,6 +680,10 @@ const DashboardView = () => {
                 ] : [])
             ]
         },
+        'iva_limitaciones': {
+            title: 'Limitaciones de esta estimación',
+            explanation: 'Esta posición de IVA es una estimación orientativa, no un cálculo de DDJJ. No reemplaza la liquidación de tu contador. Cuatro cosas que no contempla:\n\n1. Períodos anteriores a tu primera carga en el sistema — el arrastre de saldo a favor solo ve dentro de los meses ya cargados acá.\n\n2. Percepciones de IVA (bancarias, de proveedores, aduaneras) — no se registran en esta herramienta.\n\n3. Alícuotas diferenciadas (10.5%, 27%) — el cálculo usa la alícuota general configurada, no discrimina por tipo de producto o servicio.\n\n4. IIBB (Ingresos Brutos) y otras retenciones/percepciones provinciales — quedan fuera del alcance, son un impuesto distinto al IVA.',
+        },
         'ventas': {
             title: 'Ventas Netas',
             explanation: 'Es el ingreso real del local. Se calcula tomando el Total Bruto del sistema de ventas, restándole el IVA (que es del Estado) y las anulaciones. Es la base sobre la cual medimos la rentabilidad.',
@@ -824,6 +843,20 @@ const DashboardView = () => {
                     </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {faltantes.length > 0 && (
+                        <span
+                            title="Categorías sin datos cargados para este período"
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                background: 'rgba(245,158,11,0.1)', color: '#f59e0b',
+                                border: '1px solid rgba(245,158,11,0.3)',
+                                padding: '8px 12px', borderRadius: 12,
+                                fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em'
+                            }}
+                        >
+                            Faltan: {faltantes.join(', ')}
+                        </span>
+                    )}
                     <AlertsPanel
                         kpis={kpis}
                         egresos={{ ...egresos, laboral: laboralEfectivo }}
@@ -908,7 +941,19 @@ const DashboardView = () => {
                         </div>
 
                         <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 12, marginBottom: 6 }}>Estimación orientativa considerando pagos a cuenta del mes.</p>
-                        <p style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 20, lineHeight: 1.5, fontStyle: 'italic' }}>* Arrastra saldo a favor de los meses ya cargados en el sistema. No contempla períodos anteriores a tu primera carga, percepciones, ni alícuotas diferenciadas (10.5%, 27%). Consultá con tu contador para la liquidación definitiva.</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+                            <p style={{ fontSize: 10, color: 'var(--text-faint)', lineHeight: 1.5, fontStyle: 'italic', margin: 0 }}>* Arrastra saldo a favor de los meses ya cargados en el sistema. No contempla períodos anteriores a tu primera carga, percepciones, ni alícuotas diferenciadas (10.5%, 27%). Consultá con tu contador para la liquidación definitiva.</p>
+                            <button
+                                onClick={() => setInfoModalKey('iva_limitaciones')}
+                                style={{
+                                    fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.03em',
+                                    color: '#3b82f6', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)',
+                                    borderRadius: 8, padding: '4px 10px', cursor: 'pointer', flexShrink: 0
+                                }}
+                            >
+                                Limitaciones
+                            </button>
+                        </div>
 
                         {/* Dos columnas: IVA cobrado | IVA pagado */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

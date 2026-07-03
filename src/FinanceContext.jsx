@@ -336,6 +336,7 @@ export const FinanceProvider = ({ children }) => {
                 id: periodoId,
                 isComplete: score === 4,
                 score,
+                hasVentas, hasCompras, hasEmp, hasCostos,
             });
         }
 

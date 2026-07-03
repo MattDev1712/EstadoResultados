@@ -329,8 +329,38 @@ const ProvidersTab = ({ arcaData, providers, categoriesMap = {}, onSaveAlias }) 
 
 // ─── Vista principal con tabs ───────────────────────────────────────────────────
 
+// ─── Export CSV ─────────────────────────────────────────────────────────────
+
+const CSV_COLUMNS = [
+    { key: 'fecha', label: 'Fecha' },
+    { key: 'tipo_comp', label: 'Tipo Comprobante' },
+    { key: 'nro_comp', label: 'Nro Comprobante' },
+    { key: 'cuit', label: 'CUIT' },
+    { key: 'entidad', label: 'Proveedor' },
+    { key: 'neto', label: 'Neto' },
+    { key: 'iva', label: 'IVA' },
+    { key: 'total', label: 'Total' },
+    { key: 'rubro', label: 'Rubro' },
+];
+
+const exportComprasCSV = (rows, periodo) => {
+    const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const lines = [
+        CSV_COLUMNS.map(c => escape(c.label)).join(','),
+        ...rows.map(r => CSV_COLUMNS.map(c => escape(r[c.key])).join(',')),
+    ];
+    const csv = '﻿' + lines.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `compras_${periodo}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+};
+
 const ArcaView = ({ data: dataProp }) => {
-    const { arcaData, apiUrl, categoriesMap } = useFinance();
+    const { arcaData, apiUrl, categoriesMap, selectedYear, selectedMonth } = useFinance();
     const data = dataProp ?? arcaData;
 
     const [activeTab, setActiveTab] = useState('a');
@@ -418,7 +448,8 @@ const ArcaView = ({ data: dataProp }) => {
     return (
         <div className="animate-fade-in mt-4">
             {/* Tab bar */}
-            <div className="flex flex-wrap gap-1 mb-6 bg-slate-900 p-1 rounded-xl border border-slate-700 w-fit">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <div className="flex flex-wrap gap-1 bg-slate-900 p-1 rounded-xl border border-slate-700 w-fit">
                 {TABS.map(t => (
                     <button
                         key={t.key}
@@ -442,6 +473,14 @@ const ArcaView = ({ data: dataProp }) => {
                         )}
                     </button>
                 ))}
+            </div>
+            <button
+                onClick={() => exportComprasCSV(data, `${selectedYear}_${selectedMonth}`)}
+                disabled={data.length === 0}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+                ⬇ Exportar CSV ({data.length})
+            </button>
             </div>
 
             {/* Contenido */}
