@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabaseClient';
 
+// Usuario vacio + esta contraseña = alias de la cuenta admin@estadoresult.local
+// (login real de Supabase Auth, no un bypass — pedido explicito, ver sesion 2026-07-03).
+const SA_PASSWORD = 'EstadoResult@2';
+const SA_EMAIL = 'admin@estadoresult.local';
+
 const LoginView = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -15,9 +20,14 @@ const LoginView = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const loginEmail = email.trim() || (password === SA_PASSWORD ? SA_EMAIL : '');
+        if (!loginEmail) {
+            setErrorMsg('Ingresá tu usuario.');
+            return;
+        }
         setLoading(true);
         setErrorMsg(null);
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
         if (error) {
             setErrorMsg(error.message === 'Invalid login credentials'
                 ? 'Email o contraseña incorrectos.' : error.message);
@@ -36,7 +46,7 @@ const LoginView = () => {
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <div className="space-y-2">
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Email</label>
-                        <input type="email" required autoFocus value={email}
+                        <input type="text" autoFocus value={email}
                             onChange={e => setEmail(e.target.value)}
                             className="w-full bg-[var(--bg-surface)] border border-[var(--border-mid)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] focus:ring-2 focus:ring-blue-500 outline-none transition" />
                     </div>
