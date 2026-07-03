@@ -416,6 +416,18 @@ const DashboardView = () => {
     const ventasNetas = getAdj(kpis.ventas_netas_reales);
     const margen = ventasNetas !== 0 ? ((utilidad / ventasNetas) * 100).toFixed(1) : '0.0';
 
+    // Mes anterior para comparativas
+    const prevPeriod = useMemo(() => {
+        const d = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 2, 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }, [selectedYear, selectedMonth]);
+    const prev = historial[prevPeriod];
+
+    const pctDelta = (current, previous) => {
+        if (!previous || previous === 0) return null;
+        return ((current - previous) / Math.abs(previous) * 100).toFixed(1);
+    };
+
     const laboralEfectivo = Utils.num(egresos.laboral) > 0
         ? Utils.num(egresos.laboral)
         : Utils.arr(empData).reduce((acc, emp) => acc + (Utils.num(emp.costo_total) || Utils.num(emp.recibo) + Utils.num(emp.negro)), 0);
@@ -832,6 +844,24 @@ const DashboardView = () => {
                         te {utilidad >= 0 ? 'quedaron' : 'faltaron'} <strong style={{ color: utilidad >= 0 ? (isLight ? '#059669' : '#4ade80') : (isLight ? '#dc2626' : '#f87171') }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : '$'}{Utils.fmt(Math.abs(utilidad))}</strong>.
                         {' '}Margen operativo: <strong style={{ color: +margen > 15 ? '#10b981' : +margen > 5 ? '#f59e0b' : '#f43f5e' }}>{margen}%</strong>.
                     </p>
+                    {prev && prev.v > 0 && (
+                        <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
+                            {[
+                                { label: 'Ventas', delta: pctDelta(ventasNetas, getAdj(prev.v)) },
+                                { label: 'Ticket', delta: pctDelta(getAdj(kpis.venta_bruta) / (Utils.num(kpis.cant_operaciones) || 1), getAdj(prev.ticket)) },
+                                { label: 'Resultado', delta: pctDelta(utilidad, getAdj(prev.resultado_mgn)) },
+                                { label: 'Operaciones', delta: pctDelta(Utils.num(kpis.cant_operaciones), prev.ops) },
+                            ].filter(d => d.delta !== null).map(d => (
+                                <span key={d.label} style={{ fontSize: 11, color: isLight ? '#6B7A90' : '#64748b' }}>
+                                    {d.label}{' '}
+                                    <strong style={{ color: +d.delta > 0 ? '#10b981' : +d.delta < 0 ? '#f43f5e' : (isLight ? '#6B7A90' : '#64748b') }}>
+                                        {+d.delta > 0 ? '+' : ''}{d.delta}%
+                                    </strong>
+                                    {' '}vs mes ant.
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* ── IVA DEL MES ─────────────────────────────────── */}
