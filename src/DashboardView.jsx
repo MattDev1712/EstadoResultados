@@ -131,6 +131,70 @@ const WaterfallChart = ({ base, expenses, prefix }) => {
     return <div style={{ height: 260 }}><canvas ref={canvasRef}></canvas></div>;
 };
 
+// --- LEDGER: agrupa un breakdown en "Suman (+)" / "Restan (−)" + barra de total ---
+// Cada fila normal se clasifica por el signo de su val. Una fila con total:true
+// cierra una etapa (permite ledgers en varias etapas, ej. IVA con arrastre).
+const LedgerGroup = ({ label, rows, tone }) => {
+    if (!rows.length) return null;
+    const isSuma = tone === 'suma';
+    return (
+        <div className={`mb-2.5 rounded-2xl overflow-hidden border ${isSuma ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/[0.04]'}`}>
+            <p className={`text-[9px] font-black uppercase tracking-[0.15em] px-5 pt-2.5 pb-1.5 ${isSuma ? 'text-emerald-400' : 'text-rose-400'}`}>{label}</p>
+            {rows.map((row, i) => (
+                <div key={i} className="flex justify-between items-start gap-3 px-5 py-1.5" style={{ paddingBottom: i === rows.length - 1 ? 12 : 6 }}>
+                    <span className="text-xs text-[var(--text-muted)] flex-1">{row.label}</span>
+                    <span className={`text-sm font-bold font-mono flex-shrink-0 text-right ${isSuma ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {isSuma ? '' : '− '}{Utils.fmt(Math.abs(Utils.num(row.val)))}
+                    </span>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+const LedgerTotalBar = ({ row }) => (
+    <div className="flex justify-between items-center gap-3 px-5 py-3.5 mb-4 rounded-2xl bg-white/5 border border-white/10">
+        <span className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">= {row.label}</span>
+        <span className={`text-base font-mono tracking-tighter font-black ${row.color || 'text-[var(--text-primary)]'}`}>{Utils.fmt(row.val)}</span>
+    </div>
+);
+
+const LedgerBreakdown = ({ breakdown }) => {
+    if (!breakdown || breakdown.length === 0) return null;
+
+    const stages = [];
+    let current = { suma: [], resta: [] };
+    breakdown.forEach(row => {
+        if (row.total) {
+            stages.push({ ...current, totalRow: row });
+            current = { suma: [], resta: [] };
+        } else if (Utils.num(row.val) < 0) {
+            current.resta.push(row);
+        } else {
+            current.suma.push(row);
+        }
+    });
+    const trailing = (current.suma.length > 0 || current.resta.length > 0) ? current : null;
+
+    return (
+        <div>
+            {stages.map((stage, i) => (
+                <div key={i}>
+                    <LedgerGroup label="Suman (+)" rows={stage.suma} tone="suma" />
+                    <LedgerGroup label="Restan (−)" rows={stage.resta} tone="resta" />
+                    <LedgerTotalBar row={stage.totalRow} />
+                </div>
+            ))}
+            {trailing && (
+                <>
+                    <LedgerGroup label="Suman (+)" rows={trailing.suma} tone="suma" />
+                    <LedgerGroup label="Restan (−)" rows={trailing.resta} tone="resta" />
+                </>
+            )}
+        </div>
+    );
+};
+
 // --- MODAL DE INFORMACIÓN ---
 const InfoModal = ({ isOpen, onClose, title, explanation, breakdown }) => {
     if (!isOpen) return null;
@@ -147,19 +211,12 @@ const InfoModal = ({ isOpen, onClose, title, explanation, breakdown }) => {
                 <div className="p-8 overflow-y-auto scrollbar-hide">
                     <div className="mb-8">
                         <p className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] mb-3">Explicación Simple</p>
-                        <p className="text-base text-slate-300 leading-relaxed font-medium">{explanation}</p>
+                        <p className="text-base text-slate-300 leading-relaxed font-medium whitespace-pre-line">{explanation}</p>
                     </div>
                     {breakdown && breakdown.length > 0 && (
                         <div>
-                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4">Desglose de Datos</p>
-                            <div className="bg-[var(--bg-page)]/50 rounded-3xl border border-white/5 overflow-hidden shadow-inner">
-                                {breakdown.map((row, i) => (
-                                    <div key={i} className={`flex justify-between items-center px-6 py-4 ${i < breakdown.length - 1 ? 'border-b border-white/5' : ''} ${row.total ? 'bg-white/5 font-bold' : ''}`}>
-                                        <span className={`text-xs uppercase tracking-wider ${row.total ? 'text-[var(--text-primary)] font-black' : 'text-[var(--text-muted)]'}`}>{row.label}</span>
-                                        <span className={`text-base font-mono tracking-tighter ${row.color || 'text-[var(--text-secondary)]'} ${row.total ? 'text-[var(--text-primary)]' : ''}`}>{Utils.fmt(row.val)}</span>
-                                    </div>
-                                ))}
-                            </div>
+                            <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] mb-4">La Cuenta, Paso a Paso</p>
+                            <LedgerBreakdown breakdown={breakdown} />
                         </div>
                     )}
                 </div>
@@ -657,25 +714,31 @@ const DashboardView = () => {
         </div>
     );
 
+    // Helper: nota de "top 10" cuando la lista de proveedores viene truncada
+    const truncNote = (key) => {
+        const n = proveedoresBreakdownData[key]?.length || 0;
+        return n > 10 ? `\n\n(Te mostramos los 10 proveedores más grandes de ${n} en total — el total de abajo sí suma a todos, no solo a los que ves en la lista.)` : '';
+    };
+
     const infoData = {
         'resultado': {
             title: 'Resultado del Período (Interactivo)',
-            explanation: 'Muestra un estimado del margen sobre el dinero facturado (Neto de Factura A y B Electrónica + Factura B Manual). Puedes ir descontando diferentes egresos para ver el resultado operativo.',
+            explanation: 'Es la plata que te queda en el bolsillo después de pagar todo. Arrancás con lo que facturaste (sin contar el IVA, que no es tuyo) y le vas restando cada gasto que tildes en la grilla de abajo. Lo que sobra al final es tu ganancia real del mes — o tu pérdida, si el número da negativo.',
             breakdown: [
                 { label: 'Ingresos Facturados (Base)', val: baseDineroFacturado, color: 'text-emerald-400' },
-                { label: 'Egresos Descontados', val: -(baseDineroFacturado - resultadoAjustado), color: 'text-rose-400' },
+                ...expensesToSubtract.filter(exp => activeExpenses[exp.key]).map(exp => ({ label: exp.label, val: -exp.value })),
                 { label: 'Resultado del Mes', val: resultadoAjustado, total: true, color: resultadoAjustadoPositivo ? 'text-emerald-400' : 'text-rose-400' }
             ]
         },
         'iva': {
             title: 'Tu IVA del mes',
-            explanation: `Cada vez que vendés, cobrás IVA (${(alicuotaIva * 100).toFixed(1).replace(/\.0$/, '')}%) que le pertenece al Estado. Cada vez que comprás con factura, pagás IVA que podés descontar. La diferencia es lo que le debés (o te debe) AFIP.\n\nSi el número es positivo → tenés que pagar ese monto a AFIP.\nSi es negativo → tenés saldo a favor (AFIP te "debe" a vos).`,
+            explanation: `El IVA no es plata tuya: es un impuesto que el Estado te pide que cobres por él y después se lo entregues. Cada vez que vendés, cobrás de más un ${(alicuotaIva * 100).toFixed(1).replace(/\.0$/, '')}% (se llama "débito fiscal") que le pertenece a AFIP. Cada vez que comprás con factura, vos también pagás ese IVA — y ese lo podés descontar de lo que debés (se llama "crédito fiscal"). La resta entre lo que cobraste y lo que pagaste es lo que realmente le tenés que girar a AFIP.\n\nSi el número final da positivo → tenés que pagar ese monto.\nSi da negativo → tenés saldo a favor (AFIP te "debe" a vos, y ese saldo se arrastra al mes que viene).`,
             breakdown: [
-                { label: 'IVA Débito Fiscal (ventas)', val: Utils.num(kpis.iva_debito), color: 'text-emerald-400' },
-                { label: 'IVA Crédito Fiscal (compras con factura)', val: -Utils.num(kpis.iva_credito || 0), color: 'text-rose-400' },
-                { label: 'Posición bruta del mes (sin arrastre)', val: Utils.num(kpis.iva_posicion), total: ivaSaldoFavorAnterior === 0 },
+                { label: 'IVA Débito Fiscal (lo que cobraste)', val: Utils.num(kpis.iva_debito), color: 'text-emerald-400' },
+                { label: 'IVA Crédito Fiscal (lo que pagaste)', val: -Utils.num(kpis.iva_credito || 0), color: 'text-rose-400' },
+                { label: 'Posición bruta del mes (sin arrastre)', val: Utils.num(kpis.iva_posicion), total: true },
                 ...(ivaSaldoFavorAnterior > 0 ? [
-                    { label: 'Saldo a favor arrastrado', val: -ivaSaldoFavorAnterior, color: 'text-emerald-400' },
+                    { label: 'Saldo a favor arrastrado de meses anteriores', val: -ivaSaldoFavorAnterior, color: 'text-emerald-400' },
                     { label: 'Posición final estimada', val: ivaPosicionConArrastre, total: true }
                 ] : [])
             ]
@@ -686,29 +749,28 @@ const DashboardView = () => {
         },
         'ventas': {
             title: 'Ventas Netas',
-            explanation: 'Es el ingreso real del local. Se calcula tomando el Total Bruto del sistema de ventas, restándole el IVA (que es del Estado) y las anulaciones. Es la base sobre la cual medimos la rentabilidad.',
+            explanation: 'Es lo que realmente entra al bolsillo del local. Se toma el Total Facturado bruto (con IVA incluido) y se le resta el IVA Débito Fiscal, porque esa parte nunca fue tuya — es del Estado. Lo que queda es la base real sobre la que medimos si el negocio es rentable.',
             breakdown: [
                 { label: 'Total Facturado (con IVA)', val: kpis.venta_bruta },
                 { label: 'IVA Débito Fiscal', val: -kpis.iva_debito, color: 'text-rose-400' },
                 { label: 'Venta Real Neta', val: kpis.ventas_netas_reales, total: true, color: 'text-emerald-400' }
             ]
         },
-        'compras': {
-            title: 'Egresos y Comisiones',
-            explanation: 'Suma de todos los costos operativos. Las "Comisiones" son un cálculo estimado basado en los porcentajes que definas en la pestaña de Ajustes aplicados sobre los medios de pago de Maxirest.',
+        'egresos_totales': {
+            title: 'Total de Gastos del Mes',
+            explanation: 'Todo lo que salió de la caja este mes: sueldos y cargas, gastos fijos como alquiler y servicios, mercadería y otros proveedores, y las comisiones que te cobran bancos y apps de delivery/pago. Es la suma de todos los gastos operativos, sin contar el IVA.',
             breakdown: [
-                { label: 'Costo Laboral (Sueldos + SAC)', val: laboralEfectivo + sacEfectivo + cargasEfectivo },
-                { label: 'Comisiones Estimadas (Bancos/Apps)', val: egresos.comisiones, color: 'text-rose-400' },
-                { label: 'Gastos Fijos y Proveedores', val: (egresos.estructural || 0) + (egresos.otros || 0) }
+                ...expensesToSubtract.map(exp => ({ label: exp.label, val: exp.value })),
+                { label: 'Total de Gastos', val: egresoTotal, total: true }
             ]
         },
-        'evolucion': {
-            title: 'Cómo evolucionó el negocio',
-            explanation: 'Muestra mes a mes cómo fueron tus ventas y gastos. En modo "Ajustado por inflación", los meses pasados se actualizan a pesos de hoy para que la comparación sea justa.'
+        'waterfall': {
+            title: 'Qué es este gráfico',
+            explanation: 'Se llama gráfico "cascada" porque cada barra empieza justo donde terminó la anterior — como el agua bajando de escalón en escalón. Arranca con tus ingresos (barra verde), le va restando cada gasto que tengas tildado abajo (barras rojas), y la última barra te muestra lo que sobra: el resultado del mes. Prendé o apagá gastos en la grilla de "Resultado del Mes" para ver cómo cambia.'
         },
         'laboral': {
             title: 'Sueldos y Cargas',
-            explanation: 'Contempla el pago total a empleados, incluyendo la provisión del aguinaldo (SAC) y las cargas sociales estimadas sobre el sueldo en blanco.\n\n* SAC y Cargas Sociales son estimaciones (1/12 y % configurable). Las cargas reales varían por convenio, ART y sindicato. Consultar con contador para liquidación definitiva.',
+            explanation: 'Lo que te cuesta tener empleados en blanco: el sueldo que cobran, más la provisión de aguinaldo (SAC — un sueldo extra que la ley obliga a pagar en dos cuotas al año, acá lo prorrateamos mes a mes) y las cargas sociales (aportes que vos como empleador le pagás al Estado por cada empleado, además del sueldo).\n\n* SAC y Cargas Sociales son estimaciones (1/12 y % configurable). Las cargas reales varían por convenio, ART y sindicato. Consultá con tu contador para la liquidación definitiva.',
             breakdown: [
                 { label: 'Sueldos Netos (Caja + Recibo)', val: getAdj(laboralEfectivo) },
                 { label: 'Provisión SAC (estimada *)', val: getAdj(sacEfectivo) },
@@ -718,7 +780,7 @@ const DashboardView = () => {
         },
         'estructural': {
             title: 'Gastos Fijos Operativos',
-            explanation: 'Suma de los costos fijos necesarios para abrir el local (alquiler, luz, gas) detectados en facturas de AFIP o cargados manualmente en el portal.',
+            explanation: 'Son los gastos que tenés que pagar exista o no una sola venta ese mes: alquiler, luz, gas, internet. Se arman con las facturas de AFIP que marcaste como "Gasto Fijo" en Categorías, o que cargaste a mano.',
             breakdown: [
                 ...arcaGastosFijosBreakdown,
                 { label: 'Total Gastos Fijos', val: gastosEstructuralesReal, total: true }
@@ -726,50 +788,51 @@ const DashboardView = () => {
         },
         'cmv': {
             title: 'Proveedores CMV',
-            explanation: 'Proveedores que suministran mercadería directa para la venta (Cost of Goods Sold). Son gastos aptos para crédito fiscal A.',
-            breakdown: proveedoresBreakdownData.cmv?.slice(0, 10) || []
+            explanation: `Son los proveedores que te venden la mercadería que después revendés: café, insumos, bebidas. En la jerga contable esto se llama "Costo de Mercadería Vendida" (CMV). Como te facturan con Factura A, estas compras generan crédito fiscal de IVA — el IVA que pagás acá es el mismo que restás en la card de IVA.${truncNote('cmv')}`,
+            breakdown: [...(proveedoresBreakdownData.cmv?.slice(0, 10) || []), { label: 'Total Proveedores CMV', val: comprasBreakdown.cmv, total: true }]
         },
         'tipoBC': {
             title: 'Proveedores Tipo B/C',
-            explanation: 'Gastos de proveedores que no discriminan IVA (Monotributistas o Facturas B/C). Son costos directos del período pero no generan crédito fiscal.',
-            breakdown: proveedoresBreakdownData.tipoBC?.slice(0, 10) || []
+            explanation: `Proveedores que te facturan con Factura B o C — típicamente monotributistas. Estas facturas no discriminan IVA, así que son un gasto real del mes pero no te generan crédito fiscal para descontar de tu IVA.${truncNote('tipoBC')}`,
+            breakdown: [...(proveedoresBreakdownData.tipoBC?.slice(0, 10) || []), { label: 'Total Proveedores Tipo B/C', val: comprasBreakdown.tipoBC, total: true }]
         },
         'EXCEPCIONALES': {
             title: 'Gastos Excepcionales',
-            explanation: 'Gastos que no ocurren todos los meses y que han sido categorizados explícitamente como tales para no distorsionar el análisis corriente.',
-            breakdown: proveedoresBreakdownData.EXCEPCIONALES?.slice(0, 10) || []
+            explanation: `Gastos que no se repiten todos los meses — una reparación grande, una compra puntual — y que separamos para que no te distorsionen la lectura de cómo viene un mes "normal" del negocio.${truncNote('EXCEPCIONALES')}`,
+            breakdown: [...(proveedoresBreakdownData.EXCEPCIONALES?.slice(0, 10) || []), { label: 'Total Gastos Excepcionales', val: comprasBreakdown.EXCEPCIONALES || 0, total: true }]
         },
         'LIMPIEZA_MANTENIMIENTO': {
             title: 'Limpieza y Mantenimiento',
-            explanation: 'Insumos de limpieza profunda, reparaciones generales y mantenimiento de equipos del local.',
-            breakdown: proveedoresBreakdownData.LIMPIEZA_MANTENIMIENTO?.slice(0, 10) || []
+            explanation: `Insumos de limpieza y arreglos del local: lo que hace falta para mantenerlo funcionando y presentable.${truncNote('LIMPIEZA_MANTENIMIENTO')}`,
+            breakdown: [...(proveedoresBreakdownData.LIMPIEZA_MANTENIMIENTO?.slice(0, 10) || []), { label: 'Total Limpieza y Mant.', val: comprasBreakdown.LIMPIEZA_MANTENIMIENTO || 0, total: true }]
         },
         'SERVICIOS_PROFESIONALES': {
             title: 'Servicios Profesionales',
-            explanation: 'Honorarios de contadores, abogados, consultores o servicios especializados externos.',
-            breakdown: proveedoresBreakdownData.SERVICIOS_PROFESIONALES?.slice(0, 10) || []
+            explanation: `Lo que le pagás a tu contador, abogado o cualquier consultor externo del negocio.${truncNote('SERVICIOS_PROFESIONALES')}`,
+            breakdown: [...(proveedoresBreakdownData.SERVICIOS_PROFESIONALES?.slice(0, 10) || []), { label: 'Total Servicios Prof.', val: comprasBreakdown.SERVICIOS_PROFESIONALES || 0, total: true }]
         },
         'PERSONAL': {
             title: 'Gastos Personales',
-            explanation: 'Gastos de socios o dueños que aparecen en las facturas del negocio pero que deben identificarse por separado.',
-            breakdown: proveedoresBreakdownData.PERSONAL?.slice(0, 10) || []
+            explanation: `Gastos de los dueños o socios que aparecen mezclados en las facturas del negocio pero que en realidad son gastos personales. Vale la pena separarlos para ver cuál es la rentabilidad real del local, sin ese ruido.${truncNote('PERSONAL')}`,
+            breakdown: [...(proveedoresBreakdownData.PERSONAL?.slice(0, 10) || []), { label: 'Total Gastos Personales', val: comprasBreakdown.PERSONAL || 0, total: true }]
         },
         'noApto': {
             title: 'Proveedores N/A',
-            explanation: 'Facturas detectadas como proveedores pero categorizadas como "No Aptas" para el giro principal.',
-            breakdown: proveedoresBreakdownData.noApto?.slice(0, 10) || []
+            explanation: `Facturas que el sistema detectó como proveedor pero que marcaste como "No Apto" en Categorías — no forman parte del giro principal del negocio, así que no las contamos como costo operativo.${truncNote('noApto')}`,
+            breakdown: [...(proveedoresBreakdownData.noApto?.slice(0, 10) || []), { label: 'Total Proveedores N/A', val: comprasBreakdown.noApto, total: true }]
         },
         'sA': {
             title: 'Proveedores S/A',
-            explanation: 'Gastos detectados en ARCA que aún no han sido categorizados en el sistema.',
-            breakdown: proveedoresBreakdownData.sA?.slice(0, 10) || []
+            explanation: `Gastos que aparecen en ARCA pero todavía no categorizaste. Andá a la pestaña Categorías y asignales un rubro — así dejan de aparecer como "sin asignar" y el resto de las cards queda más preciso.${truncNote('sA')}`,
+            breakdown: [...(proveedoresBreakdownData.sA?.slice(0, 10) || []), { label: 'Total Proveedores S/A', val: comprasBreakdown.sA, total: true }]
         },
         'comisiones': {
             title: 'Comisiones Bancarias/Apps',
-            explanation: 'Cálculo automático basado en los porcentajes definidos en Ajustes aplicado sobre los medios de pago de Maxirest (Tarjetas y Otros).\n\n* Estas son aproximaciones. Las comisiones reales dependen de cada liquidación bancaria e incluyen retenciones de IVA/IIBB/Ganancias no contempladas aquí.',
+            explanation: 'Lo que te cobran los bancos y las apps de delivery o pago por cada venta con tarjeta u otro medio electrónico. Es un cálculo estimado según los porcentajes que vos mismo definiste en la pestaña de Ajustes, aplicado sobre los medios de pago que reporta Maxirest.\n\n* Son aproximaciones. Las comisiones reales dependen de cada liquidación bancaria e incluyen retenciones de IVA/IIBB/Ganancias que acá no se contemplan.',
             breakdown: [
                 { label: 'Tarjetas (Estimado)', val: getAdj(egresos.comisiones || 0) * 0.7 },
-                { label: 'Apps / Otros (Estimado)', val: getAdj(egresos.comisiones || 0) * 0.3 }
+                { label: 'Apps / Otros (Estimado)', val: getAdj(egresos.comisiones || 0) * 0.3 },
+                { label: 'Total Comisiones', val: getAdj(egresos.comisiones || 0), total: true }
             ]
         },
     };
@@ -787,8 +850,10 @@ const DashboardView = () => {
                 onClose={() => setInfoModalKey(null)}
                 {...(infoData[infoModalKey] || {
                     title: CAT_LABELS[infoModalKey] || infoModalKey,
-                    explanation: 'Desglose detallado de gastos detectados para esta categoría.',
-                    breakdown: proveedoresBreakdownData[infoModalKey] || []
+                    explanation: `Categoría personalizada que vos mismo creaste en la pestaña Categorías. Agrupa los proveedores de ARCA que le asignaste manualmente.${truncNote(infoModalKey)}`,
+                    breakdown: proveedoresBreakdownData[infoModalKey]?.length
+                        ? [...proveedoresBreakdownData[infoModalKey].slice(0, 10), { label: `Total ${CAT_LABELS[infoModalKey] || infoModalKey}`, val: comprasBreakdown[infoModalKey] ?? proveedoresBreakdownData[infoModalKey].reduce((a, r) => a + r.val, 0), total: true }]
+                        : []
                 })}
             />
 
@@ -881,8 +946,10 @@ const DashboardView = () => {
                 {/* ── RESUMEN EJECUTIVO ────────────────────────────── */}
                 <div style={{ marginBottom: 16, padding: '20px 24px', borderRadius: 16, background: isLight ? 'rgba(28,37,55,0.03)' : 'rgba(255,255,255,0.02)', border: `1px solid ${isLight ? 'rgba(28,37,55,0.08)' : 'rgba(255,255,255,0.05)'}` }}>
                     <p style={{ fontSize: 14, lineHeight: 1.7, color: isLight ? '#374151' : '#cbd5e1', margin: 0 }}>
-                        Este mes facturaste <strong style={{ color: isLight ? '#059669' : '#4ade80' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : '$'}{Utils.fmt(ventasNetas)}</strong> netos,
-                        gastaste <strong style={{ color: isLight ? '#dc2626' : '#f87171' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : '$'}{Utils.fmt(egresoTotal)}</strong> y
+                        Este mes facturaste <strong style={{ color: isLight ? '#059669' : '#4ade80' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : '$'}{Utils.fmt(ventasNetas)}</strong> netos
+                        <button onClick={() => setInfoModalKey('ventas')} title="¿Cómo se calcula?" style={{ width: 15, height: 15, borderRadius: '50%', border: '1px solid var(--border-subtle)', background: 'none', color: 'var(--text-faint)', fontSize: 8, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', verticalAlign: 'middle', margin: '0 2px' }}>?</button>,
+                        gastaste <strong style={{ color: isLight ? '#dc2626' : '#f87171' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : '$'}{Utils.fmt(egresoTotal)}</strong>
+                        <button onClick={() => setInfoModalKey('egresos_totales')} title="¿En qué se fue?" style={{ width: 15, height: 15, borderRadius: '50%', border: '1px solid var(--border-subtle)', background: 'none', color: 'var(--text-faint)', fontSize: 8, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', verticalAlign: 'middle', margin: '0 2px' }}>?</button>{' '}y
                         te {utilidad >= 0 ? 'quedaron' : 'faltaron'} <strong style={{ color: utilidad >= 0 ? (isLight ? '#059669' : '#4ade80') : (isLight ? '#dc2626' : '#f87171') }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : '$'}{Utils.fmt(Math.abs(utilidad))}</strong>.
                         {' '}Margen operativo: <strong style={{ color: +margen > 15 ? '#10b981' : +margen > 5 ? '#f59e0b' : '#f43f5e' }}>{margen}%</strong>.
                     </p>
@@ -1168,7 +1235,10 @@ const DashboardView = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <div style={{ width: 24, height: 24, borderRadius: 6, background: isLight ? 'rgba(59,130,246,0.1)' : 'rgba(59,130,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6', fontSize: 12, fontWeight: 'bold' }}>📊</div>
                             <div>
-                                <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.2px' }}>Flujo de Utilidad del Mes (Waterfall)</p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.2px' }}>Flujo de Utilidad del Mes (Waterfall)</p>
+                                    <button onClick={() => setInfoModalKey('waterfall')} className="w-5 h-5 rounded-full border border-slate-700/50 text-slate-500 hover:text-blue-400 hover:border-blue-500/50 hover:bg-slate-800/50 flex items-center justify-center text-[10px] font-bold transition-all">?</button>
+                                </div>
                                 <p style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 2 }}>Desglose de cómo los ingresos cubren los costos hasta llegar al resultado final. El gráfico se actualiza al apagar/encender gastos.</p>
                             </div>
                         </div>
