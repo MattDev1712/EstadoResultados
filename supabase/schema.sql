@@ -162,7 +162,19 @@ create policy "authenticated_all" on public.config_negocio for all to authentica
 create policy "authenticated_all" on public.ajustes_periodo for all to authenticated using (true) with check (true);
 
 -- audit_log no esta creada en este schema (se creo ad-hoc en Supabase), pero tambien
--- necesita la misma policy — ver bloque SQL a correr manualmente en Supabase SQL Editor.
+-- tiene la misma policy "authenticated_all" aplicada directo en prod.
+
+-- Grants: el rol authenticated no los tenia por default (mismo gotcha que anon en
+-- su momento) — sin esto, RLS deja pasar pero Postgres igual bloquea con "permission
+-- denied for table X". Aplicado en las 8 tablas (incluye audit_log).
+grant select, insert, update, delete on public.ventas          to authenticated;
+grant select, insert, update, delete on public.compras         to authenticated;
+grant select, insert, update, delete on public.empleados       to authenticated;
+grant select, insert, update, delete on public.costos_manuales to authenticated;
+grant select, insert, update, delete on public.categorias      to authenticated;
+grant select, insert, update, delete on public.config_negocio  to authenticated;
+grant select, insert, update, delete on public.ajustes_periodo to authenticated;
+grant select, insert, update, delete on public.audit_log       to authenticated;
 
 -- Insertar fila singleton de config
 insert into public.config_negocio (id) values (1);
