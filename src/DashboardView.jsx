@@ -824,6 +824,16 @@ const DashboardView = () => {
 
             <div id="pnl-export-area" className="p-4" style={{ margin: '-16px' }}>
 
+                {/* ── RESUMEN EJECUTIVO ────────────────────────────── */}
+                <div style={{ marginBottom: 16, padding: '20px 24px', borderRadius: 16, background: isLight ? 'rgba(28,37,55,0.03)' : 'rgba(255,255,255,0.02)', border: `1px solid ${isLight ? 'rgba(28,37,55,0.08)' : 'rgba(255,255,255,0.05)'}` }}>
+                    <p style={{ fontSize: 14, lineHeight: 1.7, color: isLight ? '#374151' : '#cbd5e1', margin: 0 }}>
+                        Este mes facturaste <strong style={{ color: isLight ? '#059669' : '#4ade80' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : '$'}{Utils.fmt(ventasNetas)}</strong> netos,
+                        gastaste <strong style={{ color: isLight ? '#dc2626' : '#f87171' }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : '$'}{Utils.fmt(egresoTotal)}</strong> y
+                        te {utilidad >= 0 ? 'quedaron' : 'faltaron'} <strong style={{ color: utilidad >= 0 ? (isLight ? '#059669' : '#4ade80') : (isLight ? '#dc2626' : '#f87171') }}>{viewMode === 'DOLAR_MEP' ? 'u$s ' : '$'}{Utils.fmt(Math.abs(utilidad))}</strong>.
+                        {' '}Margen operativo: <strong style={{ color: +margen > 15 ? '#10b981' : +margen > 5 ? '#f59e0b' : '#f43f5e' }}>{margen}%</strong>.
+                    </p>
+                </div>
+
                 {/* ── IVA DEL MES ─────────────────────────────────── */}
                 <div style={{ marginBottom: 16 }}>
                     <Card style={{ padding: 28, borderLeft: '4px solid #3b82f6', background: isLight ? 'linear-gradient(135deg, rgba(59,130,246,0.06) 0%, #F8F9FB 100%)' : 'linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(15,23,42,0.6) 100%)' }}>
