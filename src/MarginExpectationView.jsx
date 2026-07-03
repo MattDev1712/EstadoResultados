@@ -75,6 +75,70 @@ const CardHeader = ({ icon, label, iconBg, iconColor, onInfo }) => (
     </div>
 );
 
+// --- LEDGER: agrupa un breakdown en "Suman (+)" / "Restan (−)" + barra de total ---
+// Cada fila normal se clasifica por el signo de su val. Una fila con total:true
+// cierra una etapa (mismo componente que en el Dashboard, para que se lea igual en toda la app).
+const LedgerGroup = ({ label, rows, tone }) => {
+  if (!rows.length) return null;
+  const isSuma = tone === 'suma';
+  return (
+    <div className={`mb-2.5 rounded-2xl overflow-hidden border ${isSuma ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/[0.04]'}`}>
+      <p className={`text-[9px] font-black uppercase tracking-[0.15em] px-5 pt-2.5 pb-1.5 ${isSuma ? 'text-emerald-400' : 'text-rose-400'}`}>{label}</p>
+      {rows.map((row, i) => (
+        <div key={i} className="flex justify-between items-start gap-3 px-5 py-1.5" style={{ paddingBottom: i === rows.length - 1 ? 12 : 6 }}>
+          <span className="text-xs text-[var(--text-muted)] flex-1">{row.label}</span>
+          <span className={`text-sm font-bold font-mono flex-shrink-0 text-right ${isSuma ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {isSuma ? '' : '− '}{Utils.fmt(Math.abs(Utils.num(row.val)))}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const LedgerTotalBar = ({ row }) => (
+  <div className="flex justify-between items-center gap-3 px-5 py-3.5 mb-4 rounded-2xl bg-white/5 border border-white/10">
+    <span className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">= {row.label}</span>
+    <span className={`text-base font-mono tracking-tighter font-black ${row.color || 'text-[var(--text-primary)]'}`}>{Utils.fmt(row.val)}</span>
+  </div>
+);
+
+const LedgerBreakdown = ({ breakdown }) => {
+  if (!breakdown || breakdown.length === 0) return null;
+
+  const stages = [];
+  let current = { suma: [], resta: [] };
+  breakdown.forEach(row => {
+    if (row.total) {
+      stages.push({ ...current, totalRow: row });
+      current = { suma: [], resta: [] };
+    } else if (Utils.num(row.val) < 0) {
+      current.resta.push(row);
+    } else {
+      current.suma.push(row);
+    }
+  });
+  const trailing = (current.suma.length > 0 || current.resta.length > 0) ? current : null;
+
+  return (
+    <div>
+      {stages.map((stage, i) => (
+        <div key={i}>
+          <LedgerGroup label="Suman (+)" rows={stage.suma} tone="suma" />
+          <LedgerGroup label="Restan (−)" rows={stage.resta} tone="resta" />
+          <LedgerTotalBar row={stage.totalRow} />
+        </div>
+      ))}
+      {trailing && (
+        <>
+          <LedgerGroup label="Suman (+)" rows={trailing.suma} tone="suma" />
+          <LedgerGroup label="Restan (−)" rows={trailing.resta} tone="resta" />
+        </>
+      )}
+    </div>
+  );
+};
+
 const Row = ({ label, bold, value, valueColor, right, onInfo }) => (
   <div style={S.row} className={bold ? 'row-highlight' : ''}>
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -491,10 +555,12 @@ export default function MarginExpectationView() {
   const egresosBase = dashData?.egresos || {};
   const kpisBase = dashData?.kpis || {};
   
+  const laboralSueldosNetos = n(egresosBase.laboral) > 0 ? n(egresosBase.laboral) : (empData || []).reduce((acc, emp) => acc + n(emp.recibo) + n(emp.negro), 0);
   const laboralBreakdown = [
-    { label: 'Sueldos Netos (Recibo + Informal)', val: n(egresosBase.laboral) > 0 ? n(egresosBase.laboral) : (empData || []).reduce((acc, emp) => acc + n(emp.recibo) + n(emp.negro), 0) },
+    { label: 'Sueldos Netos (Recibo + Informal)', val: laboralSueldosNetos },
     { label: 'Provisión SAC (1/12)', val: n(egresosBase.provision_sac) },
-    { label: 'Cargas Sociales Proyectadas', val: n(egresosBase.provision_cargas) }
+    { label: 'Cargas Sociales Proyectadas', val: n(egresosBase.provision_cargas) },
+    { label: 'Costo Laboral Total', val: laboralSueldosNetos + n(egresosBase.provision_sac) + n(egresosBase.provision_cargas), total: true }
   ];
 
   const arcaGastosFijosItems = (arcaData || [])
@@ -519,56 +585,29 @@ export default function MarginExpectationView() {
   } else if (cargaManualEst < -0.01) {
       estructuralBreakdown.push({ label: 'Ajuste Backend', val: cargaManualEst });
   }
+  estructuralBreakdown.push({ label: 'Total Gastos Fijos', val: totalEstructural, total: true });
 
   const facturasBCBreakdown = (arcaData || [])
     .filter(r => r.tipo_comp && !r.tipo_comp.endsWith(' A') && r.tipo_comp !== '1')
     .filter(r => categoriesMap[r.cuit] !== 'GASTO_FIJO')
     .map(r => ({ label: r.entidad || r.cuit || 'Proveedor S/D', val: Math.abs(n(r.total ?? r.importe_total)) }));
+  if (facturasBCBreakdown.length > 0) {
+    facturasBCBreakdown.push({ label: 'Total Facturas B / C', val: facturasBCBreakdown.reduce((a, r) => a + r.val, 0), total: true });
+  }
 
   const iibbBreakdown = (arcaData || [])
     .filter(r => r.rubro === 'Ingresos Brutos')
     .map(r => ({ label: r.sub_rubro || 'Pago IIBB', val: Math.abs(n(r.total ?? r.importe_total)) }));
+  if (iibbBreakdown.length > 0) {
+    iibbBreakdown.push({ label: 'Total IIBB', val: iibbBreakdown.reduce((a, r) => a + r.val, 0), total: true });
+  }
 
   const retencionesBreakdown = (arcaData || [])
     .filter(r => r.rubro === 'Retenciones')
     .map(r => ({ label: r.sub_rubro || 'Retención', val: Math.abs(n(r.total ?? r.importe_total)) }));
-
-  const INFO_TOOLTIPS = {
-    ventas_card: { title: "Origen: Ventas Netas", explanation: `Se toma el 'Neto ACF' del reporte Maxirest. Cálculo: Total Facturado - Anulaciones - IVA (${((configData?.alicuota_iva ?? 0.21) * 100).toFixed(1).replace(/\.0$/, '')}% sobre Factura B Electrónica). Es el dinero real que ingresa al local sin impuestos ni devoluciones.` },
-    gastos_card: { title: "Origen: Egresos Totales", explanation: "Suma de tres fuentes: 1. Nómina (planilla de sueldos + cargas + SAC). 2. Gastos fijos (Alquiler/Servicios detectados en ARCA o cargados a mano). 3. Gastos extraordinarios cargados en esta pantalla." },
-    mix_cafe: { title: "Origen: Mix de Cafetería", explanation: "Es un valor de entrada manual. Define qué porcentaje de la 'Venta Neta' total se le atribuye a Cafetería para aplicarle su margen de ganancia específico en el cálculo del resultado." },
-    laboral: { 
-        title: "Sueldos y Cargas", 
-        explanation: "Contempla el pago total a empleados, incluyendo la provisión del aguinaldo (SAC) y las cargas sociales estimadas sobre el sueldo en blanco.",
-        breakdown: laboralBreakdown
-    },
-    estructural: { 
-        title: "Gastos Fijos Operativos", 
-        explanation: "Suma de los costos fijos necesarios para abrir el local: alquileres, servicios y expensas detectados en facturas o cargados manualmente.",
-        breakdown: estructuralBreakdown
-    },
-    excepcionales: { title: "Gastos Excepcionales", explanation: "Suma de gastos cargados manualmente en esta pantalla más aquellos proveedores categorizados explícitamente como Excepcionales en el sistema." },
-    limpieza: { title: "Limpieza y Mantenimiento", explanation: "Insumos de limpieza profunda, reparaciones generales y mantenimiento de equipos del local." },
-    prof: { title: "Servicios Profesionales", explanation: "Honorarios de contadores, abogados, consultores o servicios especializados externos." },
-    personal: { title: "Gastos Personales", explanation: "Gastos de socios o dueños que aparecen en las facturas del negocio pero que deben identificarse por separado." },
-    iibb: { 
-        title: "Ingresos Brutos", 
-        explanation: "Pagos de IIBB (Local o Convenio) registrados manualmente para este período.",
-        breakdown: iibbBreakdown
-    },
-    retenciones: { 
-        title: "Retenciones", 
-        explanation: "Pagos a cuenta de impuestos realizados a través de bancos, tarjetas o aplicaciones de delivery.",
-        breakdown: retencionesBreakdown
-    },
-    comisiones: { title: "Cálculo: Comisiones", explanation: "Cálculo automático basado en Maxirest: (Total Tarjetas × % Tarjeta) + (Total Otros × % Otros). Los porcentajes se definen en la pestaña de Ajustes. Si el número es alto, revisá los % configurados." },
-    facturas_bc: { 
-        title: "Facturas B / C (ARCA)", 
-        explanation: "Gastos de proveedores que no discriminan IVA (Monotributistas o Facturas B/C). Son costos directos del período.",
-        breakdown: facturasBCBreakdown
-    },
-    margen_contribucion: { title: "Concepto: Margen de Contribución", explanation: "Este valor representa la ganancia que la marca calcula tras contemplar los costos de proveedores. Es el porcentaje que la marca ha deducido que debería quedar como remanente luego de quitarle el costo de mercadería vendida (CMV)." }
-  };
+  if (retencionesBreakdown.length > 0) {
+    retencionesBreakdown.push({ label: 'Total Retenciones', val: retencionesBreakdown.reduce((a, r) => a + r.val, 0), total: true });
+  }
 
   const handleSave = async () => {
     setSaving(true);
@@ -720,6 +759,69 @@ export default function MarginExpectationView() {
 
   const resultadoAjustadoPositivo = resultadoAjustado >= 0;
   const margenAjustadoPct = ventaNeta > 0 ? ((resultadoAjustado / ventaNeta) * 100).toFixed(1) : '0.0';
+
+  const INFO_TOOLTIPS = {
+    resultado: {
+      title: "Resultado según márgenes esperados",
+      explanation: "Esta pantalla arma una segunda mirada del negocio: en vez de partir de lo que gastaste realmente, partís de un margen que vos esperás ganar en Café y en Producto (los porcentajes que cargaste arriba). Con ese margen esperado, restás los gastos que tildes abajo y ves si el resultado da positivo o negativo — te sirve para comparar 'lo que debería dar' contra el Resultado real del Dashboard.",
+      breakdown: [
+        { label: 'Margen de Contribución (Café + Producto)', val: resultadoMargenes, color: 'text-emerald-400' },
+        ...expensesToSubtract.filter(exp => activeExpenses[exp.key]).map(exp => ({ label: exp.label, val: -exp.value })),
+        { label: 'Resultado Ajustado', val: resultadoAjustado, total: true, color: resultadoAjustadoPositivo ? 'text-emerald-400' : 'text-rose-400' }
+      ]
+    },
+    ventas_card: {
+      title: "Origen: Ventas Netas",
+      explanation: `Se toma el Total Facturado que reportó tu sistema de ventas y se le resta el IVA que cobraste (${((configData?.alicuota_iva ?? 0.21) * 100).toFixed(1).replace(/\.0$/, '')}%), porque esa parte es del Estado, no tuya. Lo que queda es el dinero real que le entró al local ese mes.`,
+      breakdown: [
+        { label: 'Total Facturado (con IVA)', val: ventaBruta },
+        { label: 'IVA Cobrado', val: -ivaDébito, color: 'text-rose-400' },
+        { label: 'Venta Neta S/IVA', val: ventaNeta, total: true, color: 'text-emerald-400' }
+      ]
+    },
+    gastos_card: {
+      title: "Origen: Egresos Totales",
+      explanation: "Suma de tres fuentes: el costo de tener empleados (sueldos + cargas + aguinaldo prorrateado), los gastos fijos del local (alquiler, servicios), y los gastos excepcionales que cargues manualmente en esta pantalla.",
+      breakdown: [
+        { label: 'Sueldos y Cargas', val: sueldosTotal },
+        { label: 'Gastos Fijos Operativos', val: operaciones },
+        { label: 'Excepcionales', val: excepcionales },
+        { label: 'Total Gastos', val: totalGastos, total: true }
+      ]
+    },
+    mix_cafe: { title: "Origen: Mix de Cafetería", explanation: "Lo cargás vos a mano: de cada $100 que vendés, ¿cuánto es café y cuánto es producto (comida, merchandising, etc.)? Esto importa porque el café y el producto casi nunca dejan el mismo margen de ganancia — separarlos te deja calcular un resultado más real que si tratás toda la venta como si fuera lo mismo. El % de Producto se completa solo con lo que sobra hasta 100." },
+    laboral: {
+        title: "Sueldos y Cargas",
+        explanation: "Lo que te cuesta tener empleados en blanco: el sueldo que cobran, más la provisión de aguinaldo (SAC — un sueldo extra que la ley obliga a pagar en dos cuotas al año, acá prorrateado por mes) y las cargas sociales (aportes que vos como empleador le pagás al Estado por cada empleado, además del sueldo).",
+        breakdown: laboralBreakdown
+    },
+    estructural: {
+        title: "Gastos Fijos Operativos",
+        explanation: "Son los gastos que tenés que pagar exista o no una sola venta ese mes: alquiler, luz, gas, internet, expensas. Se arman con las facturas que marcaste como gasto fijo en Categorías, o cargadas a mano.",
+        breakdown: estructuralBreakdown
+    },
+    excepcionales: { title: "Gastos Excepcionales", explanation: "Gastos que no se repiten todos los meses — una reparación grande, una compra puntual — y que separamos para no distorsionar la lectura de un mes \"normal\" del negocio. Los cargás a mano en esta pantalla, o vienen de proveedores que categorizaste como Excepcionales." },
+    limpieza: { title: "Limpieza y Mantenimiento", explanation: "Insumos de limpieza y arreglos del local: lo que hace falta para mantenerlo funcionando." },
+    prof: { title: "Servicios Profesionales", explanation: "Lo que le pagás a tu contador, abogado o cualquier consultor externo del negocio." },
+    personal: { title: "Gastos Personales", explanation: "Gastos de los dueños o socios que aparecen mezclados en las facturas del negocio pero que en realidad son gastos personales. Separarlos te deja ver la rentabilidad real del local, sin ese ruido." },
+    iibb: {
+        title: "Ingresos Brutos",
+        explanation: "IIBB es un impuesto provincial (distinto del IVA) que se paga sobre lo que facturás. Acá registrás lo que pagaste de IIBB este período, ya sea porque tributás en un solo municipio (Local) o en varios (Convenio Multilateral).",
+        breakdown: iibbBreakdown
+    },
+    retenciones: {
+        title: "Retenciones",
+        explanation: "Cuando cobrás con tarjeta o por apps de delivery, el banco o la app a veces te retiene una parte de IVA o Ganancias antes de depositarte el resto. Esa plata retenida ya es un pago a cuenta de tus impuestos — cargarla acá evita que el sistema muestre un monto a pagar más alto del real.",
+        breakdown: retencionesBreakdown
+    },
+    comisiones: { title: "Cálculo: Comisiones", explanation: "Lo que te cobran los bancos y las apps de delivery o pago por cada venta con tarjeta u otro medio electrónico. Es un cálculo estimado: (Total Tarjetas × % que configuraste) + (Total Otros medios × % que configuraste). Si el número te parece alto, revisá esos porcentajes en la pestaña de Ajustes." },
+    facturas_bc: {
+        title: "Facturas B / C (ARCA)",
+        explanation: "Proveedores que te facturan con Factura B o C — típicamente monotributistas. No discriminan IVA en la factura, así que son un gasto real del mes pero no generan crédito fiscal (no se descuentan de tu IVA).",
+        breakdown: facturasBCBreakdown
+    },
+    margen_contribucion: { title: "Concepto: Margen de Contribución", explanation: "Es lo que te queda de cada venta después de pagarle al proveedor la mercadería (el CMV, o Costo de Mercadería Vendida). Vos cargás arriba qué % esperás ganar en Café y en Producto (\"MGN Cafetería\" y \"MGN Producto\") — esta pantalla toma esos porcentajes y te muestra si, con esa expectativa, el negocio da resultado positivo o negativo antes de bajar a los gastos operativos (sueldos, alquiler, etc.)." }
+  };
 
   const debugInfo = {
     periodo: `${selectedYear}-${selectedMonth}`,
@@ -935,13 +1037,20 @@ export default function MarginExpectationView() {
       }}>
         <div style={{ padding: '24px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <p style={{
-              fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px',
-              color: resultadoAjustadoPositivo
-                ? (isLight ? '#059669' : '#6ee7b7')
-                : (isLight ? '#dc2626' : '#fca5a5'),
-              margin: 0,
-            }}>Resultado según márgenes esperados</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <p style={{
+                fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px',
+                color: resultadoAjustadoPositivo
+                  ? (isLight ? '#059669' : '#6ee7b7')
+                  : (isLight ? '#dc2626' : '#fca5a5'),
+                margin: 0,
+              }}>Resultado según márgenes esperados</p>
+              <button
+                onClick={() => setInfoModal('resultado')}
+                className="w-5 h-5 rounded-full border border-current opacity-50 hover:opacity-100 flex items-center justify-center text-[10px] font-bold transition-all"
+                style={{ color: resultadoAjustadoPositivo ? (isLight ? '#059669' : '#4ade80') : (isLight ? '#dc2626' : '#f87171') }}
+              >?</button>
+            </div>
             <p style={{
               fontSize: 32, fontWeight: 800, margin: '4px 0 0',
               color: resultadoAjustadoPositivo
@@ -1064,8 +1173,10 @@ export default function MarginExpectationView() {
             const expObj = expensesToSubtract.find(e => e.key === infoModal);
             const info = INFO_TOOLTIPS[infoModal] || {
               title: (expObj ? expObj.label : CAT_LABELS[infoModal]) || infoModal,
-              explanation: "Desglose de gastos detectados para esta categoría.",
-              breakdown: expObj ? expObj.breakdown : []
+              explanation: "Categoría personalizada que vos mismo creaste en la pestaña Categorías. Agrupa los proveedores de ARCA que le asignaste manualmente.",
+              breakdown: expObj?.breakdown?.length
+                ? [...expObj.breakdown, { label: `Total ${expObj.label}`, val: expObj.value, total: true }]
+                : []
             };
             return (
               <div style={{
@@ -1081,17 +1192,13 @@ export default function MarginExpectationView() {
                     style={{ background: 'none', border: 'none', color: colors.textDim, cursor: 'pointer', fontSize: 20 }}
                   >✕</button>
                 </div>
-                <p style={{ fontSize: 14, color: colors.textMuted, lineHeight: 1.6, margin: '0 0 24px' }}>
+                <p style={{ fontSize: 14, color: colors.textMuted, lineHeight: 1.6, margin: '0 0 24px', whiteSpace: 'pre-line' }}>
                   {info.explanation}
                 </p>
                 {info.breakdown && info.breakdown.length > 0 && (
-                  <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 16, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
-                    {info.breakdown.map((row, i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', borderBottom: i < info.breakdown.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: colors.textDim, textTransform: 'uppercase' }}>{row.label}</span>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: colors.textPrimary, fontVariantNumeric: 'tabular-nums' }}>{Utils.fmt(row.val)}</span>
-                      </div>
-                    ))}
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 900, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.2em', marginBottom: 14 }}>La Cuenta, Paso a Paso</p>
+                    <LedgerBreakdown breakdown={info.breakdown} />
                   </div>
                 )}
               </div>
