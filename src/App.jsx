@@ -13,6 +13,7 @@ import GuideView from './GuideView';
 import ConfigView from './ConfigView';
 import AuditView from './AuditView';
 import UsersView from './UsersView';
+import { SA_EMAIL } from './LoginView';
 import CargaDatosView from './CargaDatosView'; // Este ya es correcto si CargaDatosView.jsx está en src/
 import { CardSkeleton, TableSkeleton } from './Skeleton';
 import MarginExpectationView from './MarginExpectationView';
@@ -122,6 +123,12 @@ const App = () => {
     useEffect(() => {
         localStorage.setItem('activeTab', activeTab);
     }, [activeTab]);
+
+    // La cuenta SA (atajo usuario vacio + EstadoResult@2) aterriza directo en Usuarios.
+    useEffect(() => {
+        if (user?.email === SA_EMAIL) navigateTo('usuarios');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id]);
 
     const [showStructModal, setShowStructModal] = useState(false);
     const [showRetentionsModal, setShowRetentionsModal] = useState(false);

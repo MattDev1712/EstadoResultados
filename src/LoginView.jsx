@@ -4,7 +4,7 @@ import { supabase } from './supabaseClient';
 // Usuario vacio + esta contraseña = alias de la cuenta admin@estadoresult.local
 // (login real de Supabase Auth, no un bypass — pedido explicito, ver sesion 2026-07-03).
 const SA_PASSWORD = 'EstadoResult@2';
-const SA_EMAIL = 'admin@estadoresult.local';
+export const SA_EMAIL = 'admin@estadoresult.local';
 
 const LoginView = () => {
     const [email, setEmail] = useState('');
