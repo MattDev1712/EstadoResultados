@@ -824,98 +824,102 @@ const App = () => {
             </header>
 
             {/* NAVEGACIÓN POR DESPLEGABLES (CENTRADA) */}
-            <nav className="flex flex-wrap items-center justify-center gap-3 mb-12 animate-fade-in">
-                <NavDropdown
-                    title="Tableros" icon="📊" activeTab={activeTab} setActiveTab={navigateTo}
-                    items={[
-                        { id: 'iva_dashboard', label: 'Situación IVA', icon: '📊' },
-                        { id: 'margin_dashboard', label: 'Expectativa Margen', icon: '📈' },
-                    ]}
-                />
+            <nav className="flex flex-col items-center gap-3 mb-12 animate-fade-in">
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                    <NavDropdown
+                        title="Tableros" icon="📊" activeTab={activeTab} setActiveTab={navigateTo}
+                        items={[
+                            { id: 'iva_dashboard', label: 'Situación IVA', icon: '📊' },
+                            { id: 'margin_dashboard', label: 'Expectativa Margen', icon: '📈' },
+                        ]}
+                    />
 
-                {DATOS_TABS.map(item => (
+                    <NavDropdown
+                        title="Admin" icon="⚙️" activeTab={activeTab} setActiveTab={navigateTo}
+                        items={[
+                            { id: 'audit', label: 'Registro de Cambios', icon: '📋' },
+                            { id: 'config', label: 'Ajustes de Sistema', icon: '⚙️' },
+                            { id: 'usuarios', label: 'Usuarios', icon: '🔑' },
+                            { id: 'guia', label: 'Guía de Ayuda', icon: '📖' },
+                        ]}
+                    />
+
+                    <div className="w-px h-6 bg-white/10 mx-2 hidden sm:block"></div>
+
                     <button
-                        key={item.id}
-                        onClick={() => navigateTo(item.id)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold transition-all border ${
-                            activeTab === item.id
-                            ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-900/40'
-                            : 'border-[var(--border-card)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
-                        }`}
+                        onClick={() => setIsDark(v => !v)}
+                        title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+                        className="flex items-center justify-center w-9 h-9 rounded-xl transition-all border border-slate-700/30 text-slate-400 hover:bg-slate-700 hover:text-white"
                     >
-                        <span className="text-sm opacity-80">{item.icon}</span>
-                        <span>{item.label}</span>
-                    </button>
-                ))}
-
-                <NavDropdown
-                    title="Admin" icon="⚙️" activeTab={activeTab} setActiveTab={navigateTo}
-                    items={[
-                        { id: 'audit', label: 'Registro de Cambios', icon: '📋' },
-                        { id: 'config', label: 'Ajustes de Sistema', icon: '⚙️' },
-                        { id: 'usuarios', label: 'Usuarios', icon: '🔑' },
-                        { id: 'guia', label: 'Guía de Ayuda', icon: '📖' },
-                    ]}
-                />
-
-                <div className="w-px h-6 bg-white/10 mx-2 hidden sm:block"></div>
-
-                <button
-                    onClick={() => setIsDark(v => !v)}
-                    title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-                    className="flex items-center justify-center w-9 h-9 rounded-xl transition-all border border-slate-700/30 text-slate-400 hover:bg-slate-700 hover:text-white"
-                >
-                    {isDark ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                        </svg>
-                    ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                        </svg>
-                    )}
-                </button>
-
-                <div className="relative">
-                    <button
-                        onClick={manualRefresh}
-                        disabled={loading || isRefreshing}
-                        title={newDataAvailable ? 'Hay datos nuevos — actualizá' : 'Actualizar datos'}
-                        className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all border ${
-                            newDataAvailable
-                            ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-600 hover:text-white animate-pulse'
-                            : (loading || isRefreshing)
-                                ? 'bg-blue-600/20 text-blue-400 border-blue-500/30'
-                                : 'bg-blue-600/10 text-blue-400 border-blue-500/30 hover:bg-blue-600 hover:text-white'
-                        }`}
-                    >
-                        {(loading || isRefreshing) ? (
-                            <svg className="animate-spin h-3.5 w-3.5 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        {isDark ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
                             </svg>
-                        ) : '↻'}
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                            </svg>
+                        )}
                     </button>
-                    {newDataAvailable && !loading && !isRefreshing && (
-                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-slate-950 animate-pulse" />
-                    )}
+
+                    <div className="relative">
+                        <button
+                            onClick={manualRefresh}
+                            disabled={loading || isRefreshing}
+                            title={newDataAvailable ? 'Hay datos nuevos — actualizá' : 'Actualizar datos'}
+                            className={`flex items-center justify-center w-9 h-9 rounded-xl transition-all border ${
+                                newDataAvailable
+                                ? 'bg-emerald-600/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-600 hover:text-white animate-pulse'
+                                : (loading || isRefreshing)
+                                    ? 'bg-blue-600/20 text-blue-400 border-blue-500/30'
+                                    : 'bg-blue-600/10 text-blue-400 border-blue-500/30 hover:bg-blue-600 hover:text-white'
+                            }`}
+                        >
+                            {(loading || isRefreshing) ? (
+                                <svg className="animate-spin h-3.5 w-3.5 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            ) : '↻'}
+                        </button>
+                        {newDataAvailable && !loading && !isRefreshing && (
+                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-slate-950 animate-pulse" />
+                        )}
+                    </div>
+
+                    <div className="w-px h-6 bg-white/10 mx-2 hidden sm:block"></div>
+
+                    <div className="flex items-center gap-2" title={user?.email}>
+                        <span className="hidden md:inline text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wide max-w-[140px] truncate">
+                            {user?.email}
+                        </span>
+                        <button
+                            onClick={signOut}
+                            title="Cerrar sesión"
+                            className="flex items-center justify-center w-9 h-9 rounded-xl transition-all border border-slate-700/30 text-slate-400 hover:bg-red-600 hover:text-white hover:border-red-500/40"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
-                <div className="w-px h-6 bg-white/10 mx-2 hidden sm:block"></div>
-
-                <div className="flex items-center gap-2" title={user?.email}>
-                    <span className="hidden md:inline text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wide max-w-[140px] truncate">
-                        {user?.email}
-                    </span>
-                    <button
-                        onClick={signOut}
-                        title="Cerrar sesión"
-                        className="flex items-center justify-center w-9 h-9 rounded-xl transition-all border border-slate-700/30 text-slate-400 hover:bg-red-600 hover:text-white hover:border-red-500/40"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-                        </svg>
-                    </button>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                    {DATOS_TABS.map(item => (
+                        <button
+                            key={item.id}
+                            onClick={() => navigateTo(item.id)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold transition-all border ${
+                                activeTab === item.id
+                                ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-900/40'
+                                : 'border-[var(--border-card)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                            }`}
+                        >
+                            <span className="text-sm opacity-80">{item.icon}</span>
+                            <span>{item.label}</span>
+                        </button>
+                    ))}
                 </div>
             </nav>
 
