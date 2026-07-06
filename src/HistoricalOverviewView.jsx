@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFinance } from './FinanceContext';
 import { formatters as Utils } from './formatters';
+import { PctInput } from './components/Inputs';
+import { supabase } from './supabaseClient';
 
 // Últimos N meses (más viejo -> más nuevo), relativo a hoy
 const getLastMonths = (n) => {
@@ -18,17 +20,17 @@ const getLastMonths = (n) => {
     return periods;
 };
 
-// Toma la data cruda de un período (fetchPeriodData) y arma el mismo ledger
-// que usa "Expectativa de Margen": Sueldos + Gastos Fijos + Excepcionales vs.
-// margen de contribución (Mix % x Venta Neta, MGN % sobre ese mix).
-const computePeriodRow = (data) => {
+// Toma la data cruda de un período (fetchPeriodData) + el borrador de Mix/MGN editado en pantalla
+// y arma el mismo ledger que usa "Expectativa de Margen": Sueldos + Gastos Fijos + Excepcionales
+// vs. margen de contribución (Mix % x Venta Neta, MGN % sobre ese mix).
+const computePeriodRow = (raw, draft) => {
     const n = Utils.num;
-    const kpis = data?.dash?.kpis || {};
-    const egresos = data?.dash?.egresos || {};
-    const manual = data?.dash?.estado_result_manual || {};
-    const emp = data?.emp || [];
-    const arca = data?.arca || [];
-    const ventas = data?.ventas || [];
+    const kpis = raw?.dash?.kpis || {};
+    const egresos = raw?.dash?.egresos || {};
+    const manualStored = raw?.dash?.estado_result_manual || {};
+    const emp = raw?.emp || [];
+    const arca = raw?.arca || [];
+    const ventas = raw?.ventas || [];
 
     const isEmpty = n(kpis.venta_bruta) === 0 && emp.length === 0 && arca.length === 0 && ventas.length === 0;
     if (isEmpty) return { isEmpty: true };
@@ -39,10 +41,10 @@ const computePeriodRow = (data) => {
     const cantOps = n(kpis.cant_operaciones);
     const ticketProm = cantOps > 0 ? ventaBruta / cantOps : 0;
 
-    const mixCafePct = n(manual.mix_cafe);
-    const mixProductoPct = n(manual.mix_producto);
-    const mgnCafePct = n(manual.mgn_cafe);
-    const mgnProductoPct = n(manual.mgn_producto);
+    const mixCafePct = n(draft ? draft.mix_cafe : manualStored.mix_cafe);
+    const mgnCafePct = n(draft ? draft.mgn_cafe : manualStored.mgn_cafe);
+    const mgnProductoPct = n(draft ? draft.mgn_producto : manualStored.mgn_producto);
+    const mixProductoPct = Number((100 - Math.min(100, Math.max(0, mixCafePct))).toFixed(1));
 
     const ventaCafe = (mixCafePct / 100) * ventaNeta;
     const ventaProducto = (mixProductoPct / 100) * ventaNeta;
@@ -56,7 +58,7 @@ const computePeriodRow = (data) => {
     const cantEmpleados = emp.length;
     const promedioEmp = cantEmpleados > 0 ? laboralEfectivo / cantEmpleados : 0;
     const operaciones = n(egresos.estructural);
-    const excepcionales = n(manual.excepcionales);
+    const excepcionales = n(manualStored.excepcionales);
 
     const totalGastos = sueldosTotal + operaciones + excepcionales;
     const resultado = margenCafePesos + margenProductoPesos - totalGastos;
@@ -112,30 +114,109 @@ const DataRow = ({ label, periods, field, pctField, isInt, tone }) => (
     </tr>
 );
 
+// Fila con input editable de % (Mix Cafetería / MGN Cafetería / MGN Producto)
+const EditableRow = ({ label, periods, draftField, valueField, drafts, onDraftChange }) => (
+    <tr className="bg-emerald-500/[0.04]">
+        <td className="sticky left-0 z-10 px-4 py-2.5 text-xs font-bold text-[var(--text-muted)] bg-[var(--bg-card)] border-r border-[var(--border-card)] whitespace-nowrap">
+            {label}
+        </td>
+        {periods.map(p => (
+            <td key={p.periodId} className="px-3 py-2.5 text-center">
+                {p.row.isEmpty ? (
+                    <span className="text-[var(--text-dim)] text-sm">—</span>
+                ) : (
+                    <div className="flex flex-col items-center gap-1">
+                        <PctInput
+                            value={drafts[p.periodId]?.[draftField] ?? ''}
+                            onChange={onDraftChange(p.periodId, draftField)}
+                        />
+                        <span className="text-[10px] font-bold text-[var(--text-dim)] tabular-nums">
+                            {Utils.fmt(p.row[valueField])}
+                        </span>
+                    </div>
+                )}
+            </td>
+        ))}
+    </tr>
+);
+
 const HistoricalOverviewView = () => {
-    const { fetchPeriodData } = useFinance();
+    const { fetchPeriodData, invalidateCache } = useFinance();
     const [periods, setPeriods] = useState(null);
+    const [drafts, setDrafts] = useState({});
+    const [saveStatus, setSaveStatus] = useState({}); // { [periodId]: 'saving' | 'ok' | 'error' }
 
     useEffect(() => {
         let cancelled = false;
         (async () => {
             const months = getLastMonths(6);
             const results = await Promise.all(months.map(async (p) => {
+                const periodId = `${p.y}-${p.m}`;
                 try {
-                    const data = await fetchPeriodData(p.y, p.m);
-                    return { ...p, periodId: `${p.y}-${p.m}`, row: computePeriodRow(data) };
+                    const raw = await fetchPeriodData(p.y, p.m);
+                    return { ...p, periodId, raw };
                 } catch {
-                    return { ...p, periodId: `${p.y}-${p.m}`, row: { isEmpty: true } };
+                    return { ...p, periodId, raw: null };
                 }
             }));
-            if (!cancelled) setPeriods(results);
+            if (cancelled) return;
+            setPeriods(results);
+            setDrafts(prev => {
+                const next = { ...prev };
+                results.forEach(p => {
+                    if (next[p.periodId]) return; // no pisar ediciones ya en curso
+                    const m = p.raw?.dash?.estado_result_manual || {};
+                    next[p.periodId] = {
+                        mix_cafe: m.mix_cafe ?? '',
+                        mgn_cafe: m.mgn_cafe ?? '',
+                        mgn_producto: m.mgn_producto ?? '',
+                    };
+                });
+                return next;
+            });
         })();
         return () => { cancelled = true; };
     }, [fetchPeriodData]);
 
-    const colCount = (periods?.length || 6) + 1;
+    const onDraftChange = (periodId, field) => (val) => {
+        setDrafts(prev => ({ ...prev, [periodId]: { ...prev[periodId], [field]: val } }));
+        setSaveStatus(prev => ({ ...prev, [periodId]: null }));
+    };
 
-    if (!periods) {
+    const handleSave = async (period) => {
+        const draft = drafts[period.periodId] || {};
+        setSaveStatus(prev => ({ ...prev, [period.periodId]: 'saving' }));
+
+        const mixCafeNum = Utils.num(draft.mix_cafe);
+        const mixProductoNum = Number((100 - Math.min(100, Math.max(0, mixCafeNum))).toFixed(1));
+        const payload = {
+            periodo: period.periodId,
+            mix_cafe: mixCafeNum,
+            mix_producto: mixProductoNum,
+            mgn_cafe: Utils.num(draft.mgn_cafe),
+            mgn_producto: Utils.num(draft.mgn_producto),
+            excepcionales: Utils.num(period.raw?.dash?.estado_result_manual?.excepcionales),
+        };
+
+        const { error } = await supabase.from('ajustes_periodo').upsert(payload, { onConflict: 'periodo' });
+
+        if (error) {
+            setSaveStatus(prev => ({ ...prev, [period.periodId]: 'error' }));
+            return;
+        }
+
+        invalidateCache(period.y, period.m);
+        setPeriods(prev => prev.map(p => p.periodId === period.periodId
+            ? { ...p, raw: { ...p.raw, dash: { ...p.raw.dash, estado_result_manual: { ...p.raw.dash.estado_result_manual, ...payload } } } }
+            : p));
+        setSaveStatus(prev => ({ ...prev, [period.periodId]: 'ok' }));
+        setTimeout(() => setSaveStatus(prev => ({ ...prev, [period.periodId]: null })), 2500);
+    };
+
+    const rows = periods?.map(p => ({ ...p, row: computePeriodRow(p.raw, drafts[p.periodId]) })) || null;
+    const colCount = (rows?.length || 6) + 1;
+
+    if (!rows) {
         return (
             <div className="animate-fade-in mt-8 space-y-3">
                 <div className="h-10 bg-slate-800/20 rounded-xl skeleton" />
@@ -148,7 +229,7 @@ const HistoricalOverviewView = () => {
         <div className="animate-fade-in mt-6">
             <div className="mb-4">
                 <h2 className="text-xl font-bold text-[var(--text-primary)]">Vista Histórica General</h2>
-                <p className="text-xs text-[var(--text-dim)] mt-1">Últimos 6 meses de un vistazo. Los meses sin datos cargados quedan vacíos.</p>
+                <p className="text-xs text-[var(--text-dim)] mt-1">Últimos 6 meses de un vistazo. Los meses sin datos cargados quedan vacíos. Mix y MGN se editan acá mismo — Mix Producto se completa solo (100% − Mix Cafetería).</p>
             </div>
 
             <div className="rounded-2xl border border-[var(--border-card)] overflow-x-auto no-scrollbar">
@@ -158,7 +239,7 @@ const HistoricalOverviewView = () => {
                             <td className="sticky left-0 z-10 px-4 py-3 text-xs font-black uppercase tracking-wide text-[var(--text-primary)] bg-blue-500/15 border-r border-[var(--border-card)] whitespace-nowrap">
                                 Estado Resultados
                             </td>
-                            {periods.map(p => (
+                            {rows.map(p => (
                                 <td key={p.periodId} className="px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-[var(--text-primary)] bg-blue-500/15">
                                     {p.label}
                                     <span className="ml-1 font-bold opacity-60 normal-case">'{p.yearShort}</span>
@@ -168,28 +249,71 @@ const HistoricalOverviewView = () => {
                     </thead>
                     <tbody>
                         <SectionHeader label="Ventas" colSpan={colCount} />
-                        <DataRow label="Venta Sistema" periods={periods} field="ventaBruta" tone="ventas" />
-                        <DataRow label="IVA" periods={periods} field="ivaDebito" tone="ventas" />
-                        <DataRow label="Venta S/IVA" periods={periods} field="ventaNeta" tone="ventas" />
-                        <DataRow label="Cant. Operaciones" periods={periods} field="cantOps" isInt tone="ventas" />
-                        <DataRow label="Ticket Promedio" periods={periods} field="ticketProm" tone="ventas" />
-                        <DataRow label="Mix Cafetería" periods={periods} field="ventaCafe" pctField="mixCafePct" tone="ventas" />
-                        <DataRow label="MGN Cafetería" periods={periods} field="margenCafePesos" pctField="mgnCafePct" tone="ventas" />
-                        <DataRow label="Mix Producto" periods={periods} field="ventaProducto" pctField="mixProductoPct" tone="ventas" />
-                        <DataRow label="MGN Producto" periods={periods} field="margenProductoPesos" pctField="mgnProductoPct" tone="ventas" />
+                        <DataRow label="Venta Sistema" periods={rows} field="ventaBruta" tone="ventas" />
+                        <DataRow label="IVA" periods={rows} field="ivaDebito" tone="ventas" />
+                        <DataRow label="Venta S/IVA" periods={rows} field="ventaNeta" tone="ventas" />
+                        <DataRow label="Cant. Operaciones" periods={rows} field="cantOps" isInt tone="ventas" />
+                        <DataRow label="Ticket Promedio" periods={rows} field="ticketProm" tone="ventas" />
+
+                        <EditableRow label="Mix Cafetería" periods={rows} draftField="mix_cafe" valueField="ventaCafe" drafts={drafts} onDraftChange={onDraftChange} />
+                        <EditableRow label="MGN Cafetería" periods={rows} draftField="mgn_cafe" valueField="margenCafePesos" drafts={drafts} onDraftChange={onDraftChange} />
+
+                        <tr className="bg-emerald-500/[0.04]">
+                            <td className="sticky left-0 z-10 px-4 py-2.5 text-xs font-bold text-[var(--text-muted)] bg-[var(--bg-card)] border-r border-[var(--border-card)] whitespace-nowrap">
+                                Mix Producto
+                            </td>
+                            {rows.map(p => (
+                                <td key={p.periodId} className="px-4 py-2.5 text-center">
+                                    {p.row.isEmpty ? (
+                                        <span className="text-[var(--text-dim)] text-sm">—</span>
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-0.5">
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-[8px] font-black uppercase tracking-wide text-blue-400 bg-blue-500/10 border border-blue-500/25 rounded px-1">auto</span>
+                                                <span className="text-sm font-bold text-[var(--text-primary)] tabular-nums">{p.row.mixProductoPct.toFixed(1)}%</span>
+                                            </div>
+                                            <span className="text-[10px] font-bold text-[var(--text-dim)] tabular-nums">{Utils.fmt(p.row.ventaProducto)}</span>
+                                        </div>
+                                    )}
+                                </td>
+                            ))}
+                        </tr>
+
+                        <EditableRow label="MGN Producto" periods={rows} draftField="mgn_producto" valueField="margenProductoPesos" drafts={drafts} onDraftChange={onDraftChange} />
+
+                        <tr>
+                            <td className="sticky left-0 z-10 px-4 py-2 text-[10px] font-bold text-[var(--text-dim)] bg-[var(--bg-card)] border-r border-[var(--border-card)] whitespace-nowrap">
+                                Guardar Mix / MGN
+                            </td>
+                            {rows.map(p => (
+                                <td key={p.periodId} className="px-3 py-2 text-center">
+                                    {!p.row.isEmpty && (
+                                        <button
+                                            onClick={() => handleSave(p)}
+                                            disabled={saveStatus[p.periodId] === 'saving'}
+                                            className="px-3 py-1 rounded-lg text-[10px] font-bold border border-blue-500/30 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 transition-all disabled:opacity-50"
+                                        >
+                                            {saveStatus[p.periodId] === 'saving' ? '...' :
+                                             saveStatus[p.periodId] === 'ok' ? '✓ Guardado' :
+                                             saveStatus[p.periodId] === 'error' ? '✗ Error' : 'Guardar'}
+                                        </button>
+                                    )}
+                                </td>
+                            ))}
+                        </tr>
 
                         <SectionHeader label="Gastos" colSpan={colCount} />
-                        <DataRow label="Gastos Fijos (Estructura)" periods={periods} field="operaciones" pctField="operacionesPct" tone="gastos" />
-                        <DataRow label="Sueldos (c/SAC y Cargas)" periods={periods} field="sueldosTotal" pctField="sueldosPct" tone="gastos" />
-                        <DataRow label="Cant. Empleados" periods={periods} field="cantEmpleados" isInt tone="gastos" />
-                        <DataRow label="Promedio por Empleado" periods={periods} field="promedioEmp" tone="gastos" />
-                        <DataRow label="Gastos Excepcionales" periods={periods} field="excepcionales" pctField="excepcionalesPct" tone="gastos" />
+                        <DataRow label="Gastos Fijos (Estructura)" periods={rows} field="operaciones" pctField="operacionesPct" tone="gastos" />
+                        <DataRow label="Sueldos (c/SAC y Cargas)" periods={rows} field="sueldosTotal" pctField="sueldosPct" tone="gastos" />
+                        <DataRow label="Cant. Empleados" periods={rows} field="cantEmpleados" isInt tone="gastos" />
+                        <DataRow label="Promedio por Empleado" periods={rows} field="promedioEmp" tone="gastos" />
+                        <DataRow label="Gastos Excepcionales" periods={rows} field="excepcionales" pctField="excepcionalesPct" tone="gastos" />
 
                         <tr className="bg-emerald-500/10">
                             <td className="sticky left-0 z-10 px-4 py-3 text-xs font-black uppercase tracking-wide text-[var(--text-primary)] bg-[var(--bg-card)] border-r border-[var(--border-card)] whitespace-nowrap">
                                 Totales
                             </td>
-                            {periods.map(p => (
+                            {rows.map(p => (
                                 <td key={p.periodId} className="px-4 py-3 text-center">
                                     {p.row.isEmpty
                                         ? <span className="text-[var(--text-dim)] text-sm">—</span>
@@ -202,7 +326,7 @@ const HistoricalOverviewView = () => {
                             <td className="sticky left-0 z-10 px-4 py-3.5 text-xs font-black uppercase tracking-wide text-[var(--text-primary)] bg-[var(--bg-card)] border-r border-[var(--border-card)] whitespace-nowrap">
                                 Resultado
                             </td>
-                            {periods.map(p => (
+                            {rows.map(p => (
                                 <td key={p.periodId} className="px-4 py-3.5 text-center">
                                     {p.row.isEmpty
                                         ? <span className="text-[var(--text-dim)] text-sm">—</span>
@@ -217,6 +341,7 @@ const HistoricalOverviewView = () => {
             <p className="text-[10px] text-[var(--text-dim)] mt-3 leading-relaxed">
                 Mismo cálculo que "Expectativa de Margen": Resultado = Margen Cafetería + Margen Producto − (Sueldos + Gastos Fijos + Excepcionales).
                 No incluye compras a proveedores por separado porque ya están descontadas dentro del margen (MGN %).
+                Los cambios de Mix/MGN se guardan en el mismo período que usa "Expectativa de Margen" — si lo editás acá, se refleja allá también.
             </p>
         </div>
     );
