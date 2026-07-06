@@ -1,20 +1,25 @@
 import React from 'react';
 
-export const PctInput = ({ value, onChange }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+export const PctInput = ({ value, onChange, compact = false }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 4 : 6 }}>
     <input
       type="number"
       value={value}
       min={0} max={100} step={0.1}
       onChange={e => onChange(e.target.value)}
-      style={{
+      style={compact ? {
+        width: 48, background: 'transparent', border: '1px solid var(--border-card)',
+        borderRadius: 5, color: 'var(--text-dim)', fontSize: 11, fontWeight: 600,
+        padding: '2px 5px', textAlign: 'right', outline: 'none',
+        MozAppearance: 'textfield',
+      } : {
         width: 64, background: 'var(--bg-page)', border: '1px solid var(--border-mid)',
         borderRadius: 7, color: 'var(--text-primary)', fontSize: 14, fontWeight: 700,
         padding: '4px 8px', textAlign: 'right', outline: 'none',
         MozAppearance: 'textfield',
       }}
     />
-    <span style={{ fontSize: 12, color: '#64748b' }}>%</span>
+    <span style={{ fontSize: compact ? 10 : 12, color: '#64748b' }}>%</span>
   </div>
 );
 

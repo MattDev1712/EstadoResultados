@@ -104,7 +104,7 @@ const SectionHeader = ({ label, colSpan }) => (
 );
 
 const DataRow = ({ label, periods, field, pctField, isInt, tone }) => (
-    <tr className={tone === 'ventas' ? 'bg-emerald-500/[0.04]' : tone === 'gastos' ? 'bg-white/[0.02]' : ''}>
+    <tr className={`border-b border-[var(--border-card)] ${tone === 'ventas' ? 'bg-emerald-500/[0.04]' : tone === 'gastos' ? 'bg-white/[0.02]' : ''}`}>
         <td className="sticky left-0 z-10 px-4 py-2.5 text-xs font-bold text-[var(--text-muted)] bg-[var(--bg-card)] border-r border-[var(--border-card)] whitespace-nowrap">
             {label}
         </td>
@@ -115,8 +115,10 @@ const DataRow = ({ label, periods, field, pctField, isInt, tone }) => (
 );
 
 // Fila con input editable de % (Mix Cafetería / MGN Cafetería / MGN Producto)
+// Jerarquía: el resultado en pesos es el dato principal (arriba, grande);
+// el % es el control de edición (abajo, chico y apagado).
 const EditableRow = ({ label, periods, draftField, valueField, drafts, onDraftChange }) => (
-    <tr className="bg-emerald-500/[0.04]">
+    <tr className="bg-emerald-500/[0.04] border-b border-[var(--border-card)]">
         <td className="sticky left-0 z-10 px-4 py-2.5 text-xs font-bold text-[var(--text-muted)] bg-[var(--bg-card)] border-r border-[var(--border-card)] whitespace-nowrap">
             {label}
         </td>
@@ -126,13 +128,14 @@ const EditableRow = ({ label, periods, draftField, valueField, drafts, onDraftCh
                     <span className="text-[var(--text-dim)] text-sm">—</span>
                 ) : (
                     <div className="flex flex-col items-center gap-1">
+                        <div className="text-sm font-bold text-[var(--text-primary)] tabular-nums">
+                            {Utils.fmt(p.row[valueField])}
+                        </div>
                         <PctInput
+                            compact
                             value={drafts[p.periodId]?.[draftField] ?? ''}
                             onChange={onDraftChange(p.periodId, draftField)}
                         />
-                        <span className="text-[10px] font-bold text-[var(--text-dim)] tabular-nums">
-                            {Utils.fmt(p.row[valueField])}
-                        </span>
                     </div>
                 )}
             </td>
@@ -258,7 +261,7 @@ const HistoricalOverviewView = () => {
                         <EditableRow label="Mix Cafetería" periods={rows} draftField="mix_cafe" valueField="ventaCafe" drafts={drafts} onDraftChange={onDraftChange} />
                         <EditableRow label="MGN Cafetería" periods={rows} draftField="mgn_cafe" valueField="margenCafePesos" drafts={drafts} onDraftChange={onDraftChange} />
 
-                        <tr className="bg-emerald-500/[0.04]">
+                        <tr className="bg-emerald-500/[0.04] border-b border-[var(--border-card)]">
                             <td className="sticky left-0 z-10 px-4 py-2.5 text-xs font-bold text-[var(--text-muted)] bg-[var(--bg-card)] border-r border-[var(--border-card)] whitespace-nowrap">
                                 Mix Producto
                             </td>
@@ -267,12 +270,12 @@ const HistoricalOverviewView = () => {
                                     {p.row.isEmpty ? (
                                         <span className="text-[var(--text-dim)] text-sm">—</span>
                                     ) : (
-                                        <div className="flex flex-col items-center gap-0.5">
+                                        <div className="flex flex-col items-center gap-1">
+                                            <div className="text-sm font-bold text-[var(--text-primary)] tabular-nums">{Utils.fmt(p.row.ventaProducto)}</div>
                                             <div className="flex items-center gap-1">
-                                                <span className="text-[8px] font-black uppercase tracking-wide text-blue-400 bg-blue-500/10 border border-blue-500/25 rounded px-1">auto</span>
-                                                <span className="text-sm font-bold text-[var(--text-primary)] tabular-nums">{p.row.mixProductoPct.toFixed(1)}%</span>
+                                                <span className="text-[8px] font-black uppercase tracking-wide text-blue-400/70 bg-blue-500/10 border border-blue-500/20 rounded px-1">auto</span>
+                                                <span className="text-[10px] font-bold text-[var(--text-dim)] tabular-nums">{p.row.mixProductoPct.toFixed(1)}%</span>
                                             </div>
-                                            <span className="text-[10px] font-bold text-[var(--text-dim)] tabular-nums">{Utils.fmt(p.row.ventaProducto)}</span>
                                         </div>
                                     )}
                                 </td>
@@ -281,7 +284,7 @@ const HistoricalOverviewView = () => {
 
                         <EditableRow label="MGN Producto" periods={rows} draftField="mgn_producto" valueField="margenProductoPesos" drafts={drafts} onDraftChange={onDraftChange} />
 
-                        <tr>
+                        <tr className="border-b border-[var(--border-card)]">
                             <td className="sticky left-0 z-10 px-4 py-2 text-[10px] font-bold text-[var(--text-dim)] bg-[var(--bg-card)] border-r border-[var(--border-card)] whitespace-nowrap">
                                 Guardar Mix / MGN
                             </td>
@@ -309,7 +312,7 @@ const HistoricalOverviewView = () => {
                         <DataRow label="Promedio por Empleado" periods={rows} field="promedioEmp" tone="gastos" />
                         <DataRow label="Gastos Excepcionales" periods={rows} field="excepcionales" pctField="excepcionalesPct" tone="gastos" />
 
-                        <tr className="bg-emerald-500/10">
+                        <tr className="bg-emerald-500/10 border-b border-[var(--border-card)]">
                             <td className="sticky left-0 z-10 px-4 py-3 text-xs font-black uppercase tracking-wide text-[var(--text-primary)] bg-[var(--bg-card)] border-r border-[var(--border-card)] whitespace-nowrap">
                                 Totales
                             </td>
