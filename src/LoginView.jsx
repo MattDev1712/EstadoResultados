@@ -6,6 +6,10 @@ import { supabase } from './supabaseClient';
 const SA_PASSWORD = 'EstadoResult@2';
 export const SA_EMAIL = 'admin@estadoresult.local';
 
+// Mismo dominio con el que UsersView arma el email al crear un usuario (ej: "vendedor1" -> vendedor1@DOMINIO).
+// Si lo que se tipea no tiene "@", se asume alias y se completa con este dominio.
+const DOMINIO = 'estadoresult.local';
+
 const LoginView = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -20,7 +24,11 @@ const LoginView = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const loginEmail = email.trim() || (password === SA_PASSWORD ? SA_EMAIL : '');
+        const input = email.trim();
+        let loginEmail = input || (password === SA_PASSWORD ? SA_EMAIL : '');
+        if (loginEmail && !loginEmail.includes('@')) {
+            loginEmail = `${loginEmail.toLowerCase().replace(/\s+/g, '.')}@${DOMINIO}`;
+        }
         if (!loginEmail) {
             setErrorMsg('Ingresá tu usuario.');
             return;
@@ -30,7 +38,7 @@ const LoginView = () => {
         const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
         if (error) {
             setErrorMsg(error.message === 'Invalid login credentials'
-                ? 'Email o contraseña incorrectos.' : error.message);
+                ? 'Usuario o contraseña incorrectos.' : error.message);
             setLoading(false);
         }
         // Si es exito no hace falta setLoading(false): AuthGate desmonta este componente.
@@ -45,9 +53,10 @@ const LoginView = () => {
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Email</label>
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Usuario</label>
                         <input type="text" autoFocus value={email}
                             onChange={e => setEmail(e.target.value)}
+                            placeholder="alias o email"
                             className="w-full bg-[var(--bg-surface)] border border-[var(--border-mid)] rounded-xl px-4 py-3 text-sm text-[var(--text-primary)] focus:ring-2 focus:ring-blue-500 outline-none transition" />
                     </div>
                     <div className="space-y-2">
