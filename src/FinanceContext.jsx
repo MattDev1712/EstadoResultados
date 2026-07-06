@@ -494,6 +494,7 @@ export const FinanceProvider = ({ children }) => {
         newDataAvailable, setNewDataAvailable,
         updateConfig,
         fetchData,
+        fetchPeriodData,
         checkHash,
         prefetchVisiblePeriods,
         manualRefresh,
@@ -506,7 +507,7 @@ export const FinanceProvider = ({ children }) => {
         selectedYear, selectedMonth, cargasPct, viewMode,
         availablePeriods, localAjustes, categoriesMap,
         newDataAvailable, configData,
-        fetchData, checkHash, prefetchVisiblePeriods, manualRefresh, invalidateCache, fetchCategoriesMap
+        fetchData, fetchPeriodData, checkHash, prefetchVisiblePeriods, manualRefresh, invalidateCache, fetchCategoriesMap
     ]);
 
     return (

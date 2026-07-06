@@ -15,6 +15,7 @@ import AuditView from './AuditView';
 import UsersView from './UsersView';
 import { SA_EMAIL } from './LoginView';
 import CargaDatosView from './CargaDatosView'; // Este ya es correcto si CargaDatosView.jsx está en src/
+import HistoricalOverviewView from './HistoricalOverviewView';
 import { CardSkeleton, TableSkeleton } from './Skeleton';
 import MarginExpectationView from './MarginExpectationView';
 import RetentionsModal from './RetentionsModal';
@@ -27,6 +28,7 @@ import NavDropdown from './components/NavDropdown';
 const TAB_TITLES = {
     iva_dashboard: 'Situación IVA',
     margin_dashboard: 'Expectativa de Margen',
+    historico: 'Vista Histórica General',
     carga_datos: 'Carga de Datos',
     empleados: 'Mi Equipo',
     arca: 'Mis Compras',
@@ -746,6 +748,7 @@ const App = () => {
                     </div>
                 </div>
             ) : <MarginExpectationView />;
+            case 'historico': return <HistoricalOverviewView />;
             case 'carga_datos': return (
                 <CargaDatosView
                     onDataReady={handleDataReady}
@@ -831,6 +834,7 @@ const App = () => {
                         items={[
                             { id: 'iva_dashboard', label: 'Situación IVA', icon: '📊' },
                             { id: 'margin_dashboard', label: 'Expectativa Margen', icon: '📈' },
+                            { id: 'historico', label: 'Vista Histórica General', icon: '🗓️' },
                         ]}
                     />
 
