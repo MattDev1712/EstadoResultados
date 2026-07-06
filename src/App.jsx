@@ -39,6 +39,15 @@ const TAB_TITLES = {
     guia: 'Ayuda y Guía',
 };
 
+const DATOS_TABS = [
+    { id: 'carga_datos', label: 'Carga de Datos', icon: '📥' },
+    { id: 'empleados', label: 'Mi Equipo', icon: '👥' },
+    { id: 'arca', label: 'Mis Compras', icon: '🧾' },
+    { id: 'ventas', label: 'Mis Ventas', icon: '💰' },
+    { id: 'retenciones', label: 'Retenciones', icon: '🏧' },
+    { id: 'estructurales', label: 'Gastos Fijos', icon: '🏢' },
+];
+
 // Componente para la barrita de carga superior y el estado de sincronización
 const SyncStatus = ({ isRefreshing, loading }) => {
     const active = isRefreshing || loading;
@@ -824,17 +833,20 @@ const App = () => {
                     ]}
                 />
 
-                <NavDropdown
-                    title="Datos" icon="👥" activeTab={activeTab} setActiveTab={navigateTo}
-                    items={[
-                        { id: 'carga_datos', label: 'Carga de Datos', icon: '📥' },
-                        { id: 'empleados', label: 'Mi Equipo', icon: '👥' },
-                        { id: 'arca', label: 'Mis Compras', icon: '🧾' },
-                        { id: 'ventas', label: 'Mis Ventas', icon: '💰' },
-                        { id: 'retenciones', label: 'Retenciones', icon: '🏧' },
-                        { id: 'estructurales', label: 'Gastos Fijos', icon: '🏢' },
-                    ]}
-                />
+                {DATOS_TABS.map(item => (
+                    <button
+                        key={item.id}
+                        onClick={() => navigateTo(item.id)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold transition-all border ${
+                            activeTab === item.id
+                            ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-900/40'
+                            : 'border-[var(--border-card)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                        }`}
+                    >
+                        <span className="text-sm opacity-80">{item.icon}</span>
+                        <span>{item.label}</span>
+                    </button>
+                ))}
 
                 <NavDropdown
                     title="Admin" icon="⚙️" activeTab={activeTab} setActiveTab={navigateTo}
