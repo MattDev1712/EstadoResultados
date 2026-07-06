@@ -68,6 +68,15 @@ const computePeriodRow = (raw, draft) => {
     const sinEmpleados = emp.length === 0;
     const sinGastosFijos = arca.length === 0;
 
+    // Resultado depende del margen (Mix/MGN), no solo de los gastos.
+    // Si nunca se cargó Mix Cafetería / MGN Cafetería / MGN Producto para
+    // este período, el margen calcula en 0 y el Resultado no es real.
+    const isUnset = (v) => v === undefined || v === null || v === '';
+    const mixCafeRaw = draft ? draft.mix_cafe : manualStored.mix_cafe;
+    const mgnCafeRaw = draft ? draft.mgn_cafe : manualStored.mgn_cafe;
+    const mgnProductoRaw = draft ? draft.mgn_producto : manualStored.mgn_producto;
+    const sinMargen = isUnset(mixCafeRaw) && isUnset(mgnCafeRaw) && isUnset(mgnProductoRaw);
+
     return {
         isEmpty: false,
         ventaBruta, ivaDebito, ventaNeta, cantOps, ticketProm,
@@ -79,6 +88,7 @@ const computePeriodRow = (raw, draft) => {
         excepcionales, excepcionalesPct: pctOf(excepcionales),
         totalGastos, resultado,
         incompleto: sinEmpleados || sinGastosFijos,
+        incompletoResultado: sinEmpleados || sinGastosFijos || sinMargen,
     };
 };
 
@@ -369,8 +379,8 @@ const HistoricalOverviewView = () => {
                                     ) : (
                                         <div className="flex flex-col items-center gap-1">
                                             <span className={`text-sm font-black tabular-nums ${p.row.resultado >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{Utils.fmt(p.row.resultado)}</span>
-                                            {p.row.incompleto && (
-                                                <span title="Todavía falta cargar Sueldos y/o Compras/Costos este período — el resultado no es definitivo." className="text-[8px] font-black uppercase tracking-wide text-amber-500 bg-amber-500/10 border border-amber-500/25 rounded px-1.5 py-0.5 cursor-help">
+                                            {p.row.incompletoResultado && (
+                                                <span title="Todavía falta cargar Sueldos, Compras/Costos y/o el Mix/MGN de este período — el resultado no es definitivo." className="text-[8px] font-black uppercase tracking-wide text-amber-500 bg-amber-500/10 border border-amber-500/25 rounded px-1.5 py-0.5 cursor-help">
                                                     Incompleto
                                                 </span>
                                             )}
