@@ -65,21 +65,45 @@ const computePeriodRow = (raw, draft) => {
 
     const pctOf = (v) => totalGastos > 0 ? (v / totalGastos) * 100 : 0;
 
+    const sinEmpleados = emp.length === 0;
+    const sinGastosFijos = arca.length === 0;
+
     return {
         isEmpty: false,
         ventaBruta, ivaDebito, ventaNeta, cantOps, ticketProm,
         ventaCafe, mixCafePct, margenCafePesos, mgnCafePct,
         ventaProducto, mixProductoPct, margenProductoPesos, mgnProductoPct,
-        operaciones, operacionesPct: pctOf(operaciones),
-        sueldosTotal, sueldosPct: pctOf(sueldosTotal),
+        operaciones, operacionesPct: pctOf(operaciones), sinGastosFijos,
+        sueldosTotal, sueldosPct: pctOf(sueldosTotal), sinEmpleados,
         cantEmpleados, promedioEmp,
         excepcionales, excepcionalesPct: pctOf(excepcionales),
         totalGastos, resultado,
+        incompleto: sinEmpleados || sinGastosFijos,
     };
 };
 
-const Cell = ({ row, field, pctField, isInt, isEmpty }) => {
+// Tag chico para marcar que ese renglón no tiene fuente de datos cargada este período
+// (distinto de "$0 real" — acá directamente no hay Empleados o Compras/Costos cargados).
+const SinDatosTag = () => (
+    <span className="text-[8px] font-black uppercase tracking-wide text-amber-500 bg-amber-500/10 border border-amber-500/25 rounded px-1.5 py-0.5">
+        Sin datos
+    </span>
+);
+
+const Cell = ({ row, field, pctField, isInt, isEmpty, warnField }) => {
     if (isEmpty) return <td className="px-4 py-2.5 text-center text-[var(--text-dim)] text-sm">—</td>;
+    if (warnField && row[warnField]) {
+        return (
+            <td className="px-4 py-2.5 text-center">
+                <div className="flex flex-col items-center gap-1">
+                    <SinDatosTag />
+                    <div className="text-[10px] font-bold text-[var(--text-dim)] tabular-nums">
+                        {isInt ? Math.round(row[field]).toLocaleString('es-AR') : Utils.fmt(row[field])}
+                    </div>
+                </div>
+            </td>
+        );
+    }
     const val = row[field];
     return (
         <td className="px-4 py-2.5 text-center">
@@ -103,13 +127,13 @@ const SectionHeader = ({ label, colSpan }) => (
     </tr>
 );
 
-const DataRow = ({ label, periods, field, pctField, isInt, tone }) => (
+const DataRow = ({ label, periods, field, pctField, isInt, tone, warnField }) => (
     <tr className={`border-b border-[var(--border-card)] ${tone === 'ventas' ? 'bg-emerald-500/[0.04]' : tone === 'gastos' ? 'bg-white/[0.02]' : ''}`}>
         <td className="sticky left-0 z-10 px-4 py-2.5 text-xs font-bold text-[var(--text-muted)] bg-[var(--bg-card)] border-r border-[var(--border-card)] whitespace-nowrap">
             {label}
         </td>
         {periods.map(p => (
-            <Cell key={p.periodId} row={p.row} field={field} pctField={pctField} isInt={isInt} isEmpty={p.row.isEmpty} />
+            <Cell key={p.periodId} row={p.row} field={field} pctField={pctField} isInt={isInt} isEmpty={p.row.isEmpty} warnField={warnField} />
         ))}
     </tr>
 );
@@ -306,8 +330,8 @@ const HistoricalOverviewView = () => {
                         </tr>
 
                         <SectionHeader label="Gastos" colSpan={colCount} />
-                        <DataRow label="Gastos Fijos (Estructura)" periods={rows} field="operaciones" pctField="operacionesPct" tone="gastos" />
-                        <DataRow label="Sueldos (c/SAC y Cargas)" periods={rows} field="sueldosTotal" pctField="sueldosPct" tone="gastos" />
+                        <DataRow label="Gastos Fijos (Estructura)" periods={rows} field="operaciones" pctField="operacionesPct" tone="gastos" warnField="sinGastosFijos" />
+                        <DataRow label="Sueldos (c/SAC y Cargas)" periods={rows} field="sueldosTotal" pctField="sueldosPct" tone="gastos" warnField="sinEmpleados" />
                         <DataRow label="Cant. Empleados" periods={rows} field="cantEmpleados" isInt tone="gastos" />
                         <DataRow label="Promedio por Empleado" periods={rows} field="promedioEmp" tone="gastos" />
                         <DataRow label="Gastos Excepcionales" periods={rows} field="excepcionales" pctField="excepcionalesPct" tone="gastos" />
@@ -318,9 +342,18 @@ const HistoricalOverviewView = () => {
                             </td>
                             {rows.map(p => (
                                 <td key={p.periodId} className="px-4 py-3 text-center">
-                                    {p.row.isEmpty
-                                        ? <span className="text-[var(--text-dim)] text-sm">—</span>
-                                        : <span className="text-sm font-black text-[var(--text-primary)] tabular-nums">{Utils.fmt(p.row.totalGastos)}</span>}
+                                    {p.row.isEmpty ? (
+                                        <span className="text-[var(--text-dim)] text-sm">—</span>
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-1">
+                                            <span className="text-sm font-black text-[var(--text-primary)] tabular-nums">{Utils.fmt(p.row.totalGastos)}</span>
+                                            {p.row.incompleto && (
+                                                <span title="Todavía falta cargar Sueldos y/o Compras/Costos este período — el total no incluye esos gastos." className="text-[8px] font-black uppercase tracking-wide text-amber-500 bg-amber-500/10 border border-amber-500/25 rounded px-1.5 py-0.5 cursor-help">
+                                                    Incompleto
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
                                 </td>
                             ))}
                         </tr>
@@ -331,9 +364,18 @@ const HistoricalOverviewView = () => {
                             </td>
                             {rows.map(p => (
                                 <td key={p.periodId} className="px-4 py-3.5 text-center">
-                                    {p.row.isEmpty
-                                        ? <span className="text-[var(--text-dim)] text-sm">—</span>
-                                        : <span className={`text-sm font-black tabular-nums ${p.row.resultado >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{Utils.fmt(p.row.resultado)}</span>}
+                                    {p.row.isEmpty ? (
+                                        <span className="text-[var(--text-dim)] text-sm">—</span>
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-1">
+                                            <span className={`text-sm font-black tabular-nums ${p.row.resultado >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{Utils.fmt(p.row.resultado)}</span>
+                                            {p.row.incompleto && (
+                                                <span title="Todavía falta cargar Sueldos y/o Compras/Costos este período — el resultado no es definitivo." className="text-[8px] font-black uppercase tracking-wide text-amber-500 bg-amber-500/10 border border-amber-500/25 rounded px-1.5 py-0.5 cursor-help">
+                                                    Incompleto
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
                                 </td>
                             ))}
                         </tr>
