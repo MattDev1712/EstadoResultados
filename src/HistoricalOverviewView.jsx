@@ -137,6 +137,21 @@ const SectionHeader = ({ label, colSpan }) => (
     </tr>
 );
 
+// Sub-agrupador dentro de una sección (Ventas / Gastos): junta filas del mismo
+// concepto (ej. "Volumen", "Personal") sin competir visualmente con el SectionHeader ámbar.
+const SubGroupHeader = ({ label, colSpan, first }) => (
+    <tr>
+        <td
+            colSpan={colSpan}
+            className={`px-4 pb-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--text-dim)] ${
+                first ? 'pt-2' : 'pt-3 border-t border-dashed border-[var(--border-card)]'
+            }`}
+        >
+            {label}
+        </td>
+    </tr>
+);
+
 const DataRow = ({ label, periods, field, pctField, isInt, tone, warnField }) => (
     <tr className={`border-b border-[var(--border-card)] ${tone === 'ventas' ? 'bg-emerald-500/[0.04]' : tone === 'gastos' ? 'bg-white/[0.02]' : ''}`}>
         <td className="sticky left-0 z-10 px-4 py-2.5 text-xs font-bold text-[var(--text-muted)] bg-[var(--bg-card)] border-r border-[var(--border-card)] whitespace-nowrap">
@@ -286,12 +301,17 @@ const HistoricalOverviewView = () => {
                     </thead>
                     <tbody>
                         <SectionHeader label="Ventas" colSpan={colCount} />
+
+                        <SubGroupHeader label="Facturación" colSpan={colCount} first />
                         <DataRow label="Venta Sistema" periods={rows} field="ventaBruta" tone="ventas" />
                         <DataRow label="IVA" periods={rows} field="ivaDebito" tone="ventas" />
                         <DataRow label="Venta S/IVA" periods={rows} field="ventaNeta" tone="ventas" />
+
+                        <SubGroupHeader label="Volumen" colSpan={colCount} />
                         <DataRow label="Cant. Operaciones" periods={rows} field="cantOps" isInt tone="ventas" />
                         <DataRow label="Ticket Promedio" periods={rows} field="ticketProm" tone="ventas" />
 
+                        <SubGroupHeader label="Mix y Margen" colSpan={colCount} />
                         <EditableRow label="Mix Cafetería" periods={rows} draftField="mix_cafe" valueField="ventaCafe" drafts={drafts} onDraftChange={onDraftChange} />
                         <EditableRow label="MGN Cafetería" periods={rows} draftField="mgn_cafe" valueField="margenCafePesos" drafts={drafts} onDraftChange={onDraftChange} />
 
@@ -340,13 +360,19 @@ const HistoricalOverviewView = () => {
                         </tr>
 
                         <SectionHeader label="Gastos" colSpan={colCount} />
-                        <DataRow label="Gastos Fijos (Estructura)" periods={rows} field="operaciones" pctField="operacionesPct" tone="gastos" warnField="sinGastosFijos" />
+
+                        <SubGroupHeader label="Estructura" colSpan={colCount} first />
+                        <DataRow label="Gastos Fijos" periods={rows} field="operaciones" pctField="operacionesPct" tone="gastos" warnField="sinGastosFijos" />
+
+                        <SubGroupHeader label="Personal" colSpan={colCount} />
                         <DataRow label="Sueldos (c/SAC y Cargas)" periods={rows} field="sueldosTotal" pctField="sueldosPct" tone="gastos" warnField="sinEmpleados" />
                         <DataRow label="Cant. Empleados" periods={rows} field="cantEmpleados" isInt tone="gastos" />
                         <DataRow label="Promedio por Empleado" periods={rows} field="promedioEmp" tone="gastos" />
+
+                        <SubGroupHeader label="Extraordinario" colSpan={colCount} />
                         <DataRow label="Gastos Excepcionales" periods={rows} field="excepcionales" pctField="excepcionalesPct" tone="gastos" />
 
-                        <tr className="bg-emerald-500/10 border-b border-[var(--border-card)]">
+                        <tr className="bg-emerald-500/10 border-t-2 border-t-[var(--border-card)] border-b border-b-[var(--border-card)]">
                             <td className="sticky left-0 z-10 px-4 py-3 text-xs font-black uppercase tracking-wide text-[var(--text-primary)] bg-[var(--bg-card)] border-r border-[var(--border-card)] whitespace-nowrap">
                                 Totales
                             </td>
