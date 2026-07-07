@@ -923,6 +923,8 @@ export default function MarginExpectationView() {
         <Card>
           <CardHeader icon="↑" label="Ventas" iconBg="rgba(16,185,129,0.1)" iconColor="#10b981" onInfo={() => setInfoModal('ventas_card')} />
 
+          <div style={S.sectionDivider}>Facturación</div>
+
           <Row label="IVA cobrado" value={Utils.fmt(ivaDébito)} />
           <Row label="Venta Neta S/IVA" bold value={Utils.fmt(ventaNeta)} valueColor="#10b981" />
 
@@ -988,13 +990,13 @@ export default function MarginExpectationView() {
         <Card>
           <CardHeader icon="↓" label="Gastos" iconBg="rgba(244,63,94,0.1)" iconColor="#f43f5e" onInfo={() => setInfoModal('gastos_card')} />
 
-          <div style={S.sectionDivider}>Laboral</div>
+          <div style={S.sectionDivider}>Personal</div>
 
           <Row label="Sueldos (incl. prov. SAC y cargas)" bold value={Utils.fmt(sueldosTotal)} />
           <Row label="Cant. empleados" value={cantEmpleados.toString()} />
           <Row label="Promedio por empleado" value={Utils.fmt(promedioEmp)} />
 
-          <div style={S.sectionDivider}>Operaciones</div>
+          <div style={S.sectionDivider}>Estructura</div>
 
           <Row label="Gastos fijos operativos" bold value={Utils.fmt(operaciones)} />
 
