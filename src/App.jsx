@@ -29,12 +29,6 @@ const TAB_TITLES = {
     iva_dashboard: 'Situación IVA',
     margin_dashboard: 'Expectativa de Margen',
     historico: 'Vista Histórica General',
-    carga_datos: 'Carga de Datos',
-    empleados: 'Mi Equipo',
-    arca: 'Mis Compras',
-    ventas: 'Mis Ventas',
-    estructurales: 'Gastos Fijos',
-    retenciones: 'Retenciones Impositivas',
     config: 'Ajustes del Sistema',
     audit: 'Registro de Cambios',
     usuarios: 'Usuarios del Sistema',
@@ -43,33 +37,29 @@ const TAB_TITLES = {
 
 const DATOS_TABS = [
     { id: 'carga_datos', label: 'Carga de Datos', icon: '📥' },
-    { id: 'empleados', label: 'Mi Equipo', icon: '👥' },
-    { id: 'arca', label: 'Mis Compras', icon: '🧾' },
-    { id: 'ventas', label: 'Mis Ventas', icon: '💰' },
+    { id: 'empleados', label: 'Sueldos', icon: '👥' },
+    { id: 'arca', label: 'Proveedores', icon: '🧾' },
+    { id: 'ventas', label: 'Ventas Sistema', icon: '💰' },
     { id: 'retenciones', label: 'Retenciones', icon: '🏧' },
     { id: 'estructurales', label: 'Gastos Fijos', icon: '🏢' },
 ];
 
-// Componente para la barrita de carga superior y el estado de sincronización
-const SyncStatus = ({ isRefreshing, loading }) => {
-    const active = isRefreshing || loading;
-    return (
-        <>
-            {/* Barrita de carga superior (estilo YouTube/GitHub) */}
-            <div className={`fixed top-0 left-0 right-0 h-[2px] z-[9999] transition-opacity duration-500 ${active ? 'opacity-100' : 'opacity-0'}`}>
-                <div className={`h-full bg-blue-500 shadow-[0_0_10px_#3b82f6] ${active ? 'animate-pulse w-full' : 'w-0'}`} />
+const TabModal = ({ title, icon, onClose, children }) => (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-md animate-fade-in" onClick={onClose}>
+        <div className="bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-card)] w-full max-w-6xl rounded-[2rem] shadow-[0_0_50px_rgba(0,0,0,0.6)] overflow-hidden animate-pop-in flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5 flex-shrink-0">
+                <h2 className="text-lg font-bold text-[var(--text-primary)] tracking-tight flex items-center gap-3">
+                    <span className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-sm font-black ring-1 ring-blue-500/30">{icon}</span>
+                    {title}
+                </h2>
+                <button onClick={onClose} className="text-[var(--text-dim)] hover:text-[var(--text-primary)] transition-all w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/5 active:scale-90">✕</button>
             </div>
-            
-            {/* Badge de estado en el header */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border-card)] backdrop-blur-md shadow-sm transition-all duration-500">
-                <div className={`w-1.5 h-1.5 rounded-full transition-colors duration-500 ${active ? 'bg-blue-400 animate-pulse' : 'bg-emerald-500'}`} />
-                <span className="text-[8px] font-black uppercase tracking-[0.15em] text-[var(--text-dim)]">
-                    {loading ? 'Cargando Datos' : isRefreshing ? 'Sincronizando' : 'Sistema al día'}
-                </span>
+            <div className="overflow-auto px-6 pb-6 scrollbar-hide">
+                {children}
             </div>
-        </>
-    );
-};
+        </div>
+    </div>
+);
 
 const App = () => {
     const {
@@ -143,6 +133,7 @@ const App = () => {
 
     const [showStructModal, setShowStructModal] = useState(false);
     const [showRetentionsModal, setShowRetentionsModal] = useState(false);
+    const [dataModalTab, setDataModalTab] = useState(null); // id de DATOS_TABS cuyo modal está abierto, o null
     const [previewData, setPreviewData] = useState(null);
     const [previewOrigen, setPreviewOrigen] = useState(null);
     const [defaultDate, setDefaultDate] = useState(new Date().toISOString().split('T')[0]);
@@ -749,19 +740,6 @@ const App = () => {
                 </div>
             ) : <MarginExpectationView />;
             case 'historico': return <HistoricalOverviewView />;
-            case 'carga_datos': return (
-                <CargaDatosView
-                    onDataReady={handleDataReady}
-                    setShowStructModal={setShowStructModal}
-                    setShowRetentionsModal={setShowRetentionsModal}
-                    defaultDate={defaultDate}
-                />
-            );
-            case 'empleados': return (loading && empData?.length === 0) ? <TableSkeleton /> : <EmployeesView />;
-            case 'arca': return (loading && arcaData?.length === 0) ? <TableSkeleton /> : <ArcaView />;
-            case 'ventas': return (loading && ventasData?.length === 0) ? <TableSkeleton /> : <VentasSistemaView />;
-            case 'estructurales': return (loading && arcaData?.length === 0) ? <TableSkeleton /> : <StructuralCostsView />;
-            case 'retenciones': return (loading && arcaData?.length === 0) ? <TableSkeleton /> : <RetentionsView />;
             case 'config': return <ConfigView />;
             case 'audit': return <AuditView />;
             case 'usuarios': return <UsersView />;
@@ -774,20 +752,8 @@ const App = () => {
     return (
         <div className="max-w-6xl mx-auto py-6 px-4">
 
-            {/* Cabecera Centrada y Refinada */}
+            {/* Cabecera: solo el selector de meses */}
             <header className="flex flex-col items-center mb-8 animate-fade-in text-center">
-                <div className="mb-6">
-                    <div className="flex flex-col items-center gap-2 mb-2">
-                        <p className="text-[10px] font-black tracking-[0.3em] uppercase" style={{ color: 'var(--text-dim)' }}>
-                            Sistema de Gestión Administrativa
-                        </p>
-                        <SyncStatus isRefreshing={isRefreshing} loading={loading} />
-                    </div>
-                    <h1 className="text-2xl font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>
-                        {TAB_TITLES[activeTab] || 'Panel de Control'}
-                    </h1>
-                </div>
-
                 {/* Selector de Meses Centrado */}
                 <div className="flex items-center gap-2 p-2 bg-[var(--bg-surface)] backdrop-blur-xl rounded-2xl border border-[var(--border-card)] shadow-lg no-scrollbar overflow-x-auto max-w-full">
                     {periodButtons.map(p => {
@@ -829,15 +795,6 @@ const App = () => {
             {/* NAVEGACIÓN POR DESPLEGABLES (CENTRADA) */}
             <nav className="flex flex-col items-center gap-3 mb-12 animate-fade-in">
                 <div className="flex flex-wrap items-center justify-center gap-3">
-                    <NavDropdown
-                        title="Tableros" icon="📊" activeTab={activeTab} setActiveTab={navigateTo}
-                        items={[
-                            { id: 'iva_dashboard', label: 'Situación IVA', icon: '📊' },
-                            { id: 'margin_dashboard', label: 'Expectativa Margen', icon: '📈' },
-                            { id: 'historico', label: 'Vista Histórica General', icon: '🗓️' },
-                        ]}
-                    />
-
                     <NavDropdown
                         title="Admin" icon="⚙️" activeTab={activeTab} setActiveTab={navigateTo}
                         items={[
@@ -913,15 +870,36 @@ const App = () => {
                     {DATOS_TABS.map(item => (
                         <button
                             key={item.id}
-                            onClick={() => navigateTo(item.id)}
+                            onClick={() => setDataModalTab(item.id)}
                             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold transition-all border ${
-                                activeTab === item.id
+                                dataModalTab === item.id
                                 ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-900/40'
                                 : 'border-[var(--border-card)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
                             }`}
                         >
                             <span className="text-sm opacity-80">{item.icon}</span>
                             <span>{item.label}</span>
+                        </button>
+                    ))}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                    {[
+                        { id: 'iva_dashboard', label: 'Situación IVA', icon: '📊' },
+                        { id: 'margin_dashboard', label: 'Expectativa Margen', icon: '📈' },
+                        { id: 'historico', label: 'Vista Histórica General', icon: '🗓️' },
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => navigateTo(tab.id)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold transition-all border ${
+                                activeTab === tab.id
+                                ? 'bg-blue-600 text-white shadow-lg border-blue-600'
+                                : 'border-[var(--border-card)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                            }`}
+                        >
+                            <span className="text-sm opacity-80">{tab.icon}</span>
+                            <span>{tab.label}</span>
                         </button>
                     ))}
                 </div>
@@ -1040,6 +1018,28 @@ const App = () => {
                     </div>
                 )}
             </div>
+
+            {dataModalTab && (
+                <TabModal
+                    title={DATOS_TABS.find(t => t.id === dataModalTab)?.label}
+                    icon={DATOS_TABS.find(t => t.id === dataModalTab)?.icon}
+                    onClose={() => setDataModalTab(null)}
+                >
+                    {dataModalTab === 'carga_datos' && (
+                        <CargaDatosView
+                            onDataReady={handleDataReady}
+                            setShowStructModal={setShowStructModal}
+                            setShowRetentionsModal={setShowRetentionsModal}
+                            defaultDate={defaultDate}
+                        />
+                    )}
+                    {dataModalTab === 'empleados' && ((loading && empData?.length === 0) ? <TableSkeleton /> : <EmployeesView />)}
+                    {dataModalTab === 'arca' && ((loading && arcaData?.length === 0) ? <TableSkeleton /> : <ArcaView />)}
+                    {dataModalTab === 'ventas' && ((loading && ventasData?.length === 0) ? <TableSkeleton /> : <VentasSistemaView />)}
+                    {dataModalTab === 'estructurales' && ((loading && arcaData?.length === 0) ? <TableSkeleton /> : <StructuralCostsView />)}
+                    {dataModalTab === 'retenciones' && ((loading && arcaData?.length === 0) ? <TableSkeleton /> : <RetentionsView />)}
+                </TabModal>
+            )}
 
             <StructuralCostsModal
                 isOpen={showStructModal}
